@@ -279,6 +279,9 @@ public sealed class MetaGadget
         b.Digit.X = !_nxmo.Has("DIGIT_X") ? b.Width >> 1 : _nxmo.Int("DIGIT_X", 0);
     }
 
+    // sprites.js generatePickupIcons: `g.meta._variations.clear()`
+    public void ClearVariations() => _variations.Clear();
+
     public GadgetVariation Variation(bool flip, bool invert, bool rotate)
     {
         int key = (flip ? 1 : 0) | (invert ? 2 : 0) | (rotate ? 4 : 0);

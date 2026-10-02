@@ -102,14 +102,15 @@
    "notes": "ported; probe.json: shadows of every active skill identical on 3710 probe frames"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "core.sprites",
    "area": "engine",
    "title": "Sprite sets, scheme recolouring, masks",
    "source": "lemmix/js/sprites.js",
    "oracle": "sim-hash",
    "phase": 2,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "SpriteSet, recolouring, flat clear-physics variants, Lemming.render variant/countdown, generatePickupIcons ported (Engine/Sprites.cs); identical: 9 sets x 35 actions x 2 dirs x 22 variants (13860 hashes, sprites.json), pickups on 31 levels, lemming renders in panel.json"
   },
   {
    "status": "done",
@@ -123,14 +124,15 @@
    "notes": "ported; checked through build.json (1076 levels, terrain and summary identical)"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "core.panel",
    "area": "engine",
    "title": "Skill panel 416x40: cells, split cells, info strip, hold-repeat",
    "source": "lemmix/js/panel.js",
    "oracle": "panel-pixels",
    "phase": 3,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "GamePanel + PixelCanvas (DisplayImage) ported (Ui/GamePanel.cs); identical on 42 levels (24 with a pack's own panel graphics, 7 packs) x ~211 scripted states and presses = 8862 steps: pixels, layout, relief masks, game/command/replay state (panel.json)"
   },
   {
    "status": "todo",
@@ -153,14 +155,15 @@
    "webSha": "239ebc5"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "render.cursor",
    "area": "render",
    "title": "NeoLemmix cursor at the end of the beam (cross, square, arrows)",
    "source": "3d/js/cursor.js",
    "oracle": "unit",
    "phase": 3,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "Cursor pictures ported (Ui/CursorImages.cs); 6 keys x 16/32 px identical in 3 asset scenarios (cursor.json); CSS/sprite dressing left to the host"
   },
   {
    "status": "todo",
@@ -223,14 +226,15 @@
    "webSha": "239ebc5"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "render.minimap",
    "area": "render",
    "title": "Minimap in the panel, trigger-drag to centre",
    "source": "3d/js/minimap.js",
    "oracle": "pixels",
    "phase": 3,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "MiniMap pixels/offsets/frame/pointToLevel ported (Ui/Minimap.cs); identical on 21 levels x 2 specs x 19 steps incl. scrolling, freeze, digs, rewind (minimap.json); mesh layout left to the host"
   },
   {
    "status": "todo",

@@ -1,0 +1,31 @@
+{
+ "webSha": "239ebc5",
+ "scenarios": {
+  "assets": {
+   "ok": true,
+   "keys": {
+    "standard": "15c7105707d6ce7e",
+    "standard-left": "4246f2f8fddb9a2e",
+    "standard-right": "670970eee414c6ce",
+    "focused": "ce071aadf74e2a01",
+    "focused-left": "a1c117d3c1afe5d7",
+    "focused-right": "d3729153eb9164ad"
+   }
+  },
+  "no-hr": {
+   "ok": true,
+   "keys": {
+    "standard": "8193dbc260a3f004",
+    "standard-left": "7d73e13d5cd8d38f",
+    "standard-right": "1aa69e9bcebb8513",
+    "focused": "36f9cf6830877ae7",
+    "focused-left": "7ceb93b6f4357327",
+    "focused-right": "3019f39e7706b1ac"
+   }
+  },
+  "no-cursor": {
+   "ok": false,
+   "keys": {}
+  }
+ }
+}

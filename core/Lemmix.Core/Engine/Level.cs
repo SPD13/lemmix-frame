@@ -69,6 +69,8 @@ public sealed class GadgetObject
         }
     }
     public Frame CurrentFrame() => Gadget.Render();
+    // forget the rendered frames (the pickup pictures were painted after they were made)
+    public void ResetFrames() => _frames = null;
 }
 
 // A placed gadget: its metadata variation, trigger area and animation state (level.js Gadget).
@@ -130,7 +132,7 @@ public sealed class Gadget
 
     public GadgetSpec Spec { get; }
     public MetaGadget Meta { get; }
-    public GadgetVariation V { get; }
+    public GadgetVariation V { get; set; } // set by SpriteSet.GeneratePickupIcons (sprites.js `h.v = ...`)
     public int Index { get; }
     public int X, Y;
     public bool Flip, Invert, Rotate, NoOverwrite, OnlyOnTerrain;
@@ -192,6 +194,9 @@ public sealed class Gadget
             return (RemainingLemmings, Meta.DigitMinLength);
         return null;
     }
+
+    // sprites.js generatePickupIcons: `g._frameCache.clear()`
+    public void ClearFrameCache() => _frameCache.Clear();
 
     // The composite picture of every visible animation, at this moment.
     public Frame Render()
