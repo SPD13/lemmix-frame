@@ -266,6 +266,17 @@
   },
   {
    "status": "done",
+   "id": "render.skillbar",
+   "area": "render",
+   "title": "Skill bar in the scene: panel texture, relief from reliefMasks (lem3d-skillbar), flat skills, hover pop-out incl. split halves, minimap plane, ray hits -> panel presses",
+   "source": "3d/js/gui.js",
+   "oracle": "geometry-hash",
+   "phase": 3,
+   "webSha": "239ebc5",
+   "notes": "Render/SkillBar.cs (GuiPanel + bridge.js buildExtrudedSpriteGeometry) identical on 21 levels x 4 relief/flat combos x 78 steps = 6552 (skillbar.json: texture, every object's visibility/transform, hover crop, labels, forwarded presses, minimap drag, float32 relief/text geometry); Godot app/Board/SkillBarView.cs + 'skillbar' shot"
+  },
+  {
+   "status": "done",
    "id": "render.terrain",
    "area": "render",
    "title": "Terrain chunks by depth class, greedy meshing, live re-mesh on dig/build",

@@ -15,6 +15,7 @@ public partial class Shots : Node
     {
         ["canvas-demo"] = CanvasDemo,
         ["terrain"] = TerrainShot.Make,
+        ["skillbar"] = SkillBarShot.Make,
     };
 
     // a check to run on the saved picture (a shot may set it)
