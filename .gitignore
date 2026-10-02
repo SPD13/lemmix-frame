@@ -12,3 +12,4 @@ oracle/node_modules/
 oracle/out/*.log
 oracle/out/trace/
 oracle/out/sim/fuzz.json
+oracle/out/index/

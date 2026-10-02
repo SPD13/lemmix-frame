@@ -839,14 +839,15 @@
    "webSha": "239ebc5"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "core.indexes",
    "area": "assets",
    "title": "levels/styles/music index builders (sort order)",
    "source": "tools/levels-index.js",
    "oracle": "index-dump",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "levels/styles/music index builders (no classic packs); JSON identical to the web builders for the installed assets; NaturalCompare = localeCompare(numeric, base) on 6000 pairs"
   },
   {
    "status": "todo",
