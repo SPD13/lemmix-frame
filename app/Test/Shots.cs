@@ -15,6 +15,12 @@ public partial class Shots : Node
     {
         ["canvas-demo"] = CanvasDemo,
         ["terrain"] = TerrainShot.Make,
+        ["board"] = r => BoardShot.Make(r, "board"),
+        ["board-env"] = r => BoardShot.Make(r, "board-env"),
+        ["board-cpm"] = r => BoardShot.Make(r, "board-cpm"),
+        ["board-shadows"] = r => BoardShot.Make(r, "board-shadows"),
+        ["board-plain"] = r => BoardShot.Make(r, "board-plain"),
+        ["board-beast"] = r => BoardShot.Make(r, "board-beast"),
         ["skillbar"] = SkillBarShot.Make,
     };
 

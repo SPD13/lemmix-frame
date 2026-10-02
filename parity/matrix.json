@@ -146,14 +146,15 @@
    "notes": "Render/BridgeGeometry.cs: SpriteGeometryCache (forFrame/forMask relief, flat silhouettes, colour blend baked at soft/smooth, body/loose parts, rounded+blended slices), clipFrameToBounds, SpriteCapture, BillboardPool placement, ParticleCloud buffers. oracle/bridge.js: every gadget frame of 64 levels (353 objects) + 31 default lemming anims + 14 gfx/mask pictures, each frame under every switch (smooth off/on, blend off/0.5/1, clear physics), captures cut to the level; float32/uint16 buffers byte-identical (BridgeTests)"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "render.clear_physics",
    "area": "render",
    "title": "Clear physics overlay",
    "source": "3d/js/app.js:2981",
    "oracle": "pixels",
    "phase": 3,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Board/OverlaysView.cs ClearPhysicsOverlay (makeClearPhysicsOverlay: trigger checker, blocker fields, spawn marks, 0.75 over the slab, no depth test, renderOrder -5), the terrain as its physics map with the one-way highlight (SetPhysicsPaint), gadgets as flat silhouettes walking the hue every 5 s (cpmAnimate, setHSL().getHex()), water tinted, background/paint/on-terrain gadgets dropped, markers' pictures hidden. Screenshot vs the web: build/shots/board-contact-board-cpm.png (oracle/boardshots.js). The layer blends in three's raw space through the screen texture (BasicKey.GammaBlend); 2 levels off from the 10-bit linear buffer"
   },
   {
    "status": "done",
@@ -197,7 +198,7 @@
    "oracle": "geometry+screenshot",
    "phase": 3,
    "webSha": "239ebc5",
-   "notes": "terrain part done: emboss, smooth, edge smoothing (smoothterrain), colour blend off/soft/smooth all geometry-identical on the terrain (oracle/terrain.js, TerrainTests); doors, skills-bar relief, flat skills, environment not covered here"
+   "notes": "Board part done (app/Board, app/Session/GameSession.cs switch setters): emboss (rebuildRelief), smooth, edge smoothing (terrain + openings re-cut + wave slices re-dressed), colour blend off/soft/smooth on terrain and scenery (blendedMaterialFor), doors (openings, hatch flaps, exit funnels, water bodies, wave stacks; the switch asks the shell for a reload), environment none/full; screenshots match the web (build/shots/board-contact-board.png, -plain, -env, -beast; BoardTests). Skills-bar relief and flat skills belong to the skill bar (app/Board/SkillBarView.cs)"
   },
   {
    "status": "done",
@@ -211,7 +212,7 @@
    "notes": "Render/EnvGen.cs (+ V8Math.cs: V8's fdlibm sin/cos/exp with clang's arm64 FMA contraction, Math.hypot - bit-identical to node on 200k args). oracle/envgen.js: 46 levels / 42 galleries: gallery sheet, palette, pieces, mode, the runtime fog-only pictures, the full collage (every plane) and its standing pieces, prop backdrop / wallpaper sky / far-wall wallpaper; identical (EnvGenTests). Left out: DOS inputs (dosBitmap, ground palette) and decor from a level's own objects (the page never builds from a level context; the JS would throw)"
   },
   {
-   "status": "wip",
+   "status": "done",
    "id": "render.environment",
    "area": "render",
    "title": "Room around the board: rings, fog, skyline, floor, dome, background tiling, falling lemmings",
@@ -219,17 +220,18 @@
    "oracle": "screenshot",
    "phase": 3,
    "webSha": "239ebc5",
-   "notes": "Data side ported, Render/EnvironmentLayout.cs: gallery context from the styles index, fog-only rule (web/3d/env ships no pictures), level wallpaper/backdrop/scene colours, roomFor rooms, ring/drum/bowl/dome geometry and the fog sphere (THREE.SphereGeometry, no normals) as placeDesktop lays them, standing-piece geometry and placement; identical (EnvGenTests). Not ported: the scene graph, headset placement/keepBoardInside/camera clamp and per-frame wall/prop hiding (Godot side), falling lemmings (app.js)"
+   "notes": "Godot side: app/Board/EnvironmentView.cs - rings, drums, bowl, dome, fog sphere (BackSide), standing pieces, the scene background as the fog (no THREE.Fog: the haze is painted into the pictures, as on the web), the backdrop material shared with the board, galleries built on a worker and kept (3), offline pictures from 3d/env when the asset root has them (else fog only, as the web), placeDesktop/placeForXR, floorWorldY, per-frame wall/band/prop hiding, the desktop eye kept in the first ring, the headset's board kept inside the room; falling lemmings continue to the room floor (BoardScene fallers). Screenshots: build/shots/board-contact-board-env.png and -beast.png"
   },
   {
-   "status": "todo",
+   "status": "n/a",
    "id": "render.flat_view",
    "area": "render",
    "title": "2D flat view inside VR and the animated transition",
    "source": "3d/js/app.js:1898",
    "oracle": "screenshot",
    "phase": 3,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "n/a: the headset always shows the diorama (3d/README.md)"
   },
   {
    "status": "done",
@@ -985,7 +987,7 @@
    "notes": "hotkey dispatch data done: HotkeyDispatch.cs (app.js keydown/keyup, held filters, repeat, VR buttons/sticks, runHotkey gate, nuke double press), unit-tested against app.js; the table itself identical in oracle/settings.js (store hash + result per step) replayed by Lemmix.Core.Tests. Godot key events into it pending"
   },
   {
-   "status": "wip",
+   "status": "done",
    "id": "audio.music",
    "area": "audio",
    "title": "Music: MUSIC fallback list, .nxmi rotation, pack folder, tracker via libopenmpt",
@@ -993,10 +995,10 @@
    "oracle": "render-checksum",
    "phase": 6,
    "webSha": "239ebc5",
-   "notes": "MusicResolver (musicCandidates), libopenmpt binding (render deterministic, loops), GameAudio music via AudioStreamGenerator. AdLib fallback dropped (classic data). Wiring pending"
+   "notes": "Wired: GameSession.MusicCandidates = MusicResolver over the level's MUSIC line, the pack's musicRotation by the level's ordinal in the pack (levels/index.json pack node), the pack's musicDir/musicFiles then neolemmix/music (its index.json); PlayMusic on entering the tree and SetMusic(on/off) (state.music)"
   },
   {
-   "status": "wip",
+   "status": "done",
    "id": "audio.sfx",
    "area": "audio",
    "title": "SFX cues, spatial at the emitter",
@@ -1004,7 +1006,7 @@
    "oracle": "cue-sequence",
    "phase": 6,
    "webSha": "239ebc5",
-   "notes": "GameAudio.PlayCue: neolemmix/sound by name (wav/ogg/mp3, content sniffed), positioned with the web panner falloff; every file decodes except 2 GSM 6.10 WAVs (teleporter_02/03, browser cannot either). Wiring to the game loop pending (app.js port)"
+   "notes": "Wired in app/Session/GameSession.cs: each tick's sim cues (game.sounds, identical frame by frame) played through GameAudio.PlayCue at sfxPos (the lemmings' plane through the diorama's placement), the listener at the eye (BoardTests.SoundCuesAtTheirPlace). The web's extra AdLib effects (assign click, door flaps, letsgo at load, nuke, builder ting) are classic-engine data, not part of the native app; the Lemmix sim cues its own file sounds for those"
   },
   {
    "status": "todo",

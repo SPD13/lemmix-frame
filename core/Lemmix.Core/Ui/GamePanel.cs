@@ -341,8 +341,9 @@ public sealed class GamePanel : IGamePanel
         return bmp;
     }
 
-    // A skill's picture: the lemming sprite NeoLemmix puts on the button.
-    Bitmap SkillIcon(string name)
+    // A skill's picture: the lemming sprite NeoLemmix puts on the button (public: the replay
+    // markers wear it, as replay-markers.js reads gui._skillIcon).
+    public Bitmap SkillIcon(string name)
     {
         if (_icons.TryGetValue(name, out var cached)) return cached;
         var bmp = new Bitmap(Cell, 23);
