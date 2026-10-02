@@ -26,6 +26,7 @@ public partial class Main : Node3D
 
         var args = OS.GetCmdlineUserArgs();
         if (args.Contains("--probe")) AddChild(new Test.Probe());
+        if (args.Contains("--test")) AddChild(new Test.TestRunner());
         if (args.Contains("--smoke"))
             GetTree().CreateTimer(0.5).Timeout += () => { GD.Print("[lemmix] smoke ok"); GetTree().Quit(0); };
     }
