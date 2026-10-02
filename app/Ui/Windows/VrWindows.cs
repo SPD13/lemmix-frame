@@ -135,9 +135,10 @@ public sealed class VrWindows
     }
 
     /** askVrConfirm: the in-scene twin of askConfirm. */
-    public void AskConfirm(string title, Action action)
+    public void AskConfirm(string title, Action action, Action<VrModal>? paint = null)
     {
-        Modal.Ask(title);
+        // `paint`: a question painted by its asker (the pages' longer texts, app/Ui/Pages)
+        if (paint != null) paint(Modal); else Modal.Ask(title);
         SetModal(true);
         _confirm = action; // after SetModal, which clears it on close
     }

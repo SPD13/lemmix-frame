@@ -889,17 +889,18 @@
    "oracle": "view-model",
    "phase": 5,
    "webSha": "239ebc5",
-   "notes": "data part done: Hotkeys.cs tables/describe/tagOf/allowedOn, HotkeyManager (presets, VR preset, set/clear, import/export with the web's texts and messages), identical in oracle/settings.js (store hash + result per step) replayed by Lemmix.Core.Tests. Dialog UI (tabs, list, editor, find key) pending"
+   "notes": "data part done: Hotkeys.cs tables/describe/tagOf/allowedOn, HotkeyManager (presets, VR preset, set/clear, import/export with the web's texts and messages), identical in oracle/settings.js replayed by Lemmix.Core.Tests. Dialog: app/Ui/Pages/VrControlsDialog.cs - tabs, list, editor (function/skill/frames/hold/special as popups and the number keyboard), show unassigned, find key (Bluetooth key or controller button), presets, VR default, export/import via the export/import folders, tags; PagesTests + page-controls-* shots. Not wired yet"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "ui.key_hints",
    "area": "ui",
    "title": "Key hints",
    "source": "3d/js/app.js",
    "oracle": "view-model",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Ui/Pages/VrKeyHints.cs: the #hud-keys drawer's lines from HotkeyManager (text identical to the web's, test against the fixture) and refreshKeyHints' button titles. Not wired yet"
   },
   {
    "status": "wip",
@@ -924,14 +925,15 @@
    "notes": "VR catalog UI ported (app/Ui/Windows/VrCatalog.cs): list layout (= web cells), tiles/rows/heading/scrollbar paint call for call, pick/hover/reveal, stick + scrollbar scrolling, recent/favorites filters, close/locked, Load() building items from ICatalogLibrary (tested over a fake tree). Left for integration: ICatalogLibrary over core Library (LevelTree, LevelProgress, Favorites, Recent, Solutions, names scan), WantsThumb miniatures, EnterLevel; the desktop library (search, order, rescan) is not part of this"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "ui.replay_files",
    "area": "ui",
    "title": "Load/save .nxrp through a device folder",
    "source": "3d/js/app.js",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Ui/Pages/VrReplayFiles.cs: .nxrp files of <user data>/replays with load (another level's replay asks first), save replay under the web's file name. Not wired yet"
   },
   {
    "status": "wip",
@@ -953,27 +955,29 @@
    "oracle": "view-model",
    "phase": 5,
    "webSha": "239ebc5",
-   "notes": "Core/Setup: Installer (units, detectKind, level zip mapping, replace/uninstall, index rebuild) + Downloads (official zips, retry, zip check); real downloads install like the web copy (LEMMIX_DOWNLOAD_TEST=1). VR panel UI pending"
+   "notes": "Core/Setup: Installer (units, detectKind, level zip mapping, replace/uninstall, index rebuild) + Downloads (official zips, retry, zip check); real downloads install like the web copy (LEMMIX_DOWNLOAD_TEST=1). VR page: app/Ui/Pages/VrSetupPage.cs (+ SetupBackend over Installer/Downloads/ConfigFiles): engine/styles rows with dots and versions, download straight from neolemmix.com then install, install zip from <user data>/import, level dirs with delete, progress bar off the frame, the 3 config files export/import (progress merge), credits, PLAY / what is missing; confirms through VrModal (WindowsPageConfirm). PagesTests + page-setup* shots vs build/webshots/pages. Not wired into the app yet (integration)"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "ui.solutions",
    "area": "ui",
    "title": "Solutions list: search, pack filter, show filter, play",
    "source": "3d/js/solutions.js",
    "oracle": "view-model",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Ui/Pages/VrSolutionsPage.cs + SolutionsBackend (LevelTree + solutions index): summary, fuzzy search (VR keyboard / Bluetooth), pack and show filters, column sort, play level / play solution; solver queue left out. Rows, counts and search order match the web (fixture app/Test/Fixtures/pages.json from oracle/pageshots.js). Not wired yet"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "ui.vr_keyboard",
    "area": "ui",
    "title": "In-VR text keyboard for library search",
    "source": "3d/js/library.js",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Ui/Pages/VrKeyboard.cs (beam keyboard, letters or digits, Bluetooth typing) + CatalogSearch (library.js search on VrCatalog: matches as typed, Enter plays the first, Escape clears then closes) + VrPages.OpenLibrarySearch. Not wired yet"
   },
   {
    "status": "wip",
