@@ -910,14 +910,15 @@
    "webSha": "239ebc5"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "ui.setup",
    "area": "ui",
    "title": "Setup: download engine/styles/Lemmings Plus, import zip, list/delete packs, storage, versions, config export/import, credits",
    "source": "3d/js/setup.js",
    "oracle": "view-model",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "Core/Setup: Installer (units, detectKind, level zip mapping, replace/uninstall, index rebuild) + Downloads (official zips, retry, zip check); real downloads install like the web copy (LEMMIX_DOWNLOAD_TEST=1). VR panel UI pending"
   },
   {
    "status": "todo",
