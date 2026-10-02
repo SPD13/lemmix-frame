@@ -3,27 +3,29 @@
  "generated": "node parity/gen-matrix.js",
  "rows": [
   {
-   "status": "todo",
+   "status": "wip",
    "id": "core.game",
    "area": "engine",
    "title": "Game adapter: commands, timer, state, results (game.js + classic CommandManager/Command*/EventHandler)",
    "source": "lemmix/js/game.js",
    "oracle": "command-fuzz",
    "phase": 2,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "Game/GameTimer/Skills/Victory/commands ported; command fuzz oracle pending. Web quirk kept: CommandSelectSkill(0) selects nothing (first panel skill by hotkey)"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "core.lemgame",
    "area": "engine",
    "title": "LemGame: all 21 skills, gadgets, zombies, neutrals, talismans, time limit",
    "source": "lemmix/js/lemgame.js",
    "oracle": "sim-hash",
    "phase": 2,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "LemGame ported (3 partial files); per-frame state identical: 1076 levels no input x3000 frames, 85 solutions, fuzz"
   },
   {
-   "status": "wip",
+   "status": "done",
    "id": "core.level",
    "area": "engine",
    "title": "Level build: terrain, physics map, gadgets, seeded animation frames",
@@ -31,7 +33,7 @@
    "oracle": "parse-dump+sim-hash",
    "phase": 2,
    "webSha": "239ebc5",
-   "notes": "parse + build done and identical on 1076 levels (build.json); gadget render pending sim oracle"
+   "notes": "parse + build identical on 1076 levels (build.json); sim identical (noinput, solutions)"
   },
   {
    "status": "done",
@@ -45,14 +47,15 @@
    "notes": "ported; checked through build.json (1076 levels, terrain and summary identical)"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "core.picking",
    "area": "engine",
    "title": "Lemming under cursor, priority, direction/walker filters",
    "source": "lemmix/js/lemgame.js",
    "oracle": "pick-dump",
    "phase": 2,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "GetPriorityLemming ported; pick-dump oracle pending"
   },
   {
    "status": "done",
@@ -66,34 +69,37 @@
    "notes": "ported; checked through build.json (1076 levels, terrain and summary identical)"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "core.replay",
    "area": "engine",
    "title": ".nxrp parse/serialize, cut, insert mode",
    "source": "lemmix/js/replay.js",
    "oracle": "sim-hash",
    "phase": 2,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": ".nxrp parse/serialize; serialize text identical in fuzz.json"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "core.rewind",
    "area": "engine",
    "title": "Rewind states every 170 frames, thinning, silent re-sim",
    "source": "lemmix/js/rewind.js",
    "oracle": "rewind-selfcheck",
    "phase": 2,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "ported; rewind self-check oracle pending"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "core.shadows",
    "area": "engine",
    "title": "Skill shadow simulation",
    "source": "lemmix/js/shadows.js",
    "oracle": "shadow-dump",
    "phase": 2,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "ported; shadow-dump oracle pending"
   },
   {
    "status": "todo",

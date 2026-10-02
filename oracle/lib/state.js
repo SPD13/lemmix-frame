@@ -10,10 +10,14 @@ function schemaOf(Lemmix, game) {
   const scalars = Object.keys(game.saveState({ physicsOnly: true }).scalars);
   const L = new Lemmix.Lemming(0);
   const lemming = Object.keys(L).filter((k) => k !== "game");
-  return { scalars, lemming,
+  return { scalars, lemming, lemmingExtra: LEMMING_EXTRA,
     gadget: ["remainingLemmings", "holdActive", "triggered", "secondariesTreatAsBusy", "teleLem", "zombieMode", "neutralMode", "x", "y", "effect"],
     animation: ["frame", "state", "visible"] };
 }
+
+// fields lemgame.js adds to a lemming outside its constructor, hashed after the schema's
+// (absent = null): handleLasering sets laserHitPoint = [x, y]
+const LEMMING_EXTRA = ["laserHitPoint"];
 
 const sortedNumKeys = (o) => Object.keys(o).map(Number).sort((a, b) => a - b);
 
@@ -31,9 +35,10 @@ function hashFrame(game, schema, withTerrain) {
   h.word(game.lemmings.length);
   for (const L of game.lemmings) {
     for (const k of schema.lemming) h.any(L[k], "lem." + k);
+    for (const k of LEMMING_EXTRA) h.any(L[k], "lem." + k);
     // a field the constructor does not create would be missed silently: refuse it
-    if (Object.keys(L).length !== schema.lemming.length + 1) {
-      const extra = Object.keys(L).filter((k) => k !== "game" && !schema.lemming.includes(k));
+    if (Object.keys(L).length !== schema.lemming.length) {
+      const extra = Object.keys(L).filter((k) => k !== "game" && !schema.lemming.includes(k) && !LEMMING_EXTRA.includes(k));
       if (extra.length) throw new Error("lemming field outside the schema: " + extra.join(","));
     }
   }
