@@ -1,0 +1,13 @@
+# A Linux arm64 box that renders Godot off screen: Xvfb, Mesa's software Vulkan (lavapipe) and
+# OpenGL (llvmpipe), the .NET 8 runtime. tools/render.sh streams the project in and the
+# screenshots out (colima shares no folder with this repo).
+FROM debian:bookworm-slim
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      xvfb xauth mesa-vulkan-drivers libvulkan1 libgl1-mesa-dri libglx-mesa0 libegl1 \
+      libfontconfig1 libxcursor1 libxinerama1 libxrandr2 libxi6 libxkbcommon0 libasound2 libpulse0 \
+      libdbus-1-3 ca-certificates curl libicu72 \
+    && rm -rf /var/lib/apt/lists/*
+RUN curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
+    && bash /tmp/dotnet-install.sh --runtime dotnet --channel 8.0 --install-dir /usr/share/dotnet \
+    && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet && rm /tmp/dotnet-install.sh
+ENV DOTNET_ROOT=/usr/share/dotnet
