@@ -949,24 +949,26 @@
    "webSha": "239ebc5"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "audio.music",
    "area": "audio",
    "title": "Music: MUSIC fallback list, .nxmi rotation, pack folder, tracker via libopenmpt",
    "source": "3d/js/audio.js",
    "oracle": "render-checksum",
    "phase": 6,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "MusicResolver (musicCandidates), libopenmpt binding (render deterministic, loops), GameAudio music via AudioStreamGenerator. AdLib fallback dropped (classic data). Wiring pending"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "audio.sfx",
    "area": "audio",
    "title": "SFX cues, spatial at the emitter",
    "source": "3d/js/audio.js",
    "oracle": "cue-sequence",
    "phase": 6,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "GameAudio.PlayCue: neolemmix/sound by name (wav/ogg/mp3, content sniffed), positioned with the web panner falloff; every file decodes except 2 GSM 6.10 WAVs (teleporter_02/03, browser cannot either). Wiring to the game loop pending (app.js port)"
   },
   {
    "status": "todo",
