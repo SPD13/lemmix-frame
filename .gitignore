@@ -9,4 +9,5 @@ obj/
 native/libopenmpt/src/
 native/libopenmpt/out/
 oracle/node_modules/
-oracle/out/
+oracle/out/*.log
+oracle/out/trace/

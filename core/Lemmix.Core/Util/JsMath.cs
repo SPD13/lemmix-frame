@@ -28,6 +28,16 @@ public static class JsMath
     public static int Trunc(double x) => ToInt32(Math.Truncate(x));
     public static int Floor(double x) => ToInt32(Math.Floor(x));
 
+    // A store into a Uint8ClampedArray (ToUint8Clamp): clamp to 0..255, round half to even.
+    public static byte ClampU8(double v)
+    {
+        if (double.IsNaN(v) || v <= 0) return 0;
+        if (v >= 255) return 255;
+        return (byte)Math.Round(v, MidpointRounding.ToEven);
+    }
+
+    public static byte ClampU8(int v) => v <= 0 ? (byte)0 : v >= 255 ? (byte)255 : (byte)v;
+
     // JS % on numbers keeps the sign of the dividend, like C# % on ints and doubles.
     public static int Mod(int a, int b) => a % b;
 }

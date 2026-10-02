@@ -1,0 +1,6 @@
+{
+  "name": "lemmix-frame-oracle",
+  "private": true,
+  "description": "Runs the web version's Lemmix engine (web/) in Node and writes the reference the C# port is tested against",
+  "dependencies": { "pngjs": "^7.0.0" }
+}

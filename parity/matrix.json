@@ -23,24 +23,26 @@
    "webSha": "239ebc5"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "core.level",
    "area": "engine",
    "title": "Level build: terrain, physics map, gadgets, seeded animation frames",
    "source": "lemmix/js/level.js",
    "oracle": "parse-dump+sim-hash",
    "phase": 2,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "parse + build done and identical on 1076 levels (build.json); gadget render pending sim oracle"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "core.parser",
    "area": "engine",
    "title": "NeoLemmix text format parser",
    "source": "lemmix/js/parser.js",
    "oracle": "parse-dump",
    "phase": 2,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "ported; checked through build.json (1076 levels, terrain and summary identical)"
   },
   {
    "status": "todo",
@@ -53,14 +55,15 @@
    "webSha": "239ebc5"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "core.pixels",
    "area": "engine",
    "title": "Bitmap ops and blending (Math.round semantics)",
    "source": "lemmix/js/pixels.js",
    "oracle": "sim-hash",
    "phase": 2,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "ported; checked through build.json (1076 levels, terrain and summary identical)"
   },
   {
    "status": "todo",
@@ -103,14 +106,15 @@
    "webSha": "239ebc5"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "core.styles",
    "area": "engine",
    "title": "Styles: pieces, gadgets (.nxmo), terrain (.nxmt), themes (.nxtm), alias/scheme, variants, nine-slice",
    "source": "lemmix/js/styles.js",
    "oracle": "parse-dump",
    "phase": 2,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "ported; checked through build.json (1076 levels, terrain and summary identical)"
   },
   {
    "status": "todo",
@@ -788,7 +792,7 @@
    "status": "todo",
    "id": "action.yaw_left",
    "area": "input",
-   "title": "VR Yaw Correction −",
+   "title": "VR Yaw Correction \u2212",
    "source": "3d/js/hotkeys.js:94",
    "handler": "3d/js/app.js:5600",
    "oracle": "unit",
