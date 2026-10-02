@@ -166,34 +166,37 @@
    "notes": "Cursor pictures ported (Ui/CursorImages.cs); 6 keys x 16/32 px identical in 3 asset scenarios (cursor.json); CSS/sprite dressing left to the host"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "render.decals",
    "area": "render",
    "title": "ONLY_ON_TERRAIN gadgets and one-way arrows on terrain",
    "source": "3d/js/decals.js",
    "oracle": "geometry",
    "phase": 3,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "Render/Decals.cs TerrainDecals: coverage, ItemsFor (ObjectManager.render layer 1), Paint with over-blend and one-way cut; decal texture and skins identical every 10 ticks of the scripted runs (11 sampled levels with decals, 8 with one-way arrows)"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "render.depth",
    "area": "render",
    "title": "Depth classes from style profiles (3d/profiles)",
    "source": "3d/js/depth.js",
    "oracle": "geometry",
    "phase": 3,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "Render/Depth.cs + DepthProfile.cs: depth/piece/relief(+sculpt)/blend(zones, donors)/colour-blend maps, profiles from web/3d/profiles merged as ProfileStore does; identical on 60 levels (21 with profile files, incl. ray_food sculpt)"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "render.effects",
    "area": "render",
    "title": "Effect switches: emboss, smooth, edge smoothing, colour blend, doors, skills-bar relief, flat skills, environment",
    "source": "3d/js/app.js",
    "oracle": "geometry+screenshot",
    "phase": 3,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "terrain part done: emboss, smooth, edge smoothing (smoothterrain), colour blend off/soft/smooth all geometry-identical on the terrain (oracle/terrain.js, TerrainTests); doors, skills-bar relief, flat skills, environment not covered here"
   },
   {
    "status": "todo",
@@ -257,14 +260,15 @@
    "webSha": "239ebc5"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "render.terrain",
    "area": "render",
    "title": "Terrain chunks by depth class, greedy meshing, live re-mesh on dig/build",
    "source": "3d/js/terrain.js",
    "oracle": "geometry",
    "phase": 3,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "Render/TerrainMesher.cs TerrainMesh: stepped greedy + per-pixel smooth/colour-blend paths, surface-blend bands, decal skins, GroundChanged re-mesh, DirtyChunkSet in JS Set order, FlushDirty budget, Resync + Save/LoadExtra after rewinds, clear-physics paint. oracle/terrain.js: 60 levels x 24 switch combinations, every chunk float32-identical; scripted dig/build/bomb runs (4 combos, 5170 assignments) with every rebuilt chunk, decal texture and rewind identical (TerrainTests)"
   },
   {
    "status": "todo",
