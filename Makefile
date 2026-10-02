@@ -8,7 +8,7 @@ export WEB_ASSETS
 verify: core core-linux app-smoke app-test
 
 core:                      ## Lemmix.Core tests on the Mac
-	cd core && dotnet test
+	cd core/Lemmix.Core.Tests && dotnet run -c Release
 
 core-linux:                ## the same tests in the Frame's runtime (sniper arm64), case-sensitive filesystem
 	tools/test-linux.sh
