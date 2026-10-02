@@ -12,7 +12,8 @@ public partial class Panel3D : Node3D
     readonly SubViewport _viewport;
     readonly CanvasHost _host;
     readonly MeshInstance3D _quad;
-    public readonly float WidthMetres, HeightMetres;
+    public float WidthMetres { get; private set; }
+    public float HeightMetres { get; private set; }
 
     public Panel3D(int width, int height, float widthMetres, bool transparent = true)
     {
@@ -24,6 +25,8 @@ public partial class Panel3D : Node3D
             Size = new Vector2I(width, height), TransparentBg = transparent, Disable3D = true,
             RenderTargetUpdateMode = SubViewport.UpdateMode.Once,
             CanvasItemDefaultTextureFilter = Viewport.DefaultCanvasItemTextureFilter.Nearest,
+            // the canvas antialiases the edges of what it fills; so does this
+            Msaa2D = Viewport.Msaa.Msaa4X,
         };
         _host = new CanvasHost { Canvas = Canvas, Size = new Vector2(width, height) };
         _viewport.AddChild(_host);
@@ -43,9 +46,23 @@ public partial class Panel3D : Node3D
     // after painting into Canvas: show it
     public void Commit()
     {
-        _host.QueueRedraw();
+        _host.Sync();
         _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Once;
     }
+
+    // A canvas of a new size (the web's `canvas.width = w`, which clears it): the quad keeps its
+    // width in metres and takes the new aspect.
+    public void Resize(int width, int height)
+    {
+        if (width == Canvas.Width && height == Canvas.Height) return;
+        Canvas.Resize(width, height);
+        _viewport.Size = new Vector2I(width, height);
+        _host.Size = new Vector2(width, height);
+        HeightMetres = WidthMetres * height / width;
+        ((QuadMesh)_quad.Mesh).Size = new Vector2(WidthMetres, HeightMetres);
+    }
+
+    public SubViewport Target => _viewport;
 
     public int RenderPriority { set { if (_quad.MaterialOverride is StandardMaterial3D m) m.RenderPriority = value; } }
     public bool NoDepthTest { set { if (_quad.MaterialOverride is StandardMaterial3D m) m.NoDepthTest = value; } }

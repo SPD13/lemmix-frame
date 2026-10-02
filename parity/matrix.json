@@ -352,24 +352,26 @@
    "webSha": "239ebc5"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "vr.modal",
    "area": "vr",
    "title": "Confirm (yes/no) and notice (OK) windows, holding the clock",
    "source": "3d/js/app.js:954",
    "oracle": "view-model",
    "phase": 4,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "UI ported (app/Ui/Windows/VrModal.cs + VrWindows.SetModal/AskConfirm/AskNotice): restart/prev/next/solution/catalog questions and the no-solution notice, owns the ray, holds the clock, paint and layout = web. Integration: IVrWindowsHost.HoldSim/ReleaseSim, MoveLevel, WatchSolution"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "vr.replay_badge",
    "area": "vr",
    "title": "REPLAY badge above the status strip",
    "source": "3d/js/app.js",
    "oracle": "view-model",
    "phase": 4,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "UI ported (app/Ui/Windows/VrStatusStrip.cs VrReplayBadge): paint + layout over the strip = web. Integration: Badge.Set(replaying, presenting) where setReplayBadge is called"
   },
   {
    "status": "todo",
@@ -382,34 +384,37 @@
    "webSha": "239ebc5"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "vr.status_strip",
    "area": "vr",
    "title": "Status strip above the board, detail icon",
    "source": "3d/js/app.js",
    "oracle": "view-model",
    "phase": 4,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "UI ported (app/Ui/Windows/VrStatusStrip.cs): paint identical for playing/won/lost/loading/solution/choose; layout in board px = web; detail button. Integration: parent Root under the diorama (web board coords: y up from the level bottom), Set() from level load/end (setVrStatus calls), Apply(focusX, height, hasText) per frame"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "vr.toolbar",
    "area": "vr",
    "title": "VR toolbar: lock/move/park/settings, pause, worlds, prev/restart/solution/next, mute + volume",
    "source": "3d/js/app.js:2263",
    "oracle": "view-model",
    "phase": 4,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "UI ported (app/Ui/Windows/VrToolbar.cs, BarIcons.cs, IconButton.cs, VrWindowPlacement.cs VrBar): every icon painted call for call vs the web (oracle/webshots.js traces), row/sound-column layout and hover growth = web numbers, slider linger 2000 ms, lock/park/move/prefs (lem3d-bar JSON) and parking under windows tested (WindowsTests). Integration: VrWindows into Main/VrManager hooks (Pick/ApplyHover/Act, OnBarDrag*), IVrWindowsHost (pause, level moves, audio), the skills bar mesh size (guiW/barH), BarFrame from the diorama, lem3d-bar storage"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "vr.tooltip",
    "area": "vr",
    "title": "Skill tooltip strip after 1500 ms",
    "source": "3d/js/app.js",
    "oracle": "view-model",
    "phase": 4,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "UI ported (app/Ui/Windows/VrTooltip.cs): vrTipTexts, 1500 ms rest, strip sized to its text, placed over its button in the bar plane (= web numbers). Integration: VrWindows.Update() per frame; SkillTip hook for the skills bar buttons (GamePanel hover tip)"
   },
   {
    "status": "todo",
@@ -822,7 +827,7 @@
    "status": "todo",
    "id": "action.yaw_left",
    "area": "input",
-   "title": "VR Yaw Correction \u2212",
+   "title": "VR Yaw Correction −",
    "source": "3d/js/hotkeys.js:94",
    "handler": "3d/js/app.js:5600",
    "oracle": "unit",
@@ -895,14 +900,15 @@
    "webSha": "239ebc5"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "ui.level_text",
    "area": "ui",
    "title": "Level text window: PRETEXT, POSTTEXT, talismans, result",
    "source": "3d/js/app.js",
    "oracle": "view-model",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "VR window ported (app/Ui/Windows/VrLevelText.cs): flowLevelText, word wrap to 16 lines, OK hit/hover, canvas grows with the text; opened from the strip detail button. Integration: VrWindows.SetLevelText(level PRETEXT, POSTTEXT on a win); talismans/result text are the desktop HUD (not ported)"
   },
   {
    "status": "wip",
@@ -913,7 +919,7 @@
    "oracle": "view-model",
    "phase": 5,
    "webSha": "239ebc5",
-   "notes": "data part done: LevelTree (next/describe/levelsOf/classicId), LevelProgress, RecentLevels, FavoriteLevels, Solutions, LibraryState (order, path, recent/favorites views), Search (fuzzyScore + _renderSearch order, 64 queries), identical in oracle/settings.js (store hash + result per step) replayed by Lemmix.Core.Tests. Catalog UI pending"
+   "notes": "VR catalog UI ported (app/Ui/Windows/VrCatalog.cs): list layout (= web cells), tiles/rows/heading/scrollbar paint call for call, pick/hover/reveal, stick + scrollbar scrolling, recent/favorites filters, close/locked, Load() building items from ICatalogLibrary (tested over a fake tree). Left for integration: ICatalogLibrary over core Library (LevelTree, LevelProgress, Favorites, Recent, Solutions, names scan), WantsThumb miniatures, EnterLevel; the desktop library (search, order, rescan) is not part of this"
   },
   {
    "status": "todo",
@@ -926,14 +932,15 @@
    "webSha": "239ebc5"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "ui.settings",
    "area": "ui",
    "title": "Settings window: 8 effect switches, recentre",
    "source": "3d/js/app.js:1887",
    "oracle": "view-model",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "VR window ported (app/Ui/Windows/VrSettings.cs): 8 switches + recentre, rows/pills/hover paint call for call, RowAt hit-test, close. Integration: IVrEffects over the settings store/renderer toggles (the desktop drawer is not ported)"
   },
   {
    "status": "wip",
