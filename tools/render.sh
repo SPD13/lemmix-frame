@@ -6,6 +6,7 @@
 # (RENDER_ASSETS=1: levels/ and neolemmix/ only).
 # Example: tools/render.sh build/shots --shot canvas-demo /out/canvas-demo.png   (app arguments, after the engine's --)
 set -euo pipefail
+export COPYFILE_DISABLE=1  # no macOS extended attributes in the tar streams
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="${APP_DIR:-$ROOT/app}"
 out="$1"; shift
@@ -18,7 +19,7 @@ rsync -a --exclude bin --exclude obj "$APP/" "$tmp/p/app/"
 mkdir -p "$tmp/p/app/.godot/mono/temp/bin" && rsync -a "$APP/.godot/mono/temp/bin/" "$tmp/p/app/.godot/mono/temp/bin/"
 cp -R "$GODOT_DIR" "$tmp/p/godot"
 if [ "${RENDER_ASSETS:-0}" = 1 ]; then mkdir -p "$tmp/p/assets" && cp -R "$ASSETS/levels" "$ASSETS/neolemmix" "$tmp/p/assets/"; fi
-tar -C "$tmp/p" -c . | "$ROOT/tools/docker.sh" run -i --rm -e WEB_ASSETS=/p/assets -e RENDER_DRIVER="${RENDER_DRIVER:-vulkan}" "${RENDER_IMAGE:-lemmix-render-box:trixie}" bash -c '
+tar --no-mac-metadata -C "$tmp/p" -c . | "$ROOT/tools/docker.sh" run -i --rm -e WEB_ASSETS=/p/assets -e RENDER_DRIVER="${RENDER_DRIVER:-vulkan}" "${RENDER_IMAGE:-lemmix-render-box:trixie}" bash -c '
   mkdir -p /p /out && tar -x -C /p && cd /p
   G=$(ls /p/godot/Godot_v4.7.2-stable_mono_linux* | head -1)
   timeout 180 xvfb-run -a -s "-screen 0 1280x800x24" "$G" --path /p/app --rendering-driver ${RENDER_DRIVER:-vulkan} $( [ "${RENDER_DRIVER:-vulkan}" = vulkan ] && echo --rendering-method mobile ) --xr-mode off -- "$@" > /out/godot.log 2>&1 || true

@@ -1,0 +1,38 @@
+{
+  "terrain": {
+    "default": "terrain",
+    "byId": {}
+  },
+  "emboss": {
+    "byId": {}
+  },
+  "blend": {
+    "byId": {
+      "ray_food:bread_01": false,
+      "ray_food:bread_02": false,
+      "ray_food:cheese_01": false,
+      "ray_food:cheese_02": false,
+      "ray_food:cheese_03": false,
+      "ray_food:sausage": false,
+      "ray_food:mustard": false,
+      "ray_food:ketchup": false,
+      "ray_food:steel_fork": false,
+      "ray_food:apple_01": false,
+      "ray_food:grape_01": false,
+      "ray_food:lemon_03": false,
+      "ray_food:steel": false,
+      "ray_food:bottle": false
+    }
+  },
+  "colorBlend": {
+    "byId": {}
+  },
+  "sculpt": {
+    "byId": {
+      "ray_food:bottle": true,
+      "ray_food:sausage": true,
+      "ray_food:mustard": true,
+      "ray_food:ketchup": true
+    }
+  }
+}

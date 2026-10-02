@@ -1,0 +1,22 @@
+{
+  "terrain": {
+    "default": "terrain",
+    "byId": {}
+  },
+  "emboss": {
+    "byId": {}
+  },
+  "blend": {
+    "byId": {
+      "orig_marble:block_01": true,
+      "orig_marble:block_02": true,
+      "orig_marble:pillar_01": true,
+      "orig_marble:brick_large_01": true,
+      "orig_marble:brick_small_01": true,
+      "orig_marble:steps_01": true
+    }
+  },
+  "colorBlend": {
+    "byId": {}
+  }
+}

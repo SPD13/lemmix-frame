@@ -14,7 +14,11 @@ public partial class Shots : Node
     static readonly Dictionary<string, Func<Node, Viewport>> All = new(StringComparer.Ordinal)
     {
         ["canvas-demo"] = CanvasDemo,
+        ["terrain"] = TerrainShot.Make,
     };
+
+    // a check to run on the saved picture (a shot may set it)
+    public static Action<Image>? After;
 
     string _name = "", _file = "";
     Viewport? _grab;
@@ -35,6 +39,7 @@ public partial class Shots : Node
         var img = _grab.GetTexture().GetImage();
         var err = img.SavePng(_file);
         GD.Print($"[lemmix] shot saved {_name} {img.GetWidth()}x{img.GetHeight()} -> {_file} ({err})");
+        After?.Invoke(img);
         _grab = null;
         GetTree().Quit(err == Error.Ok ? 0 : 1);
     }
