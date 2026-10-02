@@ -135,14 +135,15 @@
    "notes": "GamePanel + PixelCanvas (DisplayImage) ported (Ui/GamePanel.cs); identical on 42 levels (24 with a pack's own panel graphics, 7 packs) x ~211 scripted states and presses = 8862 steps: pixels, layout, relief masks, game/command/replay state (panel.json)"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "render.bridge",
    "area": "render",
    "title": "Lemmings and objects as voxel sprites, interpolation, particles",
    "source": "3d/js/bridge.js",
    "oracle": "geometry",
    "phase": 3,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "Render/BridgeGeometry.cs: SpriteGeometryCache (forFrame/forMask relief, flat silhouettes, colour blend baked at soft/smooth, body/loose parts, rounded+blended slices), clipFrameToBounds, SpriteCapture, BillboardPool placement, ParticleCloud buffers. oracle/bridge.js: every gadget frame of 64 levels (353 objects) + 31 default lemming anims + 14 gfx/mask pictures, each frame under every switch (smooth off/on, blend off/0.5/1, clear physics), captures cut to the level; float32/uint16 buffers byte-identical (BridgeTests)"
   },
   {
    "status": "todo",
@@ -199,24 +200,26 @@
    "notes": "terrain part done: emboss, smooth, edge smoothing (smoothterrain), colour blend off/soft/smooth all geometry-identical on the terrain (oracle/terrain.js, TerrainTests); doors, skills-bar relief, flat skills, environment not covered here"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "render.envgen",
    "area": "render",
    "title": "Seeded collage pictures from the style's pieces",
    "source": "3d/js/envgen.js",
    "oracle": "pixels",
    "phase": 3,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "Render/EnvGen.cs (+ V8Math.cs: V8's fdlibm sin/cos/exp with clang's arm64 FMA contraction, Math.hypot - bit-identical to node on 200k args). oracle/envgen.js: 46 levels / 42 galleries: gallery sheet, palette, pieces, mode, the runtime fog-only pictures, the full collage (every plane) and its standing pieces, prop backdrop / wallpaper sky / far-wall wallpaper; identical (EnvGenTests). Left out: DOS inputs (dosBitmap, ground palette) and decor from a level's own objects (the page never builds from a level context; the JS would throw)"
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "render.environment",
    "area": "render",
    "title": "Room around the board: rings, fog, skyline, floor, dome, background tiling, falling lemmings",
    "source": "3d/js/environment.js",
    "oracle": "screenshot",
    "phase": 3,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "Data side ported, Render/EnvironmentLayout.cs: gallery context from the styles index, fog-only rule (web/3d/env ships no pictures), level wallpaper/backdrop/scene colours, roomFor rooms, ring/drum/bowl/dome geometry and the fog sphere (THREE.SphereGeometry, no normals) as placeDesktop lays them, standing-piece geometry and placement; identical (EnvGenTests). Not ported: the scene graph, headset placement/keepBoardInside/camera clamp and per-frame wall/prop hiding (Godot side), falling lemmings (app.js)"
   },
   {
    "status": "todo",
@@ -240,24 +243,26 @@
    "notes": "MiniMap pixels/offsets/frame/pointToLevel ported (Ui/Minimap.cs); identical on 21 levels x 2 specs x 19 steps incl. scrolling, freeze, digs, rewind (minimap.json); mesh layout left to the host"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "render.portals",
    "area": "render",
    "title": "3D hatches with doors, exit funnels, water/lava slices",
    "source": "3d/js/portals.js",
    "oracle": "geometry",
    "phase": 3,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "Render/Portals.cs: objectData, hatches (ceiling square, opening rows, door rows, openness, both flaps), exit funnels (opening by sky/dark patch, chamfer distance in float32, smoothing), cap slabs, carving, pools, wave stacks/phases/frameAtPhase. oracle/portals.js: 64 levels (about 70 hatches and 65 exits, a cap slab, 38 pools, 52 stacks) smoothing off/on, 3 animation steps; identical (PortalsTests). JS quirks kept: every window reads the last window's trigger; a hatch on a half pixel 'carves' nothing but counts every pixel (fractional typed-array index)"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "render.replay_markers",
    "area": "render",
    "title": "Replay markers: rings, skill icons, countdown, pulse, solid when played",
    "source": "3d/js/replay-markers.js",
    "oracle": "screenshot",
    "phase": 3,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "Render/ReplayMarkers.cs: placement (hatch / spawn order / nuke centre, stacking), outlined icon pixels (the canvas ImageData), Ring/PlaneGeometry, per-frame opacity / pulse / countdown. oracle/markers.js: 85 solutions + synthetic RR changes and nuke (887 markers, 27 pictures) at 6 frames; identical (MarkersTests). The label texts are browser font rendering: ported as LabelSpec (canvas size, box colour, font, anchor, text)"
   },
   {
    "status": "done",
