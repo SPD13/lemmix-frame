@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,12 @@
+.tools/
+build/
+bin/
+obj/
+.godot/
+.mono/
+*.user
+.DS_Store
+native/libopenmpt/src/
+native/libopenmpt/out/
+oracle/node_modules/
+oracle/out/

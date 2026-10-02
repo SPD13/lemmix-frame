@@ -1,0 +1,26 @@
+; Engine configuration file.
+config_version=5
+
+[application]
+
+config/name="Lemmix"
+config/description="NeoLemmix levels in VR"
+run/main_scene="res://Main.tscn"
+config/features=PackedStringArray("4.7", "C#", "Mobile")
+
+[dotnet]
+
+project/assembly_name="Lemmix"
+
+[rendering]
+
+renderer/rendering_method="mobile"
+textures/vram_compression/import_etc2_astc=true
+
+[xr]
+
+openxr/enabled=true
+openxr/reference_space=1
+openxr/foveation_level=0
+openxr/foveation_dynamic=false
+shaders/enabled=true
