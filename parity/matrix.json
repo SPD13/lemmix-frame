@@ -47,7 +47,7 @@
    "notes": "ported; checked through build.json (1076 levels, terrain and summary identical)"
   },
   {
-   "status": "wip",
+   "status": "done",
    "id": "core.picking",
    "area": "engine",
    "title": "Lemming under cursor, priority, direction/walker filters",
@@ -55,7 +55,7 @@
    "oracle": "pick-dump",
    "phase": 2,
    "webSha": "239ebc5",
-   "notes": "GetPriorityLemming ported; pick-dump oracle pending"
+   "notes": "GetPriorityLemming identical on 3710 probe frames (all skills, direction filter, walkers only)"
   },
   {
    "status": "done",
@@ -80,7 +80,7 @@
    "notes": ".nxrp parse/serialize; serialize text identical in fuzz.json"
   },
   {
-   "status": "wip",
+   "status": "done",
    "id": "core.rewind",
    "area": "engine",
    "title": "Rewind states every 170 frames, thinning, silent re-sim",
@@ -88,10 +88,10 @@
    "oracle": "rewind-selfcheck",
    "phase": 2,
    "webSha": "239ebc5",
-   "notes": "ported; rewind self-check oracle pending"
+   "notes": "ported; rewind self-check on 83 levels (back to 10 frames each) identical to the forward run"
   },
   {
-   "status": "wip",
+   "status": "done",
    "id": "core.shadows",
    "area": "engine",
    "title": "Skill shadow simulation",
@@ -99,7 +99,7 @@
    "oracle": "shadow-dump",
    "phase": 2,
    "webSha": "239ebc5",
-   "notes": "ported; shadow-dump oracle pending"
+   "notes": "ported; probe.json: shadows of every active skill identical on 3710 probe frames"
   },
   {
    "status": "todo",

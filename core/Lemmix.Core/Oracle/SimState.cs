@@ -5,7 +5,7 @@ namespace Lemmix.Oracle;
 // oracle/lib/state.js hashFrame: the canonical per-frame state of a LemGame, in the same order.
 public static class SimState
 {
-    public static StateHash HashFrame(LemGame g, bool withTerrain)
+    public static StateHash HashFrame(LemGame g, bool withTerrain, bool withReplayLength = true)
     {
         var h = new StateHash();
         // SAVED_SCALARS, in order
@@ -35,7 +35,7 @@ public static class SimState
         }
         h.Word(g.Sounds.Count);
         foreach (var s in g.Sounds) { h.Str(s.Name); h.Int(s.X); h.Int(s.Y); }
-        h.Word(g.Recorded.Count);
+        if (withReplayLength) h.Word(g.Recorded.Count);
         if (withTerrain) h.Terrain(g.Level);
         return h;
     }
