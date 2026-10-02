@@ -23,10 +23,14 @@ public static class OracleData
 
     public static bool HasAssets => File.Exists(Path.Combine(AssetsDir, "levels", "index.json"));
 
+    // the file, or its .gz twin (the big oracle files are committed gzipped)
     public static JsonDocument? Load(string relative)
     {
         string p = Path.Combine(OracleDir, relative);
-        return File.Exists(p) ? JsonDocument.Parse(File.ReadAllText(p)) : null;
+        if (File.Exists(p)) return JsonDocument.Parse(File.ReadAllText(p));
+        if (!File.Exists(p + ".gz")) return null;
+        using var gz = new System.IO.Compression.GZipStream(File.OpenRead(p + ".gz"), System.IO.Compression.CompressionMode.Decompress);
+        return JsonDocument.Parse(gz);
     }
 
     static StyleManager? _styles;

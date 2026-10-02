@@ -11,3 +11,4 @@ native/libopenmpt/out/
 oracle/node_modules/
 oracle/out/*.log
 oracle/out/trace/
+oracle/out/sim/fuzz.json
