@@ -479,12 +479,24 @@ public sealed class GamePanel : IGamePanel
     }
 
     // Redraw when something changed (every frame while the counters move).
+    // Render's buffers, reused: the picture and digit mask drawn now, the last ones shown, the
+    // frame handed to the display
+    Bitmap? _out;
+    byte[]? _digits, _shownOut, _shownDigits, _shownArt, _shownData;
+    Engine.Frame? _frame;
+    int _shownVersion = -1;
+
     public void Render(bool force = false)
     {
         if (Assets == null || Disposed) return;
         var sim = Game.Sim;
-        var output = _base!.Clone();
-        var digits = new byte[PanelW * PanelH];
+        var bse = _base!;
+        if (_out == null || _out.Width != bse.Width || _out.Height != bse.Height) _out = new Bitmap(bse.Width, bse.Height);
+        var output = _out;
+        Buffer.BlockCopy(bse.Data, 0, output.Data, 0, bse.Data.Length);
+        if (_digits == null || _digits.Length != PanelW * PanelH) _digits = new byte[PanelW * PanelH];
+        else Array.Clear(_digits);
+        var digits = _digits;
         for (int i = 0; i < Cells.Count; i++)
         {
             string what = Cells[i];
@@ -492,7 +504,6 @@ public sealed class GamePanel : IGamePanel
             else if (what == "rrplus") DrawDigits(output, i, sim.ReleaseRate, digits);
             else if (what.StartsWith("skill:", StringComparison.Ordinal)) DrawDigits(output, i, sim.SkillCountOf(what[6..]), digits);
         }
-        Layout.ReliefMasks = new ReliefMasks(_artMask!, digits);
         int sel = sim.SelectedSkill == null ? -1 : Cells.IndexOf("skill:" + sim.SelectedSkill);
         if (sel >= 0)
         {
@@ -519,11 +530,29 @@ public sealed class GamePanel : IGamePanel
             }
         }
         DrawText(output, InfoColumns());
-        // onto the display, and tell the host it changed
-        var frame = Engine.Frame.FromBitmap(output, 0, 0);
-        Array.Fill(frame.Mask, (sbyte)1);
-        Display.DrawFrame(frame, 0, 0);
+        // the same picture and digits as the display shows from the last render (nothing else
+        // drew on it since): the display, its redraw and the masks stay as they are
+        if (Display.Data != null && Display.Version == _shownVersion && ReferenceEquals(Display.Data, _shownData) && ReferenceEquals(_shownArt, _artMask)
+            && _shownOut != null && output.Data.AsSpan().SequenceEqual(_shownOut)
+            && _shownDigits != null && digits.AsSpan().SequenceEqual(_shownDigits))
+            return;
+        Layout.ReliefMasks = new ReliefMasks(_artMask!, (byte[])digits.Clone());
+        // onto the display (Frame.FromBitmap with every pixel drawn), and tell the host it changed
+        if (_frame == null || _frame.Width != output.Width || _frame.Height != output.Height)
+        {
+            _frame = new Engine.Frame(output.Width, output.Height, 0, 0);
+            Array.Fill(_frame.Mask, (sbyte)1);
+        }
+        output.Words().CopyTo(_frame.Data);
+        Display.DrawFrame(_frame, 0, 0);
         Display.Redraw();
+        _shownVersion = Display.Version;
+        _shownArt = _artMask;
+        _shownData = Display.Data;
+        _shownOut ??= new byte[output.Data.Length];
+        if (_shownOut.Length != output.Data.Length) _shownOut = new byte[output.Data.Length];
+        output.Data.CopyTo(_shownOut, 0);
+        _shownDigits = (byte[])digits.Clone();
     }
 
     // A release-rate button (or key) held down: one change on the press, then one per game tick

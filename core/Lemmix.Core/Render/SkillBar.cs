@@ -142,7 +142,12 @@ public sealed class SkillBar : IDisposable
         else Dirty = true;
     }
 
-    static string Key(byte[] d, int i) => d[i] + "," + d[i + 1] + "," + d[i + 2];
+    // a pixel's colour as one number, the "r,g,b" keys above as the same numbers
+    static int Rgb(byte[] d, int i) => d[i] << 16 | d[i + 1] << 8 | d[i + 2];
+    static int Rgb(string key) { var p = key.Split(',').Select(v => int.Parse(v, System.Globalization.CultureInfo.InvariantCulture)).ToArray(); return p[0] << 16 | p[1] << 8 | p[2]; }
+    static readonly HashSet<int> GuiBgRgb = new(GuiBgColors.Select(Rgb));
+    static readonly Dictionary<int, int> GuiTextDepthsRgb = GuiTextDepths.ToDictionary(kv => Rgb(kv.Key), kv => kv.Value);
+    static readonly int GuiDigitRgb = Rgb(GUI_DIGIT_COLOR);
 
     // The DOS dither repainted as one colour (a panel that does not paint its own tiles).
     void FlattenBackground()
@@ -154,7 +159,7 @@ public sealed class SkillBar : IDisposable
             for (int x = 0; x < w; x++)
             {
                 int i = (y * W + x) * 4;
-                if (GuiBgColors.Contains(Key(Canvas, i))) { Canvas[i] = (byte)GuiFlatBg[0]; Canvas[i + 1] = (byte)GuiFlatBg[1]; Canvas[i + 2] = (byte)GuiFlatBg[2]; }
+                if (GuiBgRgb.Contains(Rgb(Canvas, i))) { Canvas[i] = (byte)GuiFlatBg[0]; Canvas[i + 1] = (byte)GuiFlatBg[1]; Canvas[i + 2] = (byte)GuiFlatBg[2]; }
             }
     }
 
@@ -178,7 +183,7 @@ public sealed class SkillBar : IDisposable
             if (col == 0 || col == GUI_TILE_W - 1) continue;
             int top = IconTop(x / GUI_TILE_W);
             for (int y = top; y < GUI_ICON_BOTTOM; y++)
-                if (!GuiBgColors.Contains(Key(data, (y * W + x) * 4))) mask[y * W + x] = 1;
+                if (!GuiBgRgb.Contains(Rgb(data, (y * W + x) * 4))) mask[y * W + x] = 1;
         }
         return mask;
     }
@@ -217,7 +222,7 @@ public sealed class SkillBar : IDisposable
             int col = x % GUI_TILE_W;
             if (col == 0 || col == GUI_TILE_W - 1) continue;
             for (int y = GUI_DIGIT_TOP; y < GUI_DIGIT_BOTTOM; y++)
-                if (Key(Canvas, (y * W + x) * 4) == GUI_DIGIT_COLOR) mask[y * W + x] = 1;
+                if (Rgb(Canvas, (y * W + x) * 4) == GuiDigitRgb) mask[y * W + x] = 1;
         }
         return mask;
     }
@@ -237,6 +242,9 @@ public sealed class SkillBar : IDisposable
         int sum = DigitChecksum();
         if (sum == _digitSum) return;
         _digitSum = sum;
+        _prevDigitMask = _digitMask;
+        _prevTileGeoms.Clear();
+        foreach (var kv in _tileGeoms) _prevTileGeoms[kv.Key] = kv.Value;
         _digitMask = BuildDigitMask();
         _tileGeoms.Clear();
         for (int i = 0; i < TileReliefs!.Count; i++)
@@ -254,7 +262,7 @@ public sealed class SkillBar : IDisposable
         var height = new byte[W * CanvasHeight];
         for (int y = 0; y < GUI_TEXT_BOTTOM; y++)
             for (int x = 0; x < W; x++)
-                height[y * W + x] = (byte)(GuiTextDepths.TryGetValue(Key(Canvas, (y * W + x) * 4), out int d) ? d : 0);
+                height[y * W + x] = (byte)(GuiTextDepthsRgb.TryGetValue(Rgb(Canvas, (y * W + x) * 4), out int d) ? d : 0);
         return height;
     }
 
@@ -267,13 +275,18 @@ public sealed class SkillBar : IDisposable
 
     // Smoothed relief for the text: a centre vertex at each pixel's height fanned out to corners
     // at the mean of the four heights meeting there.
+    readonly List<double> _textPositions = new(), _textColors = new(), _textUvs = new();
+    readonly List<int> _textIndices = new();
+
     ChunkGeometry? BuildTextGeometry()
     {
         int W = CanvasWidth, H = CanvasHeight;
         var height = _textMask!;
         int At(int x, int y) => x >= 0 && x < W && y >= 0 && y < H ? height[y * W + x] : 0;
         double CornerZ(int x, int y) => (At(x - 1, y - 1) + At(x, y - 1) + At(x - 1, y) + At(x, y)) / 4.0;
-        var positions = new List<double>(); var colors = new List<double>(); var uvs = new List<double>(); var indices = new List<int>();
+        // the lists kept from one rebuild to the next (MakeGeometry copies them out)
+        var positions = _textPositions; var colors = _textColors; var uvs = _textUvs; var indices = _textIndices;
+        positions.Clear(); colors.Clear(); uvs.Clear(); indices.Clear();
         void Push(double px, double py, double pz, double u, double v)
         {
             positions.Add(px); positions.Add(py); positions.Add(pz);
@@ -292,7 +305,8 @@ public sealed class SkillBar : IDisposable
                 Push(x + 1, y, CornerZ(x + 1, y), (x + 1) / (double)W, y / (double)H);
                 Push(x + 1, y + 1, CornerZ(x + 1, y + 1), (x + 1) / (double)W, (y + 1) / (double)H);
                 Push(x, y + 1, CornerZ(x, y + 1), x / (double)W, (y + 1) / (double)H);
-                indices.AddRange(new[] { b, b + 1, b + 2, b, b + 2, b + 3, b, b + 3, b + 4, b, b + 4, b + 1 });
+                indices.Add(b); indices.Add(b + 1); indices.Add(b + 2); indices.Add(b); indices.Add(b + 2); indices.Add(b + 3);
+                indices.Add(b); indices.Add(b + 3); indices.Add(b + 4); indices.Add(b); indices.Add(b + 4); indices.Add(b + 1);
             }
         if (indices.Count == 0) return null;
         return MakeGeometry(positions, colors, uvs, indices);
@@ -364,10 +378,30 @@ public sealed class SkillBar : IDisposable
         int x0 = index * GUI_TILE_W, x1 = x0 + GUI_TILE_W;
         var v = VCrop(half);
         var icon = _iconMask!; var digits = _digitMask;
+        // the digits under this tile as they were when it was last built: the same relief
+        if (ReferenceEquals(icon, _prevIconMask) && _prevTileGeoms.TryGetValue(key, out var prev)
+            && SameRegion(_prevDigitMask, digits, W, H, x0, x1, v.Y0, v.Y0 + v.H))
+        {
+            _tileGeoms[key] = prev;
+            return prev;
+        }
         var geom = BuildExtrudedSpriteGeometry((x, y) => x >= x0 && x < x1 && y >= v.Y0 && y < v.Y0 + v.H &&
             (icon[y * W + x] != 0 || (digits != null && digits[y * W + x] != 0)), W, H, GUI_ICON_DEPTH);
         _tileGeoms[key] = geom;
+        _prevIconMask = icon;
         return geom;
+    }
+
+    readonly Dictionary<string, ChunkGeometry?> _prevTileGeoms = new(StringComparer.Ordinal);
+    byte[]? _prevDigitMask, _prevIconMask;
+
+    static bool SameRegion(byte[]? a, byte[]? b, int w, int h, int x0, int x1, int y0, int y1)
+    {
+        if (a == null || b == null) return a == b;
+        x0 = Math.Max(0, x0); y0 = Math.Max(0, y0); x1 = Math.Min(w, x1); y1 = Math.Min(h, y1);
+        for (int y = y0; y < y1; y++)
+            if (!a.AsSpan(y * w + x0, Math.Max(0, x1 - x0)).SequenceEqual(b.AsSpan(y * w + x0, Math.Max(0, x1 - x0)))) return false;
+        return true;
     }
 
     void SetPartVisible(int? index, string? half, bool visible)
