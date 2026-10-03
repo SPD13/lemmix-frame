@@ -13,12 +13,11 @@ namespace Lemmix.App.Shell;
 // The desktop pages in the headset (app/Ui/Pages) as the shell hosts them: built over the live
 // store, controls table, asset root and user data folders; one up at a time (VrPages), owning the
 // ray, the sticks, the keys and the buttons after the question (VrModal); where each is opened
-// from - the catalog's row (search, setup, solutions), the settings' corner (controls, key hints,
+// from - the catalog's row (search, setup), the settings' corner (controls, key hints,
 // the QA checklist), the Load/Save Replay functions; nothing installed, the setup page first.
 public sealed partial class App
 {
     public VrSetupPage SetupPage { get; private set; } = null!;
-    public VrSolutionsPage SolutionsPage { get; private set; } = null!;
     public VrControlsDialog ControlsPage { get; private set; } = null!;
     public VrKeyHints HintsPage { get; private set; } = null!;
     public VrReplayFiles ReplaysPage { get; private set; } = null!;
@@ -29,9 +28,9 @@ public sealed partial class App
 
     public static string AppVersion => ProjectSettings.GetSetting("application/config/version", "dev").AsString();
 
-    // the entries the windows did not have: three in a row under the catalog, and three in the
-    // settings' corner, left of its close
-    public static readonly string[] CatalogEntries = { "catsearch", "catsolutions", "catsetup" };
+    // the entries the windows did not have: two in a row under the catalog, and three in the
+    // settings' corner, left of its close (a level's stored solution is watched from its toolbar)
+    public static readonly string[] CatalogEntries = { "catsearch", "catsetup" };
     public static readonly string[] SettingsEntries = { "setqa", "sethints", "setcontrols" };
     readonly List<IconButton> _catalogExtras = new(), _settingsExtras = new();
     // a window a page was opened over: closed for it (the page stands behind the windows' plane), back after
@@ -75,7 +74,6 @@ public sealed partial class App
     static string? EntryTip(string name) => name switch
     {
         "catsearch" => "search the levels",
-        "catsolutions" => "the stored solutions",
         "catsetup" => "setup: install NeoLemmix, styles and levels",
         "setcontrols" => "configure controls",
         "sethints" => "the keys",
@@ -83,31 +81,21 @@ public sealed partial class App
         _ => null,
     };
 
-    // the solutions list and the search read the tree: built again with it
+    // the search reads the tree: built again with it
     void RebuildLibraryPages()
     {
-        if (SolutionsPage != null)
-        {
-            if (Pages.Current == SolutionsPage) Pages.Show(null);
-            Pages.All.Remove(SolutionsPage);
-            SolutionsPage.Root.GetParent()?.RemoveChild(SolutionsPage.Root);
-            SolutionsPage.Root.QueueFree();
-        }
-        string? index = Godot.FileAccess.FileExists(SolutionsRoot + "solutions/index.json")
-            ? Godot.FileAccess.GetFileAsString(SolutionsRoot + "solutions/index.json") : null;
-        SolutionsPage = Pages.Add(new VrSolutionsPage(new SolutionsBackend(Tree, index, PlayFromPage, () => Pages.Show(null))));
         Search = new CatalogSearch(Windows.Catalog, Catalog, CatalogSearch.Over(Tree));
     }
 
-    // a level chosen on a page (the solutions list's play / watch, the search's Enter)
-    void PlayFromPage(string levelId, bool solution)
+    // a level chosen on a page (the search's Enter)
+    void PlayFromPage(string levelId)
     {
         Pages.CloseKeyboard();
         Pages.Show(null);
         _catalogBehindPage = _settingsBehindPage = false;
         Windows.SetCatalog(false);
         Windows.SetSettings(false);
-        EnterLevel(levelId, solution);
+        EnterLevel(levelId);
     }
 
     // ------------------------------------------------------------ opening them
@@ -121,7 +109,6 @@ public sealed partial class App
     }
 
     public void OpenSetup() => ShowPage(SetupPage);
-    public void OpenSolutions() => ShowPage(SolutionsPage);
     public void OpenControls() { ReleaseHeldKeys(); ControlsPage.Open(); ShowPage(ControlsPage); }
     public void OpenKeyHints() => ShowPage(HintsPage);
     public void OpenReplayFiles() => ShowPage(ReplaysPage);
@@ -131,7 +118,7 @@ public sealed partial class App
     public void OpenLibrarySearch()
     {
         if (!Windows.Catalog.Root.Visible) Windows.SetCatalog(true);
-        Pages.OpenLibrarySearch(Search, id => PlayFromPage(id, false), () => Windows.SetCatalog(false));
+        Pages.OpenLibrarySearch(Search, PlayFromPage, () => Windows.SetCatalog(false));
     }
 
     public void RefreshKeyHints() { if (HintsPage.Root.Visible) HintsPage.Paint(); }
@@ -210,7 +197,6 @@ public sealed partial class App
         switch (tool)
         {
             case "catsearch": OpenLibrarySearch(); return true;
-            case "catsolutions": OpenSolutions(); return true;
             case "catsetup": OpenSetup(); return true;
             case "setcontrols": OpenControls(); return true;
             case "sethints": OpenKeyHints(); return true;
@@ -285,19 +271,6 @@ public static class EntryIcons
         c.beginPath(); c.moveTo(32, 14); c.lineTo(32, 38); c.moveTo(23, 29); c.lineTo(32, 38); c.lineTo(41, 29); c.stroke();
     });
 
-    // a list with ticks: the solutions
-    public static void Solutions(Canvas2D cx, IconState st) => Plate(cx, st, c =>
-    {
-        c.beginPath();
-        for (int i = 0; i < 3; i++)
-        {
-            float y = 20 + i * 12;
-            c.moveTo(14, y); c.lineTo(18, y + 4); c.lineTo(24, y - 4);
-            c.moveTo(30, y); c.lineTo(50, y);
-        }
-        c.stroke();
-    });
-
     // a keyboard: the controls
     public static void Controls(Canvas2D cx, IconState st) => Plate(cx, st, c =>
     {
@@ -326,7 +299,6 @@ public static class EntryIcons
     public static Action<Canvas2D, IconState> ByName(string name) => name switch
     {
         "catsearch" => Search,
-        "catsolutions" => Solutions,
         "catsetup" => Setup,
         "setcontrols" => Controls,
         "sethints" => Hints,

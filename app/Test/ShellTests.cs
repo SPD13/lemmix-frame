@@ -514,7 +514,7 @@ public static class ShellTests
     }
 
     [AppTest]
-    public static void TheCatalogOpensSearchSetupAndSolutions()
+    public static void TheCatalogOpensSearchAndSetup()
     {
         if (!HaveAssets()) return;
         using var rig = new Rig();
@@ -528,10 +528,7 @@ public static class ShellTests
         Check.True(app.Pages.Current == null, "closed");
         rig.Frame();
         Check.True(app.Windows.Catalog.Root.Visible, "the catalog came back");
-        rig.Click(Entry("catsolutions"));
-        Check.True(app.Pages.Current == app.SolutionsPage, "the solutions list");
-        rig.Click(app.SolutionsPage.Close);
-        rig.Frame();
+        Check.True(app.Windows.Catalog.Root.GetNodeOrNull("vr-catsolutions") == null, "no stored-solutions entry: a level's solution is watched from its toolbar");
         rig.Click(Entry("catsearch"));
         Check.True(app.Pages.Keyboard.Root.Visible, "the search's keyboard");
         app.KeyDown("KeyB", text: "b");

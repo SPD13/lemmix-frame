@@ -39,7 +39,7 @@ public sealed class VrQaChecklist : VrPage
         ("Replay", "replay-files", "save a replay, load it back from the replay list"),
         ("Windows", "win-catalog", "catalog: stick scrolling, favourites, recent, search with the VR keyboard"),
         ("Windows", "win-settings", "settings: each of the 8 effects switches as it does on the web"),
-        ("Windows", "win-pages", "level text, controls dialog, solutions list, setup page read well"),
+        ("Windows", "win-pages", "level text, controls dialog, setup page read well"),
         ("Look", "look-board", "the board looks like the web's diorama: terrain, doors, water, lemmings, room"),
         ("Look", "look-legibility", "windows and the skill bar are sharp enough to read at their distance"),
         ("Feel", "feel-comfort", "board size and distance are comfortable; nothing strains the eyes"),

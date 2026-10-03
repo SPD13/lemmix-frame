@@ -308,65 +308,6 @@ public static class PagesTests
         public bool CanWatchSolution => false; public void WatchSolution() { } public void EnterLevel(string id) { }
     }
 
-    // ---- solutions
-    [AppTest]
-    public static void SolutionsListsFiltersAndPlays()
-    {
-        using var rig = new Rig();
-        var b = new PageFixture.Sols();
-        var p = rig.Pages.Add(new VrSolutionsPage(b));
-        rig.Pages.Show(p);
-        // the head: the web's summary, word for word
-        string web = PageFixture.F["solutions"]!["summary"]!.GetValue<string>();
-        Check.True(web.StartsWith("85 of 1076 levels have a solution (7.9%)", StringComparison.Ordinal), "the web's summary: " + web);
-        Check.True(p.SummaryText().StartsWith("85 of 1076 levels have a solution (7.9%)", StringComparison.Ordinal), "the summary: " + p.SummaryText());
-        Check.True(p.SummaryText().Contains("3 level folders, 12 packs"), "folders and packs: " + p.SummaryText());
-        Check.Equal(1076, p.Shown.Count, "every level shown");
-        Check.Equal("1076 shown", PageFixture.F["solutions"]!["note"]!.GetValue<string>(), "as the web");
-        // the search on the keyboard
-        rig.Press("search");
-        Check.True(rig.Pages.Keyboard.Root.Visible && p.FocusField == "search", "the keyboard opens on the field");
-        foreach (var k in new[] { "j", "s", "t", "space", "n", "k" }) rig.Press("k:" + k, rig.Pages.Keyboard);
-        Check.Equal("jst nk", p.Query, "typed");
-        Check.Equal(32, p.Shown.Count, "the web's 32 matches");
-        Check.Equal("LemmingsPlus_All_20201114/Lemmings_Plus_I/Wimpy/Just_When_You_Think_You_Know!.nxlv".Split('/')[0], p.Shown[0].L.Id.Split('/')[0], "best first, as the web: " + p.Shown[0].L.Id);
-        Check.Equal("Just Digging Into NeoLemmix", p.Shown[1].L.Title, "the second, as the web");
-        rig.Pages.Keyboard.Escape();
-        Check.Equal("", p.Query, "Escape clears");
-        Check.Equal(1076, p.Shown.Count, "all again");
-        rig.Pages.CloseKeyboard();
-        // show: solved, not found
-        rig.Press("show");
-        rig.Press("popup:1");
-        Check.Equal("solved", p.Show, "show solved");
-        Check.Equal(85, p.Shown.Count, "85 solved");
-        p.Show = "all";
-        // pack filter
-        rig.Press("pack");
-        int at = p.Popup!.Options.FindIndex(o => o.Value == "folder:Lemmings Redux");
-        rig.Press("popup:" + at);
-        Check.Equal(160, p.Shown.Count, "Lemmings Redux's 160");
-        p.Pack = "";
-        p.Render();
-        // sort by skills: the fewest first, unsolved last
-        rig.Press("sort:skills");
-        Check.True(p.Shown[0].D.Solved && p.Shown[0].D.Rec!.SkillsUsed == 0, "the fewest skills first");
-        Check.True(!p.Shown[^1].D.Solved, "unsolved at the end");
-        rig.Press("sort:skills");
-        Check.Equal(-1, p.SortDir, "a second press turns it round");
-        // play
-        p.SortKey = "level"; p.SortDir = 1; p.Render(); p.Scroll = 0;
-        var first = p.Shown[0].L.Id;
-        rig.Press("sol:" + first);
-        rig.Press("play:" + first);
-        Check.Equal("solution " + first, b.Log[0], "▶ play solution");
-        Check.Equal("play " + first, b.Log[1], "play level");
-        rig.Press("back");
-        Check.Equal("back", b.Log[2], "back to the game");
-        Check.Equal("1:08", VrSolutionsPage.MmSs(1166), "m:ss of frames");
-        Check.Equal("1m 21s", VrSolutionsPage.Human(81.4), "human");
-    }
-
     // ---- controls
     static (HotkeyManager M, PageFixture.MemFiles F, VrControlsDialog D) Controls(Rig rig)
     {
