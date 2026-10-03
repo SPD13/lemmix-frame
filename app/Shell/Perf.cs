@@ -79,3 +79,27 @@ public static class Perf
         public void Dispose() { if (_open) End(); }
     }
 }
+
+// A level load's steps, timed and printed as one [load] line: where the time goes before play
+// (device sessions read it from the log).
+public static class LoadTimes
+{
+    static readonly System.Diagnostics.Stopwatch _clock = new();
+    static readonly System.Collections.Generic.List<(string Step, double Ms)> _laps = new();
+    static double _last;
+
+    public static void Start() { _laps.Clear(); _clock.Restart(); _last = 0; }
+
+    public static void Lap(string step)
+    {
+        double now = _clock.Elapsed.TotalMilliseconds;
+        _laps.Add((step, now - _last));
+        _last = now;
+    }
+
+    public static void Print(string what)
+    {
+        Lap("rest");
+        Godot.GD.Print($"[load] {what}: {_clock.Elapsed.TotalMilliseconds:0} ms = " + string.Join(", ", _laps.FindAll(l => l.Ms >= 0.5).ConvertAll(l => $"{l.Step} {l.Ms:0}")));
+    }
+}

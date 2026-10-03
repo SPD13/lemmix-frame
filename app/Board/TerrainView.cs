@@ -21,9 +21,14 @@ public partial class TerrainView : Node3D
     readonly MeshInstance3D?[] _chunks;
     readonly MeshInstance3D?[] _decals;
 
-    public TerrainView(TerrainMesh tm)
+    // a load's chunks compacted on its worker (BoardData), used once in place of compacting here
+    RawColor.CompactSurface[]?[]? _preChunks, _preDecals;
+
+    public TerrainView(TerrainMesh tm, RawColor.CompactSurface[]?[]? preChunks = null, RawColor.CompactSurface[]?[]? preDecals = null)
     {
         _tm = tm;
+        _preChunks = preChunks;
+        _preDecals = preDecals;
         _image = Image.CreateFromData(tm.W, tm.H, false, Image.Format.Rgba8, tm.TexData);
         _texture = ImageTexture.CreateFromImage(_image);
         _materials = new Material[]
@@ -45,8 +50,15 @@ public partial class TerrainView : Node3D
     /** The chunks' buffers let go once they are meshes (the heavy look's are hundreds of MB). */
     public bool ReleaseConverted;
 
+    /** Chunks still to hand to the engine (a deferred load's, or a re-mesh's). */
+    public bool Pending => _dirty.Count > 0;
+    readonly System.Collections.Generic.List<int> _done = new();
+
     // Per frame (the web's per-tick flush is the caller's: TerrainMesh.FlushDirty)
-    public void Sync()
+    public void Sync() => Sync(double.PositiveInfinity);
+
+    /** As Sync, but the chunks only until `budgetMs` has gone (the rest on the next calls). */
+    public void Sync(double budgetMs)
     {
         if (Held) return;
         var upload = Perf.Time(Perf.S.TexUpload);
@@ -76,17 +88,27 @@ public partial class TerrainView : Node3D
         upload.Dispose();
         if (_dirty.Count == 0) return;
         using var _ = Perf.Time(Perf.S.MeshSwap);
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        _done.Clear();
         foreach (int id in _dirty)
         {
-            Swap(_chunks, id, _tm.ChunkMeshes[id], _materials);
-            if (_decalMaterials != null) Swap(_decals, id, _tm.DecalMeshes[id], _decalMaterials);
+            Swap(_chunks, id, _tm.ChunkMeshes[id], _materials, _preChunks);
+            if (_decalMaterials != null) Swap(_decals, id, _tm.DecalMeshes[id], _decalMaterials, _preDecals);
+            _done.Add(id);
+            if (clock.Elapsed.TotalMilliseconds >= budgetMs) break;
         }
-        _dirty.Clear();
+        if (_done.Count == _dirty.Count) _dirty.Clear();
+        else foreach (int id in _done) _dirty.Remove(id);
+        if (_dirty.Count == 0) { _preChunks = null; _preDecals = null; } // a re-mesh later compacts its own
     }
 
-    void Swap(MeshInstance3D?[] slots, int id, ChunkGeometry? g, Material[] materials)
+    void Swap(MeshInstance3D?[] slots, int id, ChunkGeometry? g, Material[] materials, RawColor.CompactSurface[]?[]? pre)
     {
-        var mesh = g == null ? null : RawColor.ToMesh(g, materials);
+        // the load's compaction stands for the chunk as it was meshed then; a chunk re-meshed since
+        // (marked again) is compacted afresh
+        var compact = pre != null && id < pre.Length && pre[id] != null ? pre[id] : null;
+        if (pre != null && id < pre.Length) pre[id] = null;
+        var mesh = g == null ? null : compact != null ? RawColor.ToMesh(compact, materials) : RawColor.ToMesh(g, materials);
         if (ReleaseConverted) g?.Release();
         if (mesh == null) { slots[id]?.QueueFree(); slots[id] = null; return; }
         if (slots[id] == null) { slots[id] = new MeshInstance3D(); AddChild(slots[id]); }

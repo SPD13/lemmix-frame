@@ -62,6 +62,7 @@ public partial class Benchmark : Node
     public Benchmark(App app)
     {
         _app = app; Name = "benchmark";
+        _app.SyncLoad = true; // a load timed as one call
         // first in each frame: the interval from one call to the next is one whole engine frame,
         // and a rewind given here belongs to the frame that then runs it
         ProcessPriority = -100;

@@ -32,6 +32,7 @@ public partial class Shots : Node
         ["icon-quit-hover"] = r => QuitIcon(r, true),
         ["icon-vr"] = r => Icon(r, "vr", Lemmix.App.Ui.Windows.BarIcons.Vr),
         ["win-vrsettings"] = VrSettingsWindow,
+        ["loading-banner"] = LoadingBanner,
     };
 
     // a check to run on the saved picture (a shot may set it)
@@ -67,6 +68,22 @@ public partial class Shots : Node
         root.AddChild(b);
         b.Repaint();
         return b.GetChild<SubViewport>(0);
+    }
+
+    // the loading banner as a player sees it, its spinner a little way round
+    static Viewport LoadingBanner(Node root)
+    {
+        var vp = new SubViewport { Size = new Vector2I(800, 300), OwnWorld3D = true, Msaa3D = Viewport.Msaa.Msaa4X, RenderTargetUpdateMode = SubViewport.UpdateMode.Always };
+        vp.AddChild(new WorldEnvironment { Environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color, BackgroundColor = new Color("2b3a4a") } });
+        root.AddChild(vp);
+        var banner = new Lemmix.App.Ui.Windows.VrLoadingBanner();
+        vp.AddChild(banner.Root);
+        banner.Show(true, Transform3D.Identity);
+        banner.Spin(0.3);
+        var cam = new Camera3D { Fov = 30, Near = 0.01f, Far = 10, Position = new Vector3(0, Lemmix.App.Xr.VrManager.VR_MODAL_Y, 0) };
+        vp.AddChild(cam);
+        cam.MakeCurrent();
+        return vp;
     }
 
     // the native VR window: foveated rendering on, at medium, the strength row hovered

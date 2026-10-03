@@ -339,6 +339,49 @@ public static class ShellTests
         app.Windows.Act(new VrPick("bar", BarTool: "vrsetclose"));
     }
 
+    // the largest level: its load is the longest (the terrain above all)
+    const string BigLevel = "LemmingsPlus_All_20201114/Lemmings_Plus_V/Outrageous/To_Infinity,_Beyond_And_Back!.nxlv";
+
+    [AppTest]
+    public static void ALevelLoadsOverFramesWithoutHoldingTheHeadset()
+    {
+        if (!HaveAssets()) return;
+        using var rig = new Rig();
+        var app = rig.App;
+        app.SyncLoad = false;               // as in a headset
+        app.EnterLevel(BigLevel);
+        Check.True(app.Session == null && app.Loading, "the level is prepared on a worker, the call returns at once");
+        int frames = 0;
+        double worst = 0;
+        var clock = new System.Diagnostics.Stopwatch();
+        rig.Frame();
+        Check.True(app.LoadingBanner.Root.Visible, "the loading banner up");
+        float spin0 = app.LoadingBanner.Spinner.Rotation.Z;
+        for (int i = 0; i < 2000 && app.Loading; i++)
+        {
+            System.Threading.Thread.Sleep(2);
+            clock.Restart();
+            rig.Frame();
+            worst = Math.Max(worst, clock.Elapsed.TotalMilliseconds);
+            frames++;
+            if (i == 3) Check.True(app.LoadingBanner.Spinner.Rotation.Z != spin0, "its spinner turning");
+        }
+        rig.Frame();
+        Check.True(!app.LoadingBanner.Root.Visible, "the banner gone once the level is up");
+        Check.True(!app.Loading && app.Session != null, "the level up (" + frames + " frames)");
+        Check.True(frames > 3, "over several frames (" + frames + ")");
+        Check.True(app.Session!.Board.Visible && !app.Session.Board.TerrainView.Pending, "the board shown whole");
+        Check.True(app.Bar != null, "its skills bar");
+        GD.Print($"[load-test] {BigLevel}: {frames} frames, the longest {worst:0} ms");
+        Check.True(worst < 400, "no frame held for the whole load (" + worst.ToString("0") + " ms)");
+
+        // a level asked for while another is being prepared: the last asked wins
+        app.EnterLevel(BigLevel);
+        app.EnterLevel(Builders);
+        for (int i = 0; i < 2000 && app.Loading; i++) { System.Threading.Thread.Sleep(2); rig.Frame(); }
+        Check.True(app.Session != null && app.LevelId == Builders && app.Session.Options.LevelId == Builders, "the last level asked for is the one up");
+    }
+
     [AppTest]
     public static void TheTriggerOnALemmingAssignsTheSelectedSkill()
     {

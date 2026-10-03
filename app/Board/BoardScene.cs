@@ -141,7 +141,13 @@ public sealed partial class BoardScene : Node3D
     readonly List<Faller> _fallerScratch = new();
     readonly Frame?[] _shown = new Frame?[16];
 
-    public BoardScene(BoardInputs inp)
+    public BoardScene(BoardInputs inp) : this(inp, BoardData.Build(inp), deferTerrain: false) { }
+
+    /**
+     * The board from its computed half. deferTerrain: the terrain's chunks are left for
+     * TerrainView.Sync(budget) to hand to the engine over the next frames (a load in a headset).
+     */
+    public BoardScene(BoardInputs inp, BoardData data, bool deferTerrain)
     {
         Name = "worldGroup";
         Level = inp.Level; Game = inp.Game; Sprites = inp.Sprites; Switches = inp.Switches; Profile = inp.Profile;
@@ -149,29 +155,21 @@ public sealed partial class BoardScene : Node3D
         // pixel-space group: x right, y down (like the sim); flipped into world
         Transform = new Transform3D(Basis.FromScale(new Vector3(1, -1, 1)), new Vector3(0, level.Height, 0));
 
-        // depth compositing: per-pixel classes, relief, surface blend, colour blend (depth.js)
-        GroundData = GroundData.FromLevel(level);
-        ObjectData = PortalObjectData.For(level);
-        DepthMap = Depth.BuildDepthMap(level, GroundData, Profile);
-        PieceMap = Depth.BuildPieceMap(level, GroundData);
-        var relief = Depth.BuildReliefMap(level, PieceMap, Profile, Switches.Emboss, GroundData);
-        var blendMap = Depth.BuildBlendMap(level, PieceMap, Profile, GroundData);
-        var colorMap = Depth.BuildColorBlendMap(level, PieceMap, Profile, Switches.ColorBlend != "off", GroundData);
-        double softness = BoardSwitches.Softness(Switches.ColorBlend);
+        // depth compositing, the openings, the terrain meshed and compacted: BoardData (any thread)
+        GroundData = data.GroundData;
+        ObjectData = data.ObjectData;
+        DepthMap = data.DepthMap;
+        PieceMap = data.PieceMap;
+        double softness = data.Softness;
         var byId = inp.EnvProfile?.ObjectsById;
-        // entrances/exits become openings, carving the terrain behind them (before the mesher reads the depth)
-        Portals = Switches.Doors ? Render.Portals.BuildPortals(level, ObjectData, byId, DepthMap, BoardZ.OBJECT_Z, Switches.SmoothTerrain) : new List<Portal>();
+        Portals = data.Portals;
         _portalIndices = new HashSet<int>(Portals.Select(p => p.Index));
-
-        Terrain = new TerrainMesh(level, DepthMap, relief, blendMap, colorMap, softness);
-        if (Switches.Smooth) Terrain.SetSmooth(true);
-        if (Switches.SmoothTerrain) Terrain.SetSmoothTerrain(true);
-        Decals = TerrainDecals.ForLevel(level, level.Physics);
-        if (Decals != null) Terrain.SetDecals(Decals);
-        Terrain.FlushDirty(int.MaxValue);
-        TerrainView = new TerrainView(Terrain) { Name = "terrain", ReleaseConverted = true };
+        Terrain = data.Terrain;
+        Decals = data.Decals;
+        TerrainView = new TerrainView(Terrain, data.ChunkSurfaces, data.DecalSurfaces) { Name = "terrain", ReleaseConverted = true };
         AddChild(TerrainView);
-        TerrainView.Sync();
+        if (!deferTerrain) TerrainView.Sync();
+        LoadTimes.Lap("board-terrain-view");
 
         // the backdrop behind the slab: the environment's material
         Backdrop = new MeshInstance3D
