@@ -402,6 +402,10 @@ for every style; it was tuned on `orig_dirt`. Copy to the Frame with `tools/fram
 <style>` (`--remove <style>` takes it off). Look round in the render box with the `vr-scene` shot
 and `SHOT_LOOK="yaw,pitch"`, `RENDER_EXTRA="3d/env/<style>/scenery"`.
 
+The room's modes are `none`, `fog` (native: envgen's haze alone, as galleries looked before
+sceneries) and `full` (the scenery, else the rings). **How to make a scenery for another
+gallery:** `docs/scenery.md`.
+
 **Revert:** delete `3d/env/<style>/scenery/` (the room is the rings again for that gallery),
 run with `--scenery=off`, or revert the commits on branch `scenery`.
 
