@@ -73,8 +73,10 @@ public sealed class VrWindows
         WindowRoot.AddChild(Settings.Root);
         WindowRoot.AddChild(LevelText.Root);
         var t = Toolbar;
-        IconButtons = new List<IconButton> { t.Lock, t.Move, t.Park, t.Pause, t.Restart, t.Solution, t.Prev, t.Next, t.Worlds, t.Mute, t.Settings,
-            Status.Detail, Modal.Yes, Modal.No, Catalog.Close, Catalog.Recent, Catalog.Fav, Settings.Close };
+        // every icon button: the bar's row as the toolbar lists it (a new one cannot be left out of
+        // the hover, the tooltip and the beam's length), then the others
+        IconButtons = t.Buttons.Concat(new[] { t.Mute,
+            Status.Detail, Modal.Yes, Modal.No, Catalog.Close, Catalog.Recent, Catalog.Fav, Settings.Close }).ToList();
         // laid out now: until then they would be metre-wide planes on the camera
         Modal.Layout();
         Catalog.Layout();
@@ -251,6 +253,8 @@ public sealed class VrWindows
             var cp = Catalog.PickAt(px);
             return (true, P("worldpanel", new WindowPickData(Tile: cp.Tile, ScrollAt: cp.ScrollAt), cp.ScrollBar));
         }
+        // quit answers with or without a level (the rest of the row is a level's)
+        if (Toolbar.Quit.Visible && Toolbar.Quit.Hit(origin, dir, out _) != null) return (false, P("quit"));
         // past the windows, everything else belongs to a level
         if (!Host.HasSession) return (true, null);
         if (Toolbar.Volume.Visible)

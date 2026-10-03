@@ -464,6 +464,21 @@ public static class WindowsTests
         try
         {
             Check.True(w.Toolbar.LeftTools[0] == w.Toolbar.Quit, "quit at the left end of the row");
+            // like the row's other buttons: the beam lands on it, lights it and shows its tip, with
+            // a level or without one
+            Check.True(w.IconButtons.Contains(w.Toolbar.Quit), "among the icon buttons (hover, tooltip, beam length)");
+            w.Layout(0.6f, 0.06f, 0, 160);
+            foreach (bool session in new[] { true, false })
+            {
+                host.HasSession = session;
+                var (o, d) = At(w.Toolbar.Quit);
+                var (_, pick) = w.Pick(o, d);
+                Check.Equal("quit", pick?.BarTool, "the beam on quit (level: " + session + ")");
+                w.ApplyHover(pick);
+                Check.True(w.Toolbar.Quit.State.Hovered, "quit lit under the beam");
+                w.ApplyHover(null);
+            }
+            host.HasSession = true;
             Check.True(w.Act(new VrPick("bar", BarTool: "quit")), "quit is a bar tool");
             Check.Equal("Quit Lemmix?", w.Modal.Title, "asks first");
             Check.True(w.Modal.Yes.Visible && w.Modal.No.Visible, "with yes and no");
