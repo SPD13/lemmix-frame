@@ -141,7 +141,8 @@ public sealed class GamePanel : IGamePanel
     public readonly List<string> Skills;
     public readonly List<string> Cells;
     public readonly PanelLayout Layout;
-    public int RrHeld;
+    public int RrHeld;                    // a release-rate button held down: -1, 0 or 1
+    public double RrNext;                 // when it next changes the rate (performance.now)
     public HoldState? Held;               // a frame back/forward half held down
     public bool FlatBackground;           // the buttons on one plain colour instead of skill_panels.png
     readonly Dictionary<string, Bitmap> _icons = new(StringComparer.Ordinal);
@@ -523,8 +524,23 @@ public sealed class GamePanel : IGamePanel
         Array.Fill(frame.Mask, (sbyte)1);
         Display.DrawFrame(frame, 0, 0);
         Display.Redraw();
-        // a held release-rate button keeps changing it
-        if (RrHeld != 0) Game.QueueCommand(RrHeld > 0 ? new CommandReleaseRateIncrease(1) : new CommandReleaseRateDecrease(1));
+    }
+
+    // A release-rate button (or key) held down: one change on the press, then one per game tick
+    // once it has been held for HoldDelayMs - a click changes the rate once.
+    public void SetRrHeld(int dir, double? now = null)
+    {
+        RrHeld = dir;
+        RrNext = (now ?? _now()) + HoldDelayMs;
+    }
+
+    // One game tick (Game.OnGameTimerTick): a held release-rate button repeats.
+    public void Tick() => Tick(null);
+    public void Tick(double? now)
+    {
+        if (RrHeld == 0) return;
+        if ((now ?? _now()) < RrNext) return;
+        Game.QueueCommand(RrHeld > 0 ? new CommandReleaseRateIncrease(1) : new CommandReleaseRateDecrease(1));
     }
 
     // A held frame back/forward half repeats (CheckFrameSkip): the host polls this every frame.
@@ -569,8 +585,8 @@ public sealed class GamePanel : IGamePanel
             if (upper) game.ToggleClearPhysics();
             else if (lower) game.RequestLoadReplay();
         }
-        else if (what == "rrminus") { RrHeld = -1; game.QueueCommand(new CommandReleaseRateDecrease(1)); }
-        else if (what == "rrplus") { RrHeld = 1; game.QueueCommand(new CommandReleaseRateIncrease(1)); }
+        else if (what == "rrminus") { SetRrHeld(-1); game.QueueCommand(new CommandReleaseRateDecrease(1)); }
+        else if (what == "rrplus") { SetRrHeld(1); game.QueueCommand(new CommandReleaseRateIncrease(1)); }
         else if (what == "pause") game.GameTimer.Toggle();
         else if (what == "nuke")
         {

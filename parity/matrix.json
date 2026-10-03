@@ -11,7 +11,7 @@
    "oracle": "command-fuzz",
    "phase": 2,
    "webSha": "239ebc5",
-   "notes": "Game/GameTimer/Skills/Victory/commands ported; command fuzz oracle pending. Web quirk kept: CommandSelectSkill(0) selects nothing (first panel skill by hotkey)"
+   "notes": "Game/GameTimer/Skills/Victory/commands ported; command fuzz oracle pending. CommandSelectSkill(0) selects the first panel skill and a release-rate click changes the rate once (both fixed in the web at a5b7b4f)"
   },
   {
    "status": "done",

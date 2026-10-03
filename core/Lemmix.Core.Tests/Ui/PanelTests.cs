@@ -69,7 +69,7 @@ public class PanelTests
             else h.Null();
             h.Bool(sim.ReplayInsert); h.Bool(sim.Replaying);
             h.Str(g.CommandManager.Serialize());
-            h.Word(Gui.RrHeld);
+            h.Word(Gui.RrHeld); h.Word((int)Gui.RrNext);
             if (Gui.Held != null) { h.Word(Gui.Held.Step); h.Word((int)Gui.Held.Next); } else h.Null();
             h.Word(LoadRequests);
             h.Word(sim.Recorded.Count);
@@ -110,6 +110,7 @@ public class PanelTests
         r.Ticks(10); r.Record("lemming out", true);
         int nSkills = game.Sim.ActiveSkills.Count;
         r.Down(Cell * (2 + Math.Min(1, Math.Max(0, nSkills - 1))) + 3, 20, 0); r.Up(); r.Record("skill cell");
+        r.Down(Cell * 2 + 3, 20, 0); r.Up(); r.Record("first skill cell");
         var L = r.FirstLive();
         game.CursorLemming = L; gui.Render(true); r.Record("cursor lemming", true);
         if (L != null)
@@ -134,8 +135,12 @@ public class PanelTests
         Press(CellX("cpmreplay"), 18, 0, "clear physics"); r.Record("clear physics lemmings", true);
         Press(CellX("cpmreplay"), 36, 0, "load replay");
         Press(CellX("cpmreplay"), 26, 0, "clear physics off");
-        r.Down(CellX("rrplus"), 30, 0); r.Ticks(3); r.Record("rr+ held"); r.Up(); r.Record("rr+ up");
-        r.Down(CellX("rrminus"), 30, 2); r.Ticks(2); r.Up(); r.Record("rr- held");
+        setClock(500);
+        r.Down(CellX("rrplus"), 30, 0); r.Ticks(3); r.Record("rr+ press");
+        setClock(749); r.Ticks(1); r.Record("rr+ 249 ms");
+        setClock(750); r.Ticks(3); r.Record("rr+ held"); r.Up(); r.Record("rr+ up");
+        r.Ticks(2); r.Record("rr+ released");
+        setClock(800); r.Down(CellX("rrminus"), 30, 2); r.Ticks(2); setClock(1050); r.Ticks(2); r.Up(); r.Record("rr- held");
         Press(CellX("restart"), 20, 0, "restart");
         game.ToggleReplayInsert(); r.Record("insert mode");
         game.ToggleReplayInsert();

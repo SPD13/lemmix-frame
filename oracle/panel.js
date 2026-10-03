@@ -57,7 +57,7 @@ class Run {
     else h.word(0x7fffffff);
     h.any(sim.replayInsert, "insert"); h.any(sim.replaying, "replaying");
     h.str(g.commandManager.serialize());
-    h.num(this.gui.rrHeld, "rr");
+    h.num(this.gui.rrHeld, "rr"); h.num(this.gui.rrNext, "rrn");
     if (this.gui.held) { h.num(this.gui.held.step, "step"); h.num(this.gui.held.next, "next"); } else h.word(0x7fffffff);
     h.num(this.loadRequests, "load");
     h.word(sim.recorded.length);
@@ -94,9 +94,10 @@ async function script(game, gui, display, schema, flat) {
   game.start(); r.ticks(30); r.record("30 frames", true);
   for (let i = 0; i < 400 && !r.firstLive(); i++) r.ticks(1);
   r.ticks(10); r.record("lemming out", true);
-  // a skill selected through its cell (the second panel skill: the first selects nothing)
+  // a skill selected through its cell (the second panel skill), then the first (0 is a skill)
   const nSkills = game.sim.activeSkills.length;
   r.down(CELL * (2 + Math.min(1, Math.max(0, nSkills - 1))) + 3, 20, 0); r.up(); r.record("skill cell");
+  r.down(CELL * 2 + 3, 20, 0); r.up(); r.record("first skill cell");
   // the lemming under the pointer, then made an athlete step by step
   const L = r.firstLive();
   game.cursorLemming = L; gui.render(true); r.record("cursor lemming", true);
@@ -123,9 +124,13 @@ async function script(game, gui, display, schema, flat) {
   press(cellX("cpmreplay"), 18, 0, "clear physics"); r.record("clear physics lemmings", true);
   press(cellX("cpmreplay"), 36, 0, "load replay");
   press(cellX("cpmreplay"), 26, 0, "clear physics off");
-  // release rate held over ticks
-  r.down(cellX("rrplus"), 30, 0); r.ticks(3); r.record("rr+ held"); r.up(); r.record("rr+ up");
-  r.down(cellX("rrminus"), 30, 2); r.ticks(2); r.up(); r.record("rr- held");
+  // release rate: one change on the press, then one per tick once held 250 ms
+  clock.now = 500;
+  r.down(cellX("rrplus"), 30, 0); r.ticks(3); r.record("rr+ press");
+  clock.now = 749; r.ticks(1); r.record("rr+ 249 ms");
+  clock.now = 750; r.ticks(3); r.record("rr+ held"); r.up(); r.record("rr+ up");
+  r.ticks(2); r.record("rr+ released");
+  clock.now = 800; r.down(cellX("rrminus"), 30, 2); r.ticks(2); clock.now = 1050; r.ticks(2); r.up(); r.record("rr- held");
   // the replay: restart, insert mode
   press(cellX("restart"), 20, 0, "restart");
   game.toggleReplayInsert(); r.record("insert mode");

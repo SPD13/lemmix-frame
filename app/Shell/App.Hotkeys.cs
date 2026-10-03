@@ -107,7 +107,7 @@ public sealed partial class App
         if (Session == null) return;
         var game = Session.Game;
         if (dir != 0) game.QueueCommand(dir > 0 ? new CommandReleaseRateIncrease(1) : new CommandReleaseRateDecrease(1));
-        if (game.Gui is Lemmix.Ui.GamePanel p) p.RrHeld = dir;
+        if (game.Gui is Lemmix.Ui.GamePanel p) p.SetRrHeld(dir);
     }
 
     /**

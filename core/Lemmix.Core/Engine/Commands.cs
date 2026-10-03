@@ -99,10 +99,9 @@ public sealed class CommandReleaseRateIncrease : ICommand
 
 public sealed class CommandSelectSkill : ICommand
 {
-    // `if (skill) this.skill = skill;` in the JS: index 0 is falsy, so a command for the first
-    // panel skill carries no skill and selects nothing. Kept as the web version behaves.
+    // 0 is a skill: the first cell of a Lemmix panel (the DOS skill types start at 1)
     public int? Skill;
-    public CommandSelectSkill(int? skill = null) { if (skill is int s && s != 0) Skill = s; }
+    public CommandSelectSkill(int? skill = null) { if (skill != null) Skill = skill; }
     public string CommandKey => "s";
     public void Load(double[] values) { Skill = values.Length > 0 ? (int)values[0] : null; }
     public int[] Save() => new[] { Skill ?? 0 };

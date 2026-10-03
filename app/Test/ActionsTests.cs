@@ -32,10 +32,12 @@ public static class ActionsTests
         LemGame Sim() => rig.Session.Game.Sim;
 
         // skills
-        // the second skill when there is one: the first is selected already, and a command for panel
-        // index 0 selects nothing (the web's CommandSelectSkill(0) quirk, kept)
+        // the second skill when there is one (the first is selected already), then the first: panel
+        // index 0 is a skill
         string target = Sim().ActiveSkills.Count > 1 ? Sim().ActiveSkills[1] : Sim().ActiveSkills[0];
         Run("skill", target.ToLowerInvariant()); Expect("skill", Sim().SelectedSkill == target, "selects " + target);
+        string first = Sim().ActiveSkills[0];
+        Run("skill", first.ToLowerInvariant()); Expect("skill", Sim().SelectedSkill == first, "selects the first skill, " + first);
         string? before = Sim().SelectedSkill;
         Run("next_skill"); Expect("next_skill", Sim().SelectedSkill != before || Sim().ActiveSkills.Count < 2, "steps the skill");
         before = Sim().SelectedSkill;
@@ -48,7 +50,7 @@ public static class ActionsTests
             Run("rr_max"); rig.Frame(); Expect("rr_max", Sim().CurrSpawnInterval < si || si == Lemmix.Engine.Lem.MIN_SI, "raises the rate");
             Run("rr_min"); rig.Frame(); Expect("rr_min", Sim().CurrSpawnInterval == rig.Session.Level.SpawnInterval, "lowers to the minimum");
             si = Sim().CurrSpawnInterval;
-            Run("rr_up"); rig.Frame(); app.KeyUp("F2"); Expect("rr_up", Sim().CurrSpawnInterval <= si, "raises");
+            Run("rr_up"); rig.Frame(); app.KeyUp("F2"); Expect("rr_up", Sim().CurrSpawnInterval == si - 1 || si == Lemmix.Engine.Lem.MIN_SI, "a tap raises the rate by one");
             Run("rr_down"); rig.Frame();
         }
         else { done.Add("rr_max"); done.Add("rr_min"); done.Add("rr_up"); done.Add("rr_down"); }

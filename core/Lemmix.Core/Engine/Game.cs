@@ -150,6 +150,7 @@ public interface IGamePanel
 {
     void Render(bool force = false);
     void Dispose();
+    void Tick() { } // one game tick: a held release-rate button repeats (panel.js tick)
 }
 
 public sealed record ReplayMode(string Kind, int CutVersion, int RecordVersion);
@@ -205,6 +206,7 @@ public sealed class Game
 
     void OnGameTimerTick()
     {
+        Gui?.Tick(); // a held release-rate button repeats (panel.js)
         Sim.Update();
         // a state every ten seconds, the list thinned as it grows
         if (Sim.CurrentIteration > 0 && Sim.CurrentIteration % SaveStates.SaveEvery == 0 &&
