@@ -9,7 +9,8 @@ namespace Lemmix.App.Shell;
 
 // The command line (the web's URL parameters, 3d/README.md): `-- --level=<id> --nxrp=<file>
 // --solution --speed=<n> --emboss[=0] --smooth --smoothterrain --colorblend=<off|soft|smooth>
-// --doors --skillbar --flatskills --environment=<none|full> --shadows --music --assets=<dir>`.
+// --doors --skillbar --flatskills --environment=<none|full> --shadows --music --assets=<dir>`,
+// and the native `--scenery=off` (a gallery's scenery left out: envgen's rings, as the web).
 // A switch named bare is on (?emboss), as the web's `setting` reads an empty value.
 public sealed class ShellArgs
 {
@@ -22,6 +23,7 @@ public sealed class ShellArgs
     public bool Solution;          // ?solution: the level's stored solution, watched
     public double Speed = 1;       // ?speed=
     public string? Assets;         // the asset root (levels/, neolemmix/)
+    public bool Scenery = true;    // --scenery=off: envgen's rings even where a gallery has a scenery
     public readonly Dictionary<string, string> Params = new(StringComparer.Ordinal);
 
     public static ShellArgs Parse(IEnumerable<string> args)
@@ -43,6 +45,7 @@ public sealed class ShellArgs
                     a.Speed = double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var s) && s > 0 ? s : 1;
                     break;
                 case "assets": a.Assets = value.Length > 0 ? value : null; break;
+                case "scenery": a.Scenery = value != "off" && value != "0"; break;
                 default:
                     if (Array.IndexOf(SwitchNames, name) >= 0) a.Params[name] = value;
                     break;

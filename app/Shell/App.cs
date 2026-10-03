@@ -135,6 +135,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         // the diorama's root (the board goes under it, VR placement scales it) and the room, its sibling
         DioramaRoot = new Node3D { Name = "dioramaRoot" };
         AddChild(DioramaRoot);
+        EnvironmentView.SceneryEnabled = Options.Args.Scenery;
         Env = new EnvironmentView { Name = "environment", SceneEnvironment = World.Environment, BuildInBackground = Options.EnvironmentInBackground };
         AddChild(Env);
         Env.SetMode(Fx.Environment);

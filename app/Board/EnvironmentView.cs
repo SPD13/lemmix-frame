@@ -23,6 +23,10 @@ namespace Lemmix.App.Board;
 // and walls are those and the rest the collage; without, the gallery is the fog alone, as the web
 // page does. Built on a worker (it reads the style's pieces through its own StyleManager) and put
 // up on the main thread when ready, as the web puts each picture up as it comes.
+//
+// Native only: a gallery with a scenery (3d/env/<style>/scenery/, made by tools/scenery-gen) is
+// shown as that instead of the rings (SceneryView: a ground, strips to the horizon, a sky); the
+// rings' pictures are then not built at all. SceneryEnabled (--scenery=off) puts the rings back.
 public sealed partial class EnvironmentView : Node3D
 {
     public const int ENV_SCENE_COLOR = EnvironmentLayout.ENV_SCENE_COLOR;
@@ -57,6 +61,7 @@ public sealed partial class EnvironmentView : Node3D
         public readonly Dictionary<string, ImageTexture> Textures = new(StringComparer.Ordinal);
         public List<(EnvProp Prop, ImageTexture Tex, ArrayMesh? Mesh)>? PropMeshes;
         public Task? Build;
+        public SceneryView.Data? Scenery;     // the gallery's scenery, shown instead of the rings
     }
     static readonly List<Gallery> Galleries = new(); // the last few, oldest first
     static readonly Bitmap Released = new(0, 0);       // a picture's place once its texture is made
@@ -69,6 +74,8 @@ public sealed partial class EnvironmentView : Node3D
     public int SceneColor { get; private set; } = ENV_SCENE_COLOR;
     public bool Shown = true;
     public bool BuildInBackground = true;          // the pictures on a worker (off: built at once)
+    public static bool SceneryEnabled = true;      // a gallery's scenery when it has one (--scenery=off: the rings)
+    public readonly SceneryView Scenery = new();
 
     // the level
     EnvContext? _ctx;
@@ -109,6 +116,7 @@ public sealed partial class EnvironmentView : Node3D
             Add("ceiling" + i, false);
         }
         Add("bowl0", false);
+        AddChild(Scenery);
         BackdropMaterial = BasicShader.Material(new BasicKey(false, true, true, Side.Front, Filter.Nearest, false), ENV_BACKDROP_COLOR);
     }
 
@@ -160,7 +168,7 @@ public sealed partial class EnvironmentView : Node3D
         ApplyVisibility();
     }
 
-    static string GalleryKey(EnvContext ctx, string mode) => EnvironmentLayout.GalleryKey(ctx) + "|" + mode;
+    static string GalleryKey(EnvContext ctx, string mode) => EnvironmentLayout.GalleryKey(ctx) + "|" + mode + (SceneryEnabled ? "" : "|rings");
 
     Task BuildAsync(bool background)
     {
@@ -195,6 +203,14 @@ public sealed partial class EnvironmentView : Node3D
             var room = EnvGen.CanonicalRoom(EnvironmentLayout.PxPerMetre);
             var palette = EnvGen.DerivePalette(gctx);
             g.Palette = palette;
+            if (SceneryEnabled && mode == "full" && SceneryView.Load(io, gctx.Dir) is { } scenery)
+            {
+                g.Scenery = scenery;
+                g.Source = "scenery";
+                g.Fog = scenery.Horizon;
+                g.Done = true;
+                return;
+            }
             var wallpaper = EnvironmentLayout.GalleryWallpaper(gctx, styles);
             var files = Files(io, gctx, room);
             if (files != null) g.Source = "file";
@@ -266,6 +282,15 @@ public sealed partial class EnvironmentView : Node3D
     {
         var g = _gallery;
         if (g == null || _applied || !g.Done) return;
+        if (g.Scenery != null)
+        {
+            Scenery.Show(g.Scenery);
+            PlaceScenery();
+            ApplyScene();
+            ApplyBackdrop();
+            _applied = true;
+            return;
+        }
         List<string>? made = null;
         foreach (var (name, pic) in g.Pictures)
         {
@@ -383,6 +408,7 @@ public sealed partial class EnvironmentView : Node3D
     {
         _token++;
         ClearProps();
+        Scenery.Clear();
         if (_gallery == null) return;
         _gallery = null;
         _applied = false;
@@ -447,6 +473,14 @@ public sealed partial class EnvironmentView : Node3D
             if (EnvGen.ParsePlane(name).Kind == "wall" && p.Map != null)
                 p.Material.SetShaderParameter("uv_repeat", new Vector2(1, (float)WallRepeat()));
         PlaceProps();
+        PlaceScenery();
+    }
+
+    // the scenery round the room's centre on its floor, clear of the first ring
+    void PlaceScenery()
+    {
+        if (_room == null || Scenery.Shown == null) return;
+        Scenery.Place(_center ?? _room.Center, _yFloor, PxPerMetre, _room.Layers[0].ROut / PxPerMetre);
     }
 
     // ------------------------------------------------------------ every frame
@@ -464,6 +498,7 @@ public sealed partial class EnvironmentView : Node3D
         var c = _center ?? room.Center;
         var inv = BoardMaterials.WorldOf(this).AffineInverse();
         var eye = inv * eyeWorld;
+        if (Scenery.Shown != null) Scenery.SetEye(eye);
         Vector3? moved = null;
         if (!presenting)
         {

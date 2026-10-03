@@ -11,7 +11,9 @@ namespace Lemmix.App.Test;
 // head pose (1.6 m up, looking ahead and a little down) - the shell as a session runs it: the
 // board placed in front, the room around it, the skills bar below with its row of controls, the
 // status strip over the level, the right hand's beam on the board with NeoLemmix's cursor where it
-// lands; or, with no level chosen, the catalog the app starts on. SHOT_LEVEL picks the level.
+// lands; or, with no level chosen, the catalog the app starts on. SHOT_LEVEL picks the level;
+// SHOT_LOOK="yaw,pitch" (degrees, left and up positive) turns the head once the board is placed,
+// to look round the room.
 public static class ShellShots
 {
     static void Dump(Node n)
@@ -51,6 +53,19 @@ public static class ShellShots
         });
         if (catalog) app.Ready += () => app.Library.Navigate("Lemmings_Redux/Gentle");
         vp.AddChild(app);
+        if (System.Environment.GetEnvironmentVariable("SHOT_LOOK") is { } look && look.Split(',') is { Length: 2 } yp)
+        {
+            float yaw = Mathf.DegToRad(float.Parse(yp[0], System.Globalization.CultureInfo.InvariantCulture));
+            float pitch = Mathf.DegToRad(float.Parse(yp[1], System.Globalization.CultureInfo.InvariantCulture));
+            int frames = 0;
+            void Turn()
+            {
+                if (++frames < 3) return;
+                input.HeadValue = new Transform3D(new Basis(Vector3.Up, yaw) * new Basis(Vector3.Right, pitch), head.Origin);
+                root.GetTree().ProcessFrame -= Turn;
+            }
+            root.GetTree().ProcessFrame += Turn;
+        }
         if (System.Environment.GetEnvironmentVariable("SHOT_DEBUG") == "1")
             app.GetTree().CreateTimer(0.3).Timeout += () => Dump(app);
         return vp;
