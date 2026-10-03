@@ -95,7 +95,7 @@ public sealed class VrSetupPage : VrPage
     {
         Engine = Backend.Unit("engine");
         Styles = Backend.Unit("styles");
-        LevelDirs = Backend.Dirs();
+        LevelDirs = Backend.Dirs().ToList(); // its own copy: a delete may be changing the backend's list off the frame
         HasLevels = Backend.HasLevels;
         StorageUse = Backend.Storage();
     }

@@ -289,7 +289,7 @@
    "notes": "Render/TerrainMesher.cs TerrainMesh: stepped greedy + per-pixel smooth/colour-blend paths, surface-blend bands, decal skins, GroundChanged re-mesh, DirtyChunkSet in JS Set order, FlushDirty budget, Resync + Save/LoadExtra after rewinds, clear-physics paint. oracle/terrain.js: 60 levels x 24 switch combinations, every chunk float32-identical; scripted dig/build/bomb runs (4 combos, 5170 assignments) with every rebuilt chunk, decal texture and rewind identical (TerrainTests)"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.vr_dolly_in",
    "area": "input",
    "title": "Dolly In (held)",
@@ -297,10 +297,11 @@
    "handler": "3d/js/app.js",
    "oracle": "unit",
    "phase": 4,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked (VR sticks/buttons: VrManagerTests and ShellTests)"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.vr_dolly_out",
    "area": "input",
    "title": "Dolly Out (held)",
@@ -308,10 +309,11 @@
    "handler": "3d/js/app.js",
    "oracle": "unit",
    "phase": 4,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked (VR sticks/buttons: VrManagerTests and ShellTests)"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.vr_pan",
    "area": "input",
    "title": "Pan the Board",
@@ -319,10 +321,11 @@
    "handler": "3d/js/app.js",
    "oracle": "unit",
    "phase": 4,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked (VR sticks/buttons: VrManagerTests and ShellTests)"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.vr_tilt",
    "area": "input",
    "title": "Tilt the Board",
@@ -330,10 +333,11 @@
    "handler": "3d/js/app.js",
    "oracle": "unit",
    "phase": 4,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked (VR sticks/buttons: VrManagerTests and ShellTests)"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.vr_zoom",
    "area": "input",
    "title": "Dolly (forward in, back out)",
@@ -341,7 +345,8 @@
    "handler": "3d/js/app.js",
    "oracle": "unit",
    "phase": 4,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked (VR sticks/buttons: VrManagerTests and ShellTests)"
   },
   {
    "status": "done",
@@ -421,7 +426,7 @@
    "notes": "UI ported; Shell/App: VrWindows.Update per frame, SkillTip from SkillBar.HoverTip over the raised tile; the shell's extra entries carry their labels."
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.athlete_info",
    "area": "input",
    "title": "Show Athlete Info",
@@ -429,10 +434,11 @@
    "handler": "3d/js/app.js",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.cancel_replay",
    "area": "input",
    "title": "Cancel Replay",
@@ -440,10 +446,11 @@
    "handler": "3d/js/app.js:5582",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.cheat",
    "area": "input",
    "title": "Cheat (99 of each skill)",
@@ -451,10 +458,11 @@
    "handler": "3d/js/app.js:5591",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.clear_physics",
    "area": "input",
    "title": "Clear Physics Mode",
@@ -462,10 +470,11 @@
    "handler": "3d/js/app.js:5579",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.dir_select_left",
    "area": "input",
    "title": "Directional Select Left",
@@ -473,10 +482,11 @@
    "handler": "3d/js/app.js",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.dir_select_right",
    "area": "input",
    "title": "Directional Select Right",
@@ -484,10 +494,11 @@
    "handler": "3d/js/app.js",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.fastforward",
    "area": "input",
    "title": "Fast Forward",
@@ -495,10 +506,11 @@
    "handler": "3d/js/app.js:5572",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.force_walker",
    "area": "input",
    "title": "Select Walker",
@@ -506,10 +518,11 @@
    "handler": "3d/js/app.js",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.load_replay",
    "area": "input",
    "title": "Load Replay",
@@ -517,10 +530,11 @@
    "handler": "3d/js/app.js:5583",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.load_state",
    "area": "input",
    "title": "Load State",
@@ -528,10 +542,11 @@
    "handler": "3d/js/app.js:5578",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.next_level",
    "area": "input",
    "title": "Next Level",
@@ -539,10 +554,11 @@
    "handler": "3d/js/app.js:5597",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.next_skill",
    "area": "input",
    "title": "Next Skill",
@@ -550,10 +566,11 @@
    "handler": "3d/js/app.js:5551",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.nuke",
    "area": "input",
    "title": "Nuke (press twice)",
@@ -561,10 +578,11 @@
    "handler": "3d/js/app.js:5562",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.pause",
    "area": "input",
    "title": "Pause",
@@ -572,10 +590,11 @@
    "handler": "3d/js/app.js:5561",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.previous_level",
    "area": "input",
    "title": "Previous Level",
@@ -583,10 +602,11 @@
    "handler": "3d/js/app.js:5596",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.previous_skill",
    "area": "input",
    "title": "Previous Skill",
@@ -594,10 +614,11 @@
    "handler": "3d/js/app.js:5550",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.quit",
    "area": "input",
    "title": "Quit to the World Library",
@@ -605,10 +626,11 @@
    "handler": "3d/js/app.js:5590",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.recenter_vr",
    "area": "input",
    "title": "Recentre (VR)",
@@ -616,10 +638,11 @@
    "handler": "3d/js/app.js:5593",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.replay_insert",
    "area": "input",
    "title": "Replay Insert Mode",
@@ -627,10 +650,11 @@
    "handler": "3d/js/app.js:5581",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.reset_view",
    "area": "input",
    "title": "Reset the View",
@@ -638,10 +662,11 @@
    "handler": "3d/js/app.js:5592",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.restart",
    "area": "input",
    "title": "Restart",
@@ -649,10 +674,11 @@
    "handler": "3d/js/app.js:5576",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.rr_down",
    "area": "input",
    "title": "Decrease Release Rate",
@@ -660,10 +686,11 @@
    "handler": "3d/js/app.js:5552",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.rr_max",
    "area": "input",
    "title": "Maximum Release Rate",
@@ -671,10 +698,11 @@
    "handler": "3d/js/app.js:5555",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.rr_min",
    "area": "input",
    "title": "Minimum Release Rate",
@@ -682,10 +710,11 @@
    "handler": "3d/js/app.js:5554",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.rr_up",
    "area": "input",
    "title": "Increase Release Rate",
@@ -693,10 +722,11 @@
    "handler": "3d/js/app.js:5553",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.save_replay",
    "area": "input",
    "title": "Save Replay",
@@ -704,10 +734,11 @@
    "handler": "3d/js/app.js:5585",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.save_state",
    "area": "input",
    "title": "Save State",
@@ -715,10 +746,11 @@
    "handler": "3d/js/app.js:5577",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.skill",
    "area": "input",
    "title": "Select Skill",
@@ -726,10 +758,11 @@
    "handler": "3d/js/app.js:5549",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.skip",
    "area": "input",
    "title": "Time Skip",
@@ -737,10 +770,11 @@
    "handler": "3d/js/app.js:5574",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.slow_motion",
    "area": "input",
    "title": "Slow Motion",
@@ -748,10 +782,11 @@
    "handler": "3d/js/app.js:5573",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.special_skip",
    "area": "input",
    "title": "Skip to",
@@ -759,10 +794,11 @@
    "handler": "3d/js/app.js:5575",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.speed_down",
    "area": "input",
    "title": "Speed Down",
@@ -770,10 +806,11 @@
    "handler": "3d/js/app.js:5595",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.speed_up",
    "area": "input",
    "title": "Speed Up",
@@ -781,10 +818,11 @@
    "handler": "3d/js/app.js:5594",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.toggle_music",
    "area": "input",
    "title": "Toggle Music",
@@ -792,10 +830,11 @@
    "handler": "3d/js/app.js:5586",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.toggle_shadows",
    "area": "input",
    "title": "Toggle Skill Shadows",
@@ -803,10 +842,11 @@
    "handler": "3d/js/app.js:5580",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.toggle_sound",
    "area": "input",
    "title": "Toggle Sound",
@@ -814,10 +854,11 @@
    "handler": "3d/js/app.js:5587",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.watch_solution",
    "area": "input",
    "title": "Watch Solution",
@@ -825,21 +866,23 @@
    "handler": "3d/js/app.js:5584",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.yaw_left",
    "area": "input",
-   "title": "VR Yaw Correction −",
+   "title": "VR Yaw Correction \u2212",
    "source": "3d/js/hotkeys.js:94",
    "handler": "3d/js/app.js:5600",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.yaw_right",
    "area": "input",
    "title": "VR Yaw Correction +",
@@ -847,10 +890,11 @@
    "handler": "3d/js/app.js:5601",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.zoom_in",
    "area": "input",
    "title": "Zoom In",
@@ -858,10 +902,11 @@
    "handler": "3d/js/app.js:5588",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "action.zoom_out",
    "area": "input",
    "title": "Zoom Out",
@@ -869,7 +914,8 @@
    "handler": "3d/js/app.js:5589",
    "oracle": "unit",
    "phase": 5,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "app/Test/ActionsTests: run through the shell on a level, effect checked"
   },
   {
    "status": "done",

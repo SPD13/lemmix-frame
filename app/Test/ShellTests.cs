@@ -25,7 +25,7 @@ public static class ShellTests
     const string Clones = "LemmingsPlus_All_20201114/Lemmings_Plus_Omega/Breezy/Attack_Of_The_Clones.nxlv";
     const string ClonesReplay = "res://Data/solutions/LemmingsPlus_All_20201114/levels/Lemmings_Plus_Omega/Breezy/Attack_Of_The_Clones.nxrp";
 
-    sealed class Rig : IDisposable
+    internal sealed class Rig : IDisposable
     {
         public double Now = 1000;
         public readonly ScriptedXrInput Input = new();
