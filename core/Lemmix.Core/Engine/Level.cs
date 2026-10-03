@@ -196,15 +196,52 @@ public sealed class Gadget
     }
 
     // sprites.js generatePickupIcons: `g._frameCache.clear()`
-    public void ClearFrameCache() => _frameCache.Clear();
+    public void ClearFrameCache() { _frameCache.Clear(); _frameCacheByNumber.Clear(); }
+
+    // The cache key as numbers when it fits (up to four animations, frames under 32767, a counter
+    // under a million): the same states as the string key apart, without building a string
+    readonly Dictionary<(ulong Anims, long Digits), Frame> _frameCacheByNumber = new();
+
+    bool NumberKey((int Value, int Min)? digits, out (ulong, long) key)
+    {
+        key = default;
+        var anims = Animations;
+        if (anims.Count > 4) return false;
+        ulong a = (ulong)anims.Count;
+        for (int i = 0; i < anims.Count; i++)
+        {
+            var t = anims[i];
+            ulong v = 0;
+            if (t.Visible || t.State != "pause")
+            {
+                if (t.Frame < 0 || t.Frame >= 32767) return false;
+                v = (ulong)t.Frame + 1;
+            }
+            a |= v << (3 + 15 * i);
+        }
+        long d = 0;
+        if (digits is { } dg && (dg.Value > 0 || dg.Min > 0))
+        {
+            if (dg.Value < 0 || dg.Value >= 1 << 20 || dg.Min < 0 || dg.Min > 255) return false;
+            d = 1 + dg.Value + ((long)dg.Min << 21);
+        }
+        key = (a, d);
+        return true;
+    }
 
     // The composite picture of every visible animation, at this moment.
     public Frame Render()
     {
         var digits = LevelBuilder.DigitFont != null ? Digits() : null;
+        bool byNumber = NumberKey(digits, out var numberKey);
+        if (byNumber && _frameCacheByNumber.TryGetValue(numberKey, out var known)) return known;
         string digitText = digits is { } dg && (dg.Value > 0 || dg.Min > 0) ? dg.Value.ToString(System.Globalization.CultureInfo.InvariantCulture).PadLeft(dg.Min, '0') : "";
         string key = string.Join(",", Animations.Select(a => a.Visible || a.State != "pause" ? a.Frame.ToString(System.Globalization.CultureInfo.InvariantCulture) : "-")) + "|" + digitText;
-        if (_frameCache.TryGetValue(key, out var cached)) return cached;
+        if (_frameCache.TryGetValue(key, out var cached))
+        {
+            if (byNumber) _frameCacheByNumber[numberKey] = cached;
+            return cached;
+        }
         // the composite spans every animation's box, offsets included
         int x0 = 0, y0 = 0, x1 = Width, y1 = Height;
         (int Left, int Top, int Right, int Bottom) digitBox = default;
@@ -250,6 +287,7 @@ public sealed class Gadget
         }
         var frame = Frame.FromBitmap(bmp, x0, y0);
         _frameCache[key] = frame;
+        if (byNumber) _frameCacheByNumber[numberKey] = frame;
         return frame;
     }
 }

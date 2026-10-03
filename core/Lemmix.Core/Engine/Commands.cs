@@ -4,13 +4,21 @@ namespace Lemmix.Engine;
 // GameStateTypes, GameResult, CommandManager and the Command* classes, so commands log and
 // replay the way the web version does.
 
+// The handler list is copy-on-write: a trigger walks the list as it stood when it began (a
+// handler added or removed meanwhile counts from the next trigger), without copying it per call.
 public sealed class EventHandler<T>
 {
-    List<Action<T>> _handlers = new();
-    public void On(Action<T> h) => _handlers.Add(h);
-    public void Off(Action<T> h) => _handlers = _handlers.Where(x => x != h).ToList();
-    public void Dispose() => _handlers = new();
-    public void Trigger(T arg) { foreach (var h in _handlers.ToList()) h(arg); }
+    Action<T>[] _handlers = Array.Empty<Action<T>>();
+    public void On(Action<T> h)
+    {
+        var a = new Action<T>[_handlers.Length + 1];
+        _handlers.CopyTo(a, 0);
+        a[^1] = h;
+        _handlers = a;
+    }
+    public void Off(Action<T> h) => _handlers = _handlers.Where(x => x != h).ToArray();
+    public void Dispose() => _handlers = Array.Empty<Action<T>>();
+    public void Trigger(T arg) { foreach (var h in _handlers) h(arg); }
 }
 
 public enum GameStateTypes { UNKNOWN = 0, RUNNING = 1, FAILED_OUT_OF_TIME = 2, FAILED_LESS_LEMMINGS = 3, SUCCEEDED = 4 }
