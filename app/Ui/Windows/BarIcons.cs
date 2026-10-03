@@ -233,6 +233,22 @@ public static class BarIcons
         });
     }
 
+    // a headset's goggles: the VR settings (foveated rendering)
+    public static void Vr(Canvas2D cx, IconState st)
+    {
+        BarToolIcon(cx, st.Hovered, st.Hovered ? "#26485c" : "#152a36", "#7fd6e8", c =>
+        {
+            c.beginPath();                                  // the visor
+            c.roundRect(10, 20, 44, 24, 9);
+            c.stroke();
+            c.beginPath();                                  // the nose's notch and the strap's ends
+            c.moveTo(27, 44); c.lineTo(32, 37); c.lineTo(37, 44);
+            c.moveTo(10, 30); c.lineTo(5, 30);
+            c.moveTo(54, 30); c.lineTo(59, 30);
+            c.stroke();
+        });
+    }
+
     // a door frame with an arrow walking out of it: quit the game (asks first)
     public static void Quit(Canvas2D cx, IconState st)
     {
@@ -330,7 +346,7 @@ public static class BarIcons
     {
         "lock" => Lock, "move" => Move, "park" => Park, "settings" => Settings, "pause" => Pause,
         "restart" => Restart, "solution" => Solution, "prev" => Prev, "next" => Next, "worlds" => Worlds,
-        "mute" => Mute, "detail" => Detail, "quit" => Quit, "yes" => Yes, "no" => Cross, "catclose" => Cross,
+        "mute" => Mute, "detail" => Detail, "quit" => Quit, "vr" => Vr, "yes" => Yes, "no" => Cross, "catclose" => Cross,
         "catrecent" => Recent, "catfav" => Favorite, "setclose" => Cross,
         _ => null,
     };

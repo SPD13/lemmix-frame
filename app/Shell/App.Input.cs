@@ -90,6 +90,7 @@ public sealed partial class App
             "volume" => Windows.Toolbar.Volume,
             "detailok" or "detailpanel" => Windows.LevelText.Panel,
             "setpanel" => Windows.Settings.Panel,
+            "vrsetpanel" => Windows.VrOptions.Panel,
             "worldpanel" => Windows.Catalog.Panel,
             _ => null,
         };

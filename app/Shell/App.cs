@@ -49,6 +49,14 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     public WorldEnvironment World { get; private set; } = null!;
     public XROrigin3D? Origin { get; private set; }
     public ControllerModels? Controllers { get; private set; }
+    public Foveation Foveation { get; private set; } = null!;
+
+    // the VR window's rows (native): foveated rendering on or off, and its strength
+    List<SettingRow> VrRows() => new()
+    {
+        new("foveated rendering", () => Foveation.On, Foveation.Toggle),
+        new("strength", () => Foveation.On, Foveation.CycleLevel, () => Foveation.LevelName.ToUpperInvariant()),
+    };
     public IXrInput Input { get; private set; } = null!;
     public Node3D Head { get; private set; } = null!;
     public VrManager Vr { get; private set; } = null!;
@@ -142,7 +150,8 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
 
         // the windows: the bar's root rides the head until a board is placed; the windows' root is
         // the scene's; the status strip stands over the board in its pixels
-        Windows = new VrWindows(this, VrSettings.Rows(Fx), Head, this, Store.GetItem("lem3d-bar"));
+        Foveation = new Foveation(Store);
+        Windows = new VrWindows(this, VrSettings.Rows(Fx), Head, this, Store.GetItem("lem3d-bar"), VrRows());
         Head.AddChild(Windows.Toolbar.GuiRoot);
         AddChild(Windows.WindowRoot);
         AddChild(Windows.Tooltip.Panel);
@@ -165,6 +174,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         BuildPages();
         ConnectOpenXr();
         StartUploadServerIfOn();
+        Foveation.Apply();
 
         // the level asked for (?level=), else the library, locked, until one is chosen
         Speed = args.Speed;
@@ -370,6 +380,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         Windows.SetModal(false);
         Windows.SetCatalog(false);
         Windows.SetSettings(false);
+        Windows.SetVrOptions(false);
         Windows.SetDetail(false);
         Pages.CloseKeyboard();
         Pages.Show(null);

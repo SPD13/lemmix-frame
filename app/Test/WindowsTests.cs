@@ -491,6 +491,38 @@ public static class WindowsTests
     }
 
     [AppTest]
+    public static void TheVrButtonOpensFoveationsSwitchAndStrength()
+    {
+        var host = new Host();
+        bool on = true; int level = 2;
+        string[] names = { "off", "low", "medium", "high" };
+        var rows = new List<SettingRow>
+        {
+            new("foveated rendering", () => on, () => on = !on),
+            new("strength", () => on, () => { level = level % 3 + 1; on = true; }, () => names[level].ToUpperInvariant()),
+        };
+        var w = new VrWindows(host, VrSettings.Rows(new Fx()), new Node3D(), new Node3D(), null, rows);
+        try
+        {
+            Check.True(w.Toolbar.LeftTools.Contains(w.Toolbar.VrButton) && w.IconButtons.Contains(w.Toolbar.VrButton), "a VR button in the row, with hover and tip");
+            Check.True(w.Act(new VrPick("bar", BarTool: "vr")), "the VR button is a bar tool");
+            Check.True(w.VrOptions.Root.Visible && w.VrOptions.Close.Visible && host.Held.Contains("vr-vroptions"), "the VR window up, the game held");
+            Check.Equal("VR", w.VrOptions.Title, "its title");
+            Check.True(w.VrOptions.H < VrSettings.VR_SET_H, "sized for its two rows");
+            Check.True(w.AnyWindowUp, "counts as a window");
+            w.Act(new VrPick("bar", BarTool: "vrsetpanel", Data: new WindowPickData(Row: 1)));
+            Check.True(on && level == 3, "the strength row steps to high");
+            w.Act(new VrPick("bar", BarTool: "vrsetpanel", Data: new WindowPickData(Row: 0)));
+            Check.True(!on, "the switch turns it off");
+            w.Act(new VrPick("bar", BarTool: "vrsetpanel", Data: new WindowPickData(Row: 1)));
+            Check.True(on && level == 1, "a strength press turns it back on, wrapping to low");
+            w.Act(new VrPick("bar", BarTool: "vrsetclose"));
+            Check.True(!w.VrOptions.Root.Visible && !host.Held.Contains("vr-vroptions"), "closed, the game given back");
+        }
+        finally { w.WindowRoot.Free(); w.Toolbar.GuiRoot.Free(); }
+    }
+
+    [AppTest]
     public static void QuitAsksThenEndsTheGame()
     {
         var host = new Host();
