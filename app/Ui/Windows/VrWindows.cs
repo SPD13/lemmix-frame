@@ -25,6 +25,7 @@ public interface IVrWindowsHost
     bool CanWatchSolution { get; }         // session.game.sim && Solutions.has(levelId)
     void WatchSolution();
     void EnterLevel(string levelId);       // library.enter
+    void QuitGame() { }                    // the app ends (the native toolbar's quit, after its question)
 }
 
 // The data a window pick carries beyond its bar tool (web: the pick object's tile, scrollBar,
@@ -87,6 +88,7 @@ public sealed class VrWindows
         "move" => "hold the trigger here and move your hand to carry the bar",
         "park" => "put the bar back below the board",
         "settings" => "3D effects: the terrain's switches, the environment",
+        "quit" => "quit the game (asks first)",
         "pause" => Host.HasSession && !Host.GameRunning ? "resume" : "pause",
         "restart" => "restart the level (asks first)",
         "prev" => "previous level (asks first)",
@@ -309,6 +311,7 @@ public sealed class VrWindows
             case "prev": AskConfirm("Go back a level?", () => Host.MoveLevel(-1)); return true;
             case "next": AskConfirm("Skip to the next level?", () => Host.MoveLevel(1)); return true;
             case "settings": SetSettings(true); return true;
+            case "quit": AskConfirm("Quit Lemmix?", Host.QuitGame); return true;
             case "setclose": SetSettings(false); return true;
             case "setpanel": Settings.Press(d?.Row ?? -1); return true;
             case "detail": SetDetail(true); return true;

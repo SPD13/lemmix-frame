@@ -25,6 +25,8 @@ public partial class Shots : Node
         ["vr-scene"] = r => ShellShots.Make(r, false),
         ["vr-catalog"] = r => ShellShots.Make(r, true),
         ["controllers"] = ControllerShot.Make,
+        ["icon-quit"] = r => QuitIcon(r, false),
+        ["icon-quit-hover"] = r => QuitIcon(r, true),
     };
 
     // a check to run on the saved picture (a shot may set it)
@@ -52,6 +54,16 @@ public partial class Shots : Node
         After?.Invoke(img);
         _grab = null;
         GetTree().Quit(err == Error.Ok ? 0 : 1);
+    }
+
+    // the native toolbar's quit button (the web has none to compare with)
+    static Viewport QuitIcon(Node root, bool hovered)
+    {
+        var b = new Lemmix.App.Ui.Windows.IconButton("quit", Lemmix.App.Ui.Windows.BarIcons.Quit) { Visible = true };
+        root.AddChild(b);
+        b.State.Hovered = hovered;
+        b.Repaint();
+        return b.GetChild<SubViewport>(0);
     }
 
     // every Canvas2D primitive the windows use, on a 512x320 panel

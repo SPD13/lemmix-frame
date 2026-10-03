@@ -5,14 +5,15 @@ using static Lemmix.App.Xr.VrManager;
 namespace Lemmix.App.Ui.Windows;
 
 // web/3d/js/app.js, the VR bar's own controls (guiRoot's icon buttons): the row above the skills
-// bar - lock, move, park, settings at the left end, pause in the middle, worlds, prev, restart,
+// bar - quit (the native app's own: the game ends, asking first), lock, move, park, settings at
+// the left end, pause in the middle, worlds, prev, restart,
 // solution, next at the right - and the sound column off its right end, a mute switch with the
 // volume slider over it (shown while the beam is on either, and VR_SOUND_LINGER after).
 // GuiRoot is the web's guiRoot: the skills bar hangs in it too (the panel is another port's).
 public sealed class VrToolbar
 {
     public readonly Node3D GuiRoot = new() { Name = "vr-guiroot" };
-    public readonly IconButton Lock, Move, Park, Settings, Pause, Restart, Solution, Prev, Next, Worlds, Mute;
+    public readonly IconButton Quit, Lock, Move, Park, Settings, Pause, Restart, Solution, Prev, Next, Worlds, Mute;
     public readonly Panel3D Volume;
     public readonly IconButton[] LeftTools, RightTools, Buttons;
     public bool VolumeHovered;
@@ -31,7 +32,8 @@ public sealed class VrToolbar
         GuiRoot.AddChild(Volume);
         Mute = Make("mute");
         Settings = Make("settings");
-        LeftTools = new[] { Lock, Move, Park, Settings };
+        Quit = Make("quit");
+        LeftTools = new[] { Quit, Lock, Move, Park, Settings };
         RightTools = new[] { Worlds, Prev, Restart, Solution, Next };
         Buttons = LeftTools.Concat(new[] { Pause }).Concat(RightTools).ToArray();
         PaintVolume(1, false);

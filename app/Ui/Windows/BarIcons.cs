@@ -233,6 +233,21 @@ public static class BarIcons
         });
     }
 
+    // a door frame with an arrow walking out of it: quit the game (asks first)
+    public static void Quit(Canvas2D cx, IconState st)
+    {
+        BarToolIcon(cx, st.Hovered, st.Hovered ? "#5a2a2a" : "#33201c", "#e07a6a", c =>
+        {
+            c.beginPath();                                  // the frame, open on the right
+            c.moveTo(34, 14); c.lineTo(14, 14); c.lineTo(14, 50); c.lineTo(34, 50);
+            c.stroke();
+            c.beginPath();                                  // the way out
+            c.moveTo(26, 32); c.lineTo(52, 32);
+            c.moveTo(44, 24); c.lineTo(52, 32); c.lineTo(44, 40);
+            c.stroke();
+        });
+    }
+
     // three lines of text: the level's own text, off the status strip's end
     public static void Detail(Canvas2D cx, IconState st)
     {
@@ -315,7 +330,7 @@ public static class BarIcons
     {
         "lock" => Lock, "move" => Move, "park" => Park, "settings" => Settings, "pause" => Pause,
         "restart" => Restart, "solution" => Solution, "prev" => Prev, "next" => Next, "worlds" => Worlds,
-        "mute" => Mute, "detail" => Detail, "yes" => Yes, "no" => Cross, "catclose" => Cross,
+        "mute" => Mute, "detail" => Detail, "quit" => Quit, "yes" => Yes, "no" => Cross, "catclose" => Cross,
         "catrecent" => Recent, "catfav" => Favorite, "setclose" => Cross,
         _ => null,
     };

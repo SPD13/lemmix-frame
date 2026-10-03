@@ -597,6 +597,15 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     }
 
     // ------------------------------------------------------------ IVrWindowsHost
+    /** The toolbar's quit, answered yes: the settings saved, the upload server stopped, the app ended. */
+    public void QuitGame()
+    {
+        GD.Print("[app] quit from the toolbar");
+        StopUploadServer();
+        _localStore?.Flush();
+        GetTree().Quit(0);
+    }
+
     public bool Presenting => Vr != null && Vr.Presenting;
     public bool HasSession => Session != null;
     public Transform3D? HeadPose => Vr.LastHeadPose ?? Input.Head;

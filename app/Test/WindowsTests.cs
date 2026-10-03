@@ -88,6 +88,7 @@ public static class WindowsTests
         public bool CanWatchSolution { get; set; }
         public void WatchSolution() => Log.Add("solution");
         public void EnterLevel(string id) => Log.Add("enter " + id);
+        public void QuitGame() => Log.Add("quit");
     }
 
     sealed class Fx : IVrEffects
@@ -455,6 +456,26 @@ public static class WindowsTests
     }
 
     // ---- the flows: the question, the notice, the hover, the tooltip, the sound column
+    [AppTest]
+    public static void QuitAsksThenEndsTheGame()
+    {
+        var host = new Host();
+        var w = Make(host, out var scene);
+        try
+        {
+            Check.True(w.Toolbar.LeftTools[0] == w.Toolbar.Quit, "quit at the left end of the row");
+            Check.True(w.Act(new VrPick("bar", BarTool: "quit")), "quit is a bar tool");
+            Check.Equal("Quit Lemmix?", w.Modal.Title, "asks first");
+            Check.True(w.Modal.Yes.Visible && w.Modal.No.Visible, "with yes and no");
+            w.Act(new VrPick("bar", BarTool: "no"));
+            Check.True(!w.Modal.Root.Visible && host.Log.Count == 0, "no: nothing happens");
+            w.Act(new VrPick("bar", BarTool: "quit"));
+            w.Act(new VrPick("bar", BarTool: "yes"));
+            Check.Equal("quit", host.Log.LastOrDefault(), "yes: the game ends");
+        }
+        finally { scene.Free(); }
+    }
+
     [AppTest]
     public static void RestartAsksAndYesActs()
     {
