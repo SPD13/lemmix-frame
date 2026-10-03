@@ -191,26 +191,36 @@ public static class ShellTests
     }
 
     [AppTest]
-    public static void TheFloorHeightLiftsASeatedPlayer()
+    public static void SeatedLowersTheViewFromTheFirstPress()
     {
         if (!HaveAssets()) return;
         using var rig = new Rig(null, "--level=" + Builders);
         LoadedRig(rig);
         var app = rig.App;
-        // seated: the eyes 1.2 m above the headset's floor
-        rig.Input.HeadValue = new Transform3D(Basis.Identity, new Vector3(0, 1.2f, 0));
-        rig.Frame();
-        app.Windows.VrOptions.Floor!.Seated();
-        Check.True(Mathf.Abs(app.FloorHeight + 0.45f) < 1e-3f, "Seated: the floor 45 cm lower (" + app.FloorHeight + ")");
-        Check.Equal("-0.45", app.Store.GetItem(ShellApp.FloorKey), "remembered");
-        Check.True(Mathf.Abs(app.Pointers.Floor.Position.Y + 0.45f) < 1e-3f, "the floor grid follows");
-        Check.True(Mathf.Abs((float)app.Env.FloorY + 0.45f) < 1e-3f, "and the room's floor");
-        app.Windows.VrOptions.Floor!.Standing();
-        Check.True(app.FloorHeight == 0 && app.Pointers.Floor.Position.Y == 0, "Standing: the headset's floor");
-        app.Windows.VrOptions.Floor!.Set(-2);
-        Check.True(Mathf.Abs(app.FloorHeight - Lemmix.App.Ui.Windows.FloorControl.Min) < 1e-4f, "the slider's range holds");
-        app.Windows.VrOptions.Floor!.Reset();
-        Check.True(app.FloorHeight == 0, "Reset");
+        // the VR window just opened, the slider never touched: Seated acts at once
+        Check.True(app.Windows.Act(new VrPick("bar", BarTool: "vr")), "the VR window opens");
+        var board = app.DioramaRoot.Position;
+        var windows = app.Windows.WindowRoot.Position;
+        var v = app.Windows.VrOptions;
+        float seatedY = v.SliderTop + 10; // the first button
+        var (part, _) = v.FloorPartAt(new Vector2(VrSettings.ButtonX + 20, seatedY));
+        Check.Equal("seated", part, "the Seated button under the beam");
+        app.Windows.Act(new VrPick("bar", BarTool: "vrsetpanel", Data: new WindowPickData(Part: part)));
+        Check.True(Mathf.Abs(app.ViewHeight + ShellApp.SeatedDrop) < 1e-4f, "Seated: the view 45 cm lower (" + app.ViewHeight + ")");
+        Check.Equal("-0.45", app.Store.GetItem(ShellApp.ViewHeightKey), "remembered");
+        // the board and the windows come down with the view: they keep their place before the eyes
+        Check.Near(board + new Vector3(0, -ShellApp.SeatedDrop, 0), app.DioramaRoot.Position, "the board with the view", 1e-4f);
+        Check.Near(windows + new Vector3(0, -ShellApp.SeatedDrop, 0), app.Windows.WindowRoot.Position, "the windows with the view", 1e-4f);
+        Check.Equal("\u221245 cm", Lemmix.App.Ui.Windows.FloorControl.Label(app.ViewHeight), "its label");
+        // Standing, the range, Reset
+        v.Floor!.Standing();
+        Check.True(app.ViewHeight == 0, "Standing: the headset's own height");
+        Check.Near(board, app.DioramaRoot.Position, "the board back", 1e-4f);
+        v.Floor!.Set(-2);
+        Check.True(Mathf.Abs(app.ViewHeight - Lemmix.App.Ui.Windows.FloorControl.Min) < 1e-4f, "the slider's range holds");
+        v.Floor!.Reset();
+        Check.True(app.ViewHeight == 0, "Reset");
+        app.Windows.Act(new VrPick("bar", BarTool: "vrsetclose"));
     }
 
     [AppTest]

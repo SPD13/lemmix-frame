@@ -555,7 +555,7 @@ public static class WindowsTests
                 w.Act(new VrPick("bar", BarTool: "vrsetpanel", Data: new WindowPickData(Part: bp)));
             }
             Check.Equal("seated standing reset", string.Join(" ", log), "each button acts");
-            Check.Equal("0 cm (the headset's floor)", FloorControl.Label(0), "zero is the headset's floor");
+            Check.Equal("0 cm", FloorControl.Label(0), "zero");
             // the hover lights the part
             w.ApplyHover(new VrPick("bar", BarTool: "vrfloor", ScrollBar: true, Data: new WindowPickData(Volume: 0)));
             Check.Equal("slider", v.HoverPart, "the slider lit");

@@ -427,24 +427,14 @@ public sealed partial class EnvironmentView : Node3D
     // ------------------------------------------------------------ placement
     // placeForXR: the room takes the diorama's placement as it is now and keeps it; the floor at
     // the physical floor, the rings round the head
-    // The floor's height in the world (native: the VR window's floor height; 0 is the headset's own
-    // floor). A change re-lays the room on the next frame.
-    public double FloorY { get; private set; }
-    public void SetFloorY(double y)
-    {
-        if (y == FloorY) return;
-        FloorY = y;
-        if (_placed == "xr") _placed = null;
-    }
-
     public void PlaceForXR(Transform3D diorama, Vector3? headPos)
     {
         _placed = "xr";
         Transform = diorama;
         double s = diorama.Basis.Scale.Y;
         if (s == 0) s = 1;
-        _yFloor = (FloorY - diorama.Origin.Y) / s;
-        _yCeil = (FloorY + EnvGen.ROOM.CEIL_M - diorama.Origin.Y) / s;
+        _yFloor = (0 - diorama.Origin.Y) / s;
+        _yCeil = (EnvGen.ROOM.CEIL_M - diorama.Origin.Y) / s;
         if (headPos is Vector3 h)
         {
             var local = diorama.AffineInverse() * h;

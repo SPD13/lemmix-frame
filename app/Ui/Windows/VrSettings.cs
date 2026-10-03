@@ -9,9 +9,9 @@ namespace Lemmix.App.Ui.Windows;
 // ON/OFF) or an action (no Get).
 public sealed record SettingRow(string Label, Func<bool>? Get, Action Act, Func<string>? Text = null);
 
-// The VR window's floor height (native): where the virtual floor stands against the headset's own,
-// in metres - below it (negative) lifts the player, for seated play - with its slider's range and
-// its three buttons.
+// The VR window's view height (native): the viewpoint raised or lowered against the floor, in
+// metres - lower (negative) for seated play, so the virtual floor stays on the real one - with its
+// slider's range (up: a higher view) and its three buttons.
 public sealed class FloorControl
 {
     public const float Min = -1.0f, Max = 0.3f;
@@ -22,7 +22,7 @@ public sealed class FloorControl
     public static string Label(float metres)
     {
         int cm = (int)MathF.Round(metres * 100);
-        return cm == 0 ? "0 cm (the headset's floor)" : (cm > 0 ? "+" : "\u2212") + Math.Abs(cm) + " cm";
+        return cm == 0 ? "0 cm" : (cm > 0 ? "+" : "\u2212") + Math.Abs(cm) + " cm";
     }
 }
 
@@ -85,7 +85,7 @@ public sealed class VrSettings
     public readonly string Title;
     public readonly int H;                          // canvas height: VR_SET_H for the web's window
     public bool FitPills;                           // a pill as wide as its text needs (the native VR window; the web's are 86)
-    public FloorControl? Floor;                     // the native VR window's floor height, under the rows
+    public FloorControl? Floor;                     // the native VR window's view height, under the rows
     public string? HoverPart;                       // the floor section's part under the beam: slider, seated, standing, reset
 
     // the floor section's geometry, in canvas pixels (under the rows)
@@ -174,7 +174,7 @@ public sealed class VrSettings
         cx.textAlign = "left";
         cx.fillStyle = "#f0f3f8";
         cx.font = "26px monospace";
-        cx.fillText("floor height", 44, top + 34);
+        cx.fillText("view height", 44, top + 34);
         cx.fillStyle = "#7fd6e8";
         cx.font = "bold 22px monospace";
         cx.textAlign = "right";
@@ -223,7 +223,7 @@ public sealed class VrSettings
         }
     }
 
-    // the slider: the floor's height to a canvas y (the top is the highest floor) and back
+    // the slider: the view's height to a canvas y (the top is the highest view) and back
     public float YOf(float metres) => SliderTop + (FloorControl.Max - Math.Clamp(metres, FloorControl.Min, FloorControl.Max)) / (FloorControl.Max - FloorControl.Min) * SliderLen;
     public float ValueAt(float y) => FloorControl.Max - Math.Clamp((y - SliderTop) / SliderLen, 0, 1) * (FloorControl.Max - FloorControl.Min);
 
