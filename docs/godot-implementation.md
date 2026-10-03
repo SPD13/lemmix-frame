@@ -307,7 +307,8 @@ order against the windows has to be in the transparent pass (write `ALPHA`, or a
 - `Board/SpritePool`: one MeshInstance3D per captured sprite draw (the web's BillboardPool); only
   changed meshes/materials/transforms call into Godot.
 - `Board/OverlaysView`: clear-physics overlay, replay markers and labels, skill shadows.
-- `Board/EnvironmentView`: the room around the board (EnvGen pictures, rings of floor/walls).
+- `Board/EnvironmentView`: the room around the board (EnvGen pictures, rings of floor/walls);
+  `Board/SceneryView` in their place when the gallery has a scenery (6.11).
 - `Board/SkillBarView`: the skill bar as relief meshes from `Render/SkillBar`.
 
 ### 6.7 Audio
@@ -366,6 +367,44 @@ the pack folder, `neolemmix/music`) played through libopenmpt (`Audio/OpenMpt`, 
 - **Fallback:** without render models, `PointerView` draws a green box at the grip and a sphere at
   the aim (hidden for a hand whose model is shown).
 
+### 6.11 Scenery: a gallery's room to the horizon (native only)
+
+A gallery (the level's theme style) may have a **scenery**: pictures made offline from the style's
+own pieces by `tools/scenery-gen`, kept under the asset root at `3d/env/<style>/scenery/`
+(`scenery.json` + PNGs; never in git, like the web's `3d/env/<style>/`). When it has one,
+`EnvironmentView` builds none of envgen's ring pictures and `SceneryView` shows instead:
+
+- a ground disc (115 m) with a seamless tile (`ground.png`, 1.28 m, trilinear so no mip seams);
+- one open drum per strip round the player's place, near to far: `rubble` 3.8 m, `pillars`
+  6.5 m, `overhang` 9.5 m (hung from 5 m up, its top melting into the sky), `outcrops` 14 m,
+  `ridge` 25 m, `far` 44 m, `horizon` 78 m;
+- a sky sphere (120 m) painted by elevation: zenith, high, horizon, below.
+
+Every strip has **2048 texels round**, so a texel spans the same angle near or far (about the
+board's own pixel seen at 0.9 m): one pixel-art size, like a 2D game's parallax layers. The
+strips are drawn calm straight ahead (u = 0.5, where the board is): nothing near, the far ridges
+low, so the board stands against the haze.
+
+One unshaded shader (`SceneryView.ShaderCode`) paints everything: the texel graded (`grade`,
+`desat` per strip), then mixed toward the sky's colour *in the direction it is seen* by
+`SceneryLook.Haze` (1 - e^(-d / distance_m), capped, plus a mist thickening toward the ground
+far away), so the far strips melt into the horizon. Alpha test, no blending, nothing sorted;
+an ordered dither of one step of the 10-bit buffer keeps the dark gradients from banding. The
+haze, colours and grades are the manifest's, read at run time: tune `scenery.json` without
+making the pictures again. The rings are pushed out together (`SceneryLayout.Scale`) when a wide
+level makes the room's first ring wider than the nearest strip.
+
+Make one: `cd tools/scenery-gen && WEB_ASSETS=../../../LemmingsJS dotnet run -c Release -- gen
+<style>` (about 4 s; also writes `preview.png`, the view from the player's place with the haze).
+The recipe (`Layers.Recipe`) and the piece sorting (`Pieces.cs`: mass, spire, tuft, hang,
+rubble, by measurement and colour; steel, bridges, signs and grey pieces left out) are the same
+for every style; it was tuned on `orig_dirt`. Copy to the Frame with `tools/frame-scenery.sh
+<style>` (`--remove <style>` takes it off). Look round in the render box with the `vr-scene` shot
+and `SHOT_LOOK="yaw,pitch"`, `RENDER_EXTRA="3d/env/<style>/scenery"`.
+
+**Revert:** delete `3d/env/<style>/scenery/` (the room is the rings again for that gallery),
+run with `--scenery=off`, or revert the commits on branch `scenery`.
+
 ---
 
 ## 7. Native departures from the web (deliberate)
@@ -380,6 +419,7 @@ the pack folder, `neolemmix/music`) played through libopenmpt (`Audio/OpenMpt`, 
 | Level upload server + browser page (files, folders, zips, settings backup) | levels cannot ship |
 | `CommandSelectSkill(0)` selects the first skill; a release-rate click changes the rate once | web bugs, fixed in both (web `a5b7b4f`) |
 | Preferences imported from a computer apply at the next start | effects are read at start, as the web's reload |
+| A gallery with a scenery (`3d/env/<style>/scenery/`) shows it instead of envgen's rings; `--scenery=off` restores the rings | a room going to a far, hazy horizon (6.11) |
 
 ---
 
