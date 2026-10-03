@@ -520,10 +520,14 @@ tools/frame-pull-report.sh                  *.json reports → build/frame/
 tools/frame-capture.sh                      the headset's view now → build/frame/captures/
 ```
 
-- Defaults: `FRAME_HOST=frame.local`, `FRAME_USER=steamos`, ssh's own keys (or `FRAME_KEY`).
-- Registration uses the Devkit Client's own scripts on the device
-  (`python3 ~/devkit-utils/steam-client-create-shortcut --parms '{…}'`, compat tool
-  `SteamLinuxRuntime_4-arm64`). The title is **lemmix** in the library; its command line is
+- Defaults: `FRAME_HOST=frame.local`, `FRAME_USER=steamos`, and the installer's key
+  `~/.config/lemmix-frame/frame_rsa`. Without it they use the Devkit Client's `devkit_rsa`, then
+  ssh's own keys; `FRAME_KEY` overrides all three.
+- Registration runs `dist/frame-install.sh --register` on the device, the same script the
+  players' installer uses. It speaks the Steam client's `devkit-1` IPC itself, so the Devkit
+  Client's `~/devkit-utils` is not needed. The compat tool is `SteamLinuxRuntime_4-arm64`.
+  Player installs and releases: README, "Install on your Steam Frame" and "Distribution".
+- The title is **lemmix** in the library; its command line is
   `~/devkit-game/lemmix-argv.json`, read at each launch — so play/probe/benchmark switch without
   re-uploading.
 - **Clean device builds.** Build what goes to the headset from a commit, not from a working tree

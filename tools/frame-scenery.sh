@@ -8,7 +8,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ASSETS="${WEB_ASSETS:-$ROOT/../LemmingsJS}"
 HOST="${FRAME_HOST:-frame.local}"
 USER_="${FRAME_USER:-steamos}"
-KEY="${FRAME_KEY:-$HOME/.config/steamos-devkit/devkit_rsa}"
+KEY="${FRAME_KEY:-$HOME/.config/lemmix-frame/frame_rsa}"
+[ -f "$KEY" ] || [ -n "${FRAME_KEY:-}" ] || KEY="$HOME/.config/steamos-devkit/devkit_rsa"
 SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
 [ -f "$KEY" ] && SSH_OPTS+=(-i "$KEY")
 SSH="ssh ${SSH_OPTS[*]}"

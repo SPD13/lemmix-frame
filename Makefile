@@ -3,7 +3,7 @@ SHELL := /bin/bash
 WEB_ASSETS ?= $(abspath ../LemmingsJS)
 export WEB_ASSETS
 
-.PHONY: verify core core-linux app-smoke app-test linux-smoke export-linux probe-virtual matrix libopenmpt
+.PHONY: verify core core-linux app-smoke app-test linux-smoke export-linux package release probe-virtual matrix libopenmpt
 
 verify: core core-linux app-smoke app-test linux-smoke
 
@@ -27,6 +27,12 @@ linux-smoke: export-linux  ## the exported build starts in the Frame's runtime (
 
 export-linux:              ## build/app/linux-arm64: what goes to the Frame
 	tools/export.sh linux-arm64
+
+package: export-linux      ## build/dist: the release package and the installers (tools/package.sh)
+	tools/package.sh
+
+release:                   ## export, package and publish a GitHub release (tools/release.sh)
+	tools/release.sh
 
 probe-virtual:             ## phase 0 off-device probe in sniper arm64
 	tools/probe-virtual.sh
