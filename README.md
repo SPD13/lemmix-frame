@@ -7,8 +7,8 @@ sits in `web/` as a pinned submodule: it is the reference the port is tested aga
 the source of shared data (depth profiles, solutions, hotkey presets, config file formats).
 
 - **Engine:** Godot 4.7 .NET (C#), OpenXR, Vulkan Mobile renderer.
-- **Targets:** Linux ARM64 on the Steam Linux Runtime 3.0 (sniper) ARM64, the Frame's native
-  format. An Android APK through Lepton is the fallback; it is not set up yet (needs the
+- **Targets:** Linux ARM64, launched on the Frame in Steam Linux Runtime 4 ARM64 (tested in the
+  3.0 "sniper" ARM64 image). An Android APK through Lepton is the fallback; it is not set up yet (needs the
   Android SDK and JDK 17).
 - **Scope:** the Lemmix engine (the classic DOS engine is not part of it), VR only, play
   features only (the web version's piece editor, galleries, solver queue and LAN launcher
@@ -51,12 +51,16 @@ make probe-virtual   the off-device probe (docs/phase0-probe.md)
 make matrix          regenerate parity/matrix.json after bumping web/
 ```
 
-On the Frame (developer mode, paired once with the SteamOS Devkit Client):
+On the Frame (developer mode, ssh as `steamos@frame.local`):
 
 ```
-FRAME_HOST=… FRAME_USER=… tools/frame-deploy.sh [--probe]
-FRAME_HOST=… FRAME_USER=… tools/frame-pull-report.sh
+tools/frame-deploy.sh [play|probe|benchmark]   upload, register the "lemmix" title, choose what it runs
+tools/frame-pull-report.sh                     probe.json, perf.json, qa.json, controller-models.json
+tools/frame-capture.sh                         a picture of the headset's view
 ```
+
+How the Godot app is built, what the device showed and how to work on it:
+**`docs/godot-implementation.md`**.
 
 Godot on the Mac: tests pass `--xr-mode off` (with no OpenXR runtime the start can stall),
 and `tools/godot-run.sh` stops the process once its marker is printed, since Godot 4.7 .NET

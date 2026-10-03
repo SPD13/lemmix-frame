@@ -23,25 +23,17 @@ how the board and windows look and feel, and how fast it runs.
 
 ## The build
 
-Claude makes `build/app/linux-arm64/` (`make export-linux`). Upload it once through the Devkit
-Client's **Title Upload**:
-
-| Field | Value |
-|---|---|
-| Name | Lemmix |
-| Local folder | `build/app/linux-arm64` |
-| Start command | `Lemmix.arm64` |
-| Runtime | Steam Linux Runtime 3.0 ARM64 (Sniper) |
-
-It then appears under Library > Non-Steam > Devkit Game. Later builds:
-`FRAME_HOST=… FRAME_USER=… tools/frame-deploy.sh`. The user is the one the Client shows for the
-Frame; Claude checks it with you at the start.
+`make export-linux`, then `tools/frame-deploy.sh [play|probe|benchmark]` (defaults
+`steamos@frame.local`, ssh's own keys): it copies `build/app/linux-arm64/` to
+`~/devkit-game/lemmix`, registers the **lemmix** title with the Frame's Steam client as the
+Devkit Client's Title Upload does (runtime Steam Linux Runtime 4 ARM64), and writes what the next
+launch runs. Launch **lemmix** from the library in the headset. (Session 1, 2 Oct 2026: done this
+way; see `docs/godot-implementation.md` section 8 for what the device showed.)
 
 ## In the headset (about 45 minutes)
 
 1. **Probe, unattended, 1 minute.**
-   - Start Lemmix with the start command `Lemmix.arm64 -- --probe`, or run
-     `tools/frame-deploy.sh --probe`.
+   - `tools/frame-deploy.sh probe`, then launch lemmix.
    - Look ahead and don't move.
    - It writes `probe.json`: the renderer and GPU, the OpenXR runtime and its extensions, the
      controller profiles, refresh rates, foveation support, and frame times on a stress scene.
@@ -72,7 +64,7 @@ Frame; Claude checks it with you at the start.
 6. **Feel and comfort:** board size and distance, window legibility, beam precision, anything
    that strains the eyes.
 7. **Benchmark, unattended, about 3 minutes.**
-   - Start with `Lemmix.arm64 -- --benchmark`.
+   - `tools/frame-deploy.sh benchmark`, then launch lemmix (`play` afterwards to play again).
    - It tours the heaviest levels with every effect at ×8 with rewinds, then writes `perf.json`.
 8. **QA checklist.**
    - In the settings window, "QA checklist" lists the checks above with pass/fail and a note.
