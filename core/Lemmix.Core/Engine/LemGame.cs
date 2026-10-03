@@ -245,7 +245,9 @@ public sealed partial class LemGame
 
     // Everything a later LoadState needs to put this frame back. With `physicsOnly` the
     // picture and the ground mask are left out (a solver needs the physics map alone).
-    public SavedState SaveState(bool physicsOnly = false) => new()
+    // `reuse`: a state no longer kept (SaveStates' spares), whose big arrays are filled in again
+    // instead of allocated - the same values either way.
+    public SavedState SaveState(bool physicsOnly = false, SavedState? reuse = null) => new()
     {
         Scalars = GetScalars(),
         CurrSkillCount = new Dictionary<int, int>(CurrSkillCount),
@@ -259,10 +261,19 @@ public sealed partial class LemGame
             NeutralMode = g.NeutralMode, X = g.X, Y = g.Y, Effect = g.Effect, // a disarmed trap is "NONE"
             Animations = g.Animations.Select(a => (a.Frame, a.State, a.Visible)).ToArray(),
         }).ToList(),
-        Physics = (ushort[])Level.Physics.Clone(),
-        GroundImage = physicsOnly ? null : (byte[])Level.GroundImage.Clone(),
-        GroundMask = physicsOnly ? null : (sbyte[])Level.GroundMask.GroundMask.Clone(),
+        Physics = CopyInto(Level.Physics, reuse?.Physics)!,
+        GroundImage = physicsOnly ? null : CopyInto(Level.GroundImage, reuse?.GroundImage),
+        GroundMask = physicsOnly ? null : CopyInto(Level.GroundMask.GroundMask, reuse?.GroundMask),
+        Extra = reuse?.Extra ?? new(),
     };
+
+    // a copy of `src`, in `into` when it is there and the same size
+    public static T[] CopyInto<T>(T[] src, T[]? into)
+    {
+        if (into == null || into.Length != src.Length) return (T[])src.Clone();
+        Array.Copy(src, into, src.Length);
+        return into;
+    }
 
     // LoadSavedState: back to that frame. The replay, the selected skill and the player's
     // settings stay; the terrain goes back into the arrays the renderer holds references to.

@@ -17,11 +17,23 @@ public sealed class SaveStates
     public static int FrameOf(SavedState s) => s.Scalars.CurrentIteration;
     public int Count => States.Count;
 
+    // States dropped from the list, their level-sized arrays kept for the next save: a big level's
+    // state is megabytes of large-object heap, so allocating each anew would keep the GC's full
+    // collections coming. Only states this list made and let go of come here.
+    const int MaxSpares = 3;
+    readonly Stack<SavedState> _spares = new();
+
+    void Release(List<SavedState> before)
+    {
+        foreach (var s in before)
+            if (_spares.Count < MaxSpares && !States.Contains(s)) _spares.Push(s);
+    }
+
     // Keep this frame.
     public SavedState Add(LemGame sim)
     {
-        var s = sim.SaveState();
-        OnSave?.Invoke(s);
+        var s = sim.SaveState(reuse: _spares.Count > 0 ? _spares.Pop() : null);
+        if (OnSave != null) OnSave(s); else s.Extra.Clear();
         States.Add(s);
         return s;
     }
@@ -36,6 +48,7 @@ public sealed class SaveStates
     // TidyList: what is worth keeping, seen from the current frame.
     public void Tidy(int current)
     {
+        var before = States;
         States = States.Where(s =>
         {
             int f = FrameOf(s);
@@ -45,6 +58,7 @@ public sealed class SaveStates
             if (f % TenSeconds == 0 && current - f <= Minute) return true;
             return false;
         }).ToList();
+        if (States.Count != before.Count) Release(before);
     }
 
     // FindNearestState: the latest state strictly before the frame, or null.
@@ -63,7 +77,12 @@ public sealed class SaveStates
     public SavedState? First() => States.FirstOrDefault(s => FrameOf(s) == 0);
 
     // ClearAfterIteration: states past the frame are stale once the past is replayed.
-    public void ClearAfter(int frame) => States = States.Where(s => FrameOf(s) <= frame).ToList();
+    public void ClearAfter(int frame)
+    {
+        var before = States;
+        States = States.Where(s => FrameOf(s) <= frame).ToList();
+        if (States.Count != before.Count) Release(before);
+    }
 }
 
 public static class Rewind

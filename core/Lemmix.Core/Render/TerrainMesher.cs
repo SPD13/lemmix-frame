@@ -665,8 +665,9 @@ public sealed class TerrainMesh : IDisposable
     /// <summary>What app.js keeps per saved state (game.states.onSave): the depth and relief maps.</summary>
     public void SaveExtra(SavedState s)
     {
-        s.Extra["depth"] = DepthMap.Clone();
-        s.Extra["relief"] = Relief.Clone();
+        // a recycled state's own arrays filled in again (SaveStates' spares)
+        s.Extra["depth"] = LemGame.CopyInto(DepthMap, s.Extra.TryGetValue("depth", out var d) ? d as byte[] : null);
+        s.Extra["relief"] = LemGame.CopyInto(Relief, s.Extra.TryGetValue("relief", out var r) ? r as byte[] : null);
     }
 
     /// <summary>And takes back (game.states.onLoad), before Resync.</summary>
