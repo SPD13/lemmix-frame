@@ -12,6 +12,7 @@ public interface IVrPagesHost
 {
     bool Presenting { get; }
     Transform3D? HeadPose { get; }
+    Transform3D? WindowPose => HeadPose;   // where pages open from (the native app: the head, facing the default forward)
     void HoldSim(string who);
     void ReleaseSim(string who);
 }
@@ -57,10 +58,10 @@ public sealed class VrPages
 
     public bool AnyUp => Current != null || Keyboard.Root.Visible;
 
-    /** placeVrWindows for the pages' root: in front of the gaze, upright. */
+    /** placeVrWindows for the pages' root: in front of the host's window pose, upright. */
     public void PlaceWindows(Transform3D? headPose = null)
     {
-        var head = headPose ?? Host.HeadPose ?? Transform3D.Identity;
+        var head = headPose ?? Host.WindowPose ?? Transform3D.Identity;
         var (pos, quat, yaw) = VrWindowPlacement.PlaceWindows(head.Origin, head.Basis.GetRotationQuaternion(), WindowYaw);
         WindowYaw = yaw;
         Root.Transform = new Transform3D(new Basis(quat), pos);

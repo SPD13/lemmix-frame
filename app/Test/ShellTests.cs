@@ -157,6 +157,26 @@ public static class ShellTests
 
     // ------------------------------------------------------------ playing with the beam
     [AppTest]
+    public static void WindowsOpenAlongTheDefaultForwardNotTheGaze()
+    {
+        if (!HaveAssets()) return;
+        using var rig = new Rig(null, "--level=" + Builders);
+        LoadedRig(rig);
+        var app = rig.App;
+        // the head turned 90 degrees to the right and tilted down, standing off the origin
+        var headPos = new Vector3(0.3f, 1.6f, 0.2f);
+        rig.Input.HeadValue = new Transform3D(new Basis(Vector3.Up, -Mathf.Pi / 2) * new Basis(Vector3.Right, -0.4f), headPos);
+        rig.Frame();
+        Check.True(app.Windows.Act(new VrPick("bar", BarTool: "quit")), "a question opens");
+        var root = app.Windows.WindowRoot.GlobalTransform;
+        Check.Near(Vector3.Back, root.Basis.Z.Normalized(), "the window faces the default forward (-Z), not the gaze", 1e-4f);
+        // the windows' root stands where the head is; the window VR_MODAL_Z ahead of it along -Z
+        Check.Near(headPos, root.Origin, "laid out from the head's place, at its height", 1e-4f);
+        Check.Near(headPos + new Vector3(0, 0, VrManager.VR_MODAL_Z), root * new Vector3(0, 0, VrManager.VR_MODAL_Z), "straight ahead along the default forward", 1e-4f);
+        app.Windows.Act(new VrPick("bar", BarTool: "no"));
+    }
+
+    [AppTest]
     public static void TheTriggerOnALemmingAssignsTheSelectedSkill()
     {
         if (!HaveAssets()) return;

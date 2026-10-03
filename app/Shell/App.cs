@@ -336,7 +336,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         {
             Vr.Update(dt / 1000);
             // a window opened before the first pose was placed on a guess: on the real one now
-            if (!Windows.WindowsPlaced && Vr.LastHeadPose is Transform3D head) Windows.PlaceWindows(head);
+            if (!Windows.WindowsPlaced && Vr.LastHeadPose is Transform3D head) Windows.PlaceWindows(FrontOf(head));
         }
         var cur = Session;
         Pointers.Update(Vr, Input, cur?.Hovered != null, cur?.Game.Sim.EffectiveSelectDx ?? 0, DioramaRoot.Scale.X);
@@ -449,8 +449,8 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
 
     public void OnRecenter(Transform3D? headPose)
     {
-        Windows.PlaceWindows(headPose);
-        if (Pages.AnyUp) Pages.PlaceWindows(headPose);
+        Windows.PlaceWindows(FrontOf(headPose));
+        if (Pages.AnyUp) Pages.PlaceWindows(FrontOf(headPose));
     }
 
     /** The settings' "recentre the board", reset_view, recenter_vr. */
@@ -609,6 +609,24 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     public bool Presenting => Vr != null && Vr.Presenting;
     public bool HasSession => Session != null;
     public Transform3D? HeadPose => Vr.LastHeadPose ?? Input.Head;
+
+    /**
+     * Where the windows and pages open (the questions, the world library, the settings, the
+     * setup...): at the head, but facing the play space's default forward - its -Z, turned by the
+     * yaw correction as the board is - rather than wherever the head looks. A native departure
+     * from the web, which opens them on the gaze (device session 1).
+     */
+    public Transform3D? WindowPose => FrontOf(HeadPose);
+
+    Transform3D? FrontOf(Transform3D? head)
+    {
+        if (head is not Transform3D h) return null;
+        var fwd = (Origin?.GlobalBasis ?? Basis.Identity) * Vector3.Forward;
+        fwd.Y = 0;
+        fwd = fwd.LengthSquared() < 1e-6f ? Vector3.Forward : fwd.Normalized();
+        fwd = fwd.Rotated(Vector3.Up, (float)_yawCorrection);
+        return new Transform3D(new Basis(Vector3.Up, MathF.Atan2(-fwd.X, -fwd.Z)), h.Origin);
+    }
     public bool GameRunning => Session?.Running ?? false;
     public bool AudioEnabled => Audio.Enabled;
     public float Volume => Audio.Volume;

@@ -13,6 +13,7 @@ public interface IVrWindowsHost
     bool Presenting { get; }               // renderer.xr.isPresenting
     bool HasSession { get; }               // a level is loaded
     Transform3D? HeadPose { get; }         // the latest head pose (vr.lastHeadPose)
+    Transform3D? WindowPose => HeadPose;   // where windows open from (the native app: the head, facing the default forward)
     void HoldSim(string who);
     void ReleaseSim(string who);
     bool GameRunning { get; }              // the game's clock runs (the pause tip)
@@ -108,10 +109,10 @@ public sealed class VrWindows
 
     void SyncBar() => Bar.SyncForWindows(AnyWindowUp, Host.HasSession);
 
-    /** placeVrWindows: the windows' frame from the head (or the pose given). */
+    /** placeVrWindows: the windows' frame from the host's window pose (or the pose given). */
     public void PlaceWindows(Transform3D? headPose = null)
     {
-        var head = headPose ?? Host.HeadPose ?? Transform3D.Identity;
+        var head = headPose ?? Host.WindowPose ?? Transform3D.Identity;
         var (pos, quat, yaw) = VrWindowPlacement.PlaceWindows(head.Origin, head.Basis.GetRotationQuaternion(), WindowYaw);
         WindowYaw = yaw;
         WindowRoot.Transform = new Transform3D(new Basis(quat), pos);
