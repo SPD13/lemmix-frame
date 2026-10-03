@@ -15,8 +15,8 @@ namespace Lemmix.App.Ui.Windows;
 // front of it, each the headset's own: PLAY (the world catalog), VR SETTINGS (the VR window, as
 // the bar's VR button opens it), QUIT (the app ends). A sign under the beam glows as NeoLemmix's
 // does under the mouse and steps toward the player. Up while no level is on the board. It hangs in
-// the windows' frame, further off than the windows, so they open in front of it, leaning back to
-// face the eyes. The art is the
+// the windows' frame, further off than the windows, so they open in front of it, upright (square
+// to the floor) as they are. The art is the
 // installed NeoLemmix's (TitleArt); without it the screen and the signs are drawn plainly.
 public sealed class VrLobby
 {
@@ -240,8 +240,8 @@ public sealed class VrLobby
         // on the line the windows open along: as far below the windows' as the extra distance makes it
         float y = VR_MODAL_Y - (-Z + VR_MODAL_Z) * MathF.Tan(WindowPitch);
         Root.Position = new Vector3(0, y, Z);
-        // leaning back by as much, so the screen faces the eyes rather than standing upright under them
-        Root.Rotation = new Vector3(-WindowPitch, 0, 0);
+        // upright, square to the floor, as the windows stand
+        Root.Rotation = Vector3.Zero;
         // NeoLemmix's reel's middle stays where it was; the taller reel grows round it
         Scroller.Position = At(TitleArt.ScreenW / 2f, TitleArt.ScrollerTopY + 14, 0.004f);
         for (int i = 0; i < Signs.Length; i++)

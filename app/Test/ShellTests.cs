@@ -122,6 +122,9 @@ public static class ShellTests
         Check.True(app.Lobby.HasArt, "drawn with NeoLemmix's title art");
         Check.True(!w.Catalog.Root.Visible && !w.AnyWindowUp, "no window over it");
         Check.True(app.Locked && app.Session == null, "no level chosen");
+        // the screen stands upright, square to the floor
+        Check.True(Mathf.Abs(app.Lobby.Screen.GlobalBasis.Z.Normalized().Y) < 1e-4f, "the screen is upright");
+        Check.True(Mathf.Abs(app.Lobby.Screen.GlobalBasis.Y.Normalized().Dot(Vector3.Up) - 1) < 1e-4f, "its up is the room's up");
         // the beam on a sign lights it and steps it forward; the screen stops the beam
         var play = Sign(app, "lobbyplay");
         float z = play.Position.Z;

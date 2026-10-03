@@ -278,7 +278,7 @@ is a `VrPage`: CSS-like units (`U(css)` = css × `S` canvas px), widgets (`Butto
 **The lobby (native, `Ui/Windows/VrLobby`).** The app's title screen, up in a session while no
 level is on the board: NeoLemmix's main menu (`GameMenuScreen.pas`, numbers from
 `data/title.nxmi`) as a 1.5 m screen 1.4 m off in the windows' frame - centred on the line the
-windows open along and leaning back to face the eyes - built from the installed
+windows open along, upright (square to the floor) as the windows are - built from the installed
 `neolemmix/gfx/menu/` by `core/.../Ui/TitleArt.cs`: `background.png` tiled, `logo.png`, a footer
 in `menu_font.png` (what the sign under the beam does; the app's version), and the scroller (the
 reel turned by the two worker lemmings, `TitleScroller`, 12 px taller than NeoLemmix's so the text clears its dashed edges; lines in `VrLobby.ScrollerLines`). Three
