@@ -32,7 +32,11 @@ public static class ControllerShot
         return model;
     }
 
-    public static Viewport Make(Node root)
+    public static Viewport Make(Node root) => Make(root, false);
+
+    // overScene: a window drawn without depth (as the catalog is) and a solid block (as the board)
+    // both nearer the camera than the controllers, which must still show over them
+    public static Viewport Make(Node root, bool overScene)
     {
         var vp = new SubViewport { Size = new Vector2I(960, 540), OwnWorld3D = true, TransparentBg = false, Msaa3D = Viewport.Msaa.Msaa4X, RenderTargetUpdateMode = SubViewport.UpdateMode.Always };
         vp.AddChild(new WorldEnvironment { Environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color, BackgroundColor = new Color("2b3a4a"), TonemapMode = Godot.Environment.ToneMapper.Linear } });
@@ -48,7 +52,23 @@ public static class ControllerShot
             vp.AddChild(model);
             ControllerSticker.SetLayers(model, ControllerModels.HandLayer[i]);
             var placed = ControllerSticker.PlaceDecal(model, GripInModel, left, ControllerModels.HandLayer[i]);
+            if (overScene) ControllerOnTop.Apply(model);
             GD.Print($"[lemmix] controllers: {(left ? "left" : "right")} sticker {(placed == null ? "none" : $"size {placed.Value.Size} flatness {placed.Value.Flatness:0.0000}")}");
+        }
+        if (overScene)
+        {
+            var window = new Lemmix.App.Ui.Panel3D(256, 128, 0.07f) { Name = "window", Position = new Vector3(-0.07f, 0.03f, 0.06f) };
+            window.NoDepthTest = true;
+            window.RenderPriority = Lemmix.App.Ui.Windows.IconButton.GUI_ORDER_MODAL;
+            window.Canvas.fillStyle = "#1f6feb"; window.Canvas.fillRect(0, 0, 256, 128);
+            window.Canvas.fillStyle = "white"; window.Canvas.font = "bold 40px monospace"; window.Canvas.fillText("WINDOW", 40, 70);
+            window.Commit();
+            vp.AddChild(window);
+            vp.AddChild(new MeshInstance3D
+            {
+                Name = "block", Mesh = new BoxMesh { Size = new Vector3(0.025f, 0.06f, 0.01f) }, Position = new Vector3(0.06f, 0.02f, 0.06f),
+                MaterialOverride = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = new Color("c2410c") },
+            });
         }
         var cam = new Camera3D { Fov = 40, Near = 0.01f, Far = 10, Position = new Vector3(0, 0.05f, 0.24f), CullMask = 0xFFFFF };
         vp.AddChild(cam);

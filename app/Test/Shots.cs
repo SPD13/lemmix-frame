@@ -25,6 +25,7 @@ public partial class Shots : Node
         ["vr-scene"] = r => ShellShots.Make(r, false),
         ["vr-catalog"] = r => ShellShots.Make(r, true),
         ["controllers"] = ControllerShot.Make,
+        ["controllers-over-scene"] = r => ControllerShot.Make(r, true),
         ["icon-quit"] = r => QuitIcon(r, false),
         ["icon-quit-hover"] = r => QuitIcon(r, true),
     };

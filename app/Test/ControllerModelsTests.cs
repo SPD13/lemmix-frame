@@ -82,6 +82,31 @@ public static class ControllerModelsTests
     }
 
     [AppTest]
+    public static void TheModelsDrawOverTheWindowsAndUnderTheBeam()
+    {
+        var model = ControllerShot.FakeController("right", namedSticker: true);
+        ControllerSticker.ApplyToNamedPart(model);
+        int n = ControllerOnTop.Apply(model);
+        try
+        {
+            Check.Equal(3, n, "every part (two overridden, the sticker's surface)");
+            foreach (var c in model.GetChildren())
+                if (c is MeshInstance3D mi)
+                {
+                    var m = mi.GetActiveMaterial(0) as ShaderMaterial;
+                    Check.True(m != null && m.Shader == ControllerOnTop.Shader, mi.Name + " drawn on top");
+                    Check.True(m!.RenderPriority > Lemmix.App.Ui.Windows.IconButton.GUI_ORDER_MODAL_BTN + 1, mi.Name + " after the windows and the tooltip");
+                    Check.True(m.RenderPriority < Lemmix.App.Shell.PointerView.MARK_PRIORITY, mi.Name + " under the beam and its cursor");
+                }
+            var sticker = (ShaderMaterial)model.GetNode<MeshInstance3D>("Sticker_Area").GetActiveMaterial(0);
+            Check.True(sticker.GetShaderParameter("albedo_tex").As<Texture2D>() == ControllerSticker.Logo, "the sticker keeps its logo");
+            Check.True(sticker.GetShaderParameter("alpha_cut").AsSingle() > 0, "and its cut-out edge");
+            Check.Equal(0, ControllerOnTop.Apply(model), "applied twice: nothing more to do");
+        }
+        finally { model.Free(); }
+    }
+
+    [AppTest]
     public static void TheGripBoxAndTipSphereGiveWayToTheModel()
     {
         var input = new ScriptedXrInput();

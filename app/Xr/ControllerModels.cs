@@ -74,6 +74,7 @@ public sealed partial class ControllerModels : Node3D
         var h = _hands[hand] = new HandModel { Model = model };
         GD.Print($"[xr] render model {(hand == 0 ? "left" : "right")}: {model.GetTopLevelPath()}");
         ControllerSticker.SetLayers(model, HandLayer[hand]);
+        // the parts' own materials drawn over everything but the beam (the sticker part's too)
         h.Report = new Dictionary<string, object?>
         {
             ["hand"] = hand == 0 ? "left" : "right",
@@ -88,6 +89,7 @@ public sealed partial class ControllerModels : Node3D
             h.Report["sticker"] = new Dictionary<string, object?> { ["method"] = "mesh", ["part"] = part };
             WriteReport();
         }
+        ControllerOnTop.Apply(model);
     }
 
     public override void _Process(double delta)
@@ -381,5 +383,86 @@ public static class ControllerSticker
             yield return n;
             for (int i = n.GetChildCount() - 1; i >= 0; i--) stack.Push(n.GetChild(i));
         }
+    }
+}
+
+// The controllers over everything in the scene but the beam and its cursor: the windows, the bar
+// and the status strip draw without a depth test, so a model drawn as the board is drawn would
+// disappear under them. Each part's material becomes one that squeezes its depth into the band
+// nearest the eye (it passes the depth test against everything, and its own parts still hide one
+// another) and draws in the transparent pass after the windows (OnTopPriority). Same textures,
+// colours and lights; the sticker's decal still lands (decals use the fragment's position).
+public static class ControllerOnTop
+{
+    public const int OnTopPriority = VrManager.VR_MARK_ORDER - 1; // over the windows (56..58), under the beam (60)
+
+    static Shader? _shader;
+    public static Shader Shader => _shader ??= new Shader
+    {
+        Code = """
+shader_type spatial;
+render_mode depth_draw_always, cull_back, fog_disabled;
+uniform sampler2D albedo_tex : source_color, filter_linear_mipmap_anisotropic, hint_default_white;
+uniform vec4 albedo_color : source_color = vec4(1.0);
+uniform float roughness = 0.5;
+uniform float metallic = 0.0;
+uniform float alpha_cut = 0.0;   // above 0: an alpha-scissored surface (the sticker part)
+void vertex() {
+	POSITION = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+	// reverse Z (1 at the near plane): every depth squeezed into [0.999, 1], its order kept
+	POSITION.z = POSITION.w * (1.0 - 0.001 * (1.0 - POSITION.z / POSITION.w));
+}
+void fragment() {
+	vec4 c = albedo_color * texture(albedo_tex, UV);
+	if (alpha_cut > 0.0 && c.a < alpha_cut) discard;
+	ALBEDO = c.rgb;
+	ROUGHNESS = roughness;
+	METALLIC = metallic;
+	ALPHA = 1.0;   // the transparent pass, ordered by render priority
+}
+""",
+    };
+
+    /** A part's material as one drawn on top. */
+    public static ShaderMaterial From(Material? src)
+    {
+        var m = new ShaderMaterial { Shader = Shader, RenderPriority = OnTopPriority, ResourceName = (src?.ResourceName ?? "") + "-ontop" };
+        if (src is BaseMaterial3D b)
+        {
+            if (b.AlbedoTexture != null) m.SetShaderParameter("albedo_tex", b.AlbedoTexture);
+            m.SetShaderParameter("albedo_color", b.AlbedoColor);
+            m.SetShaderParameter("roughness", b.Roughness);
+            m.SetShaderParameter("metallic", b.Metallic);
+            if (b.Transparency is BaseMaterial3D.TransparencyEnum.AlphaScissor or BaseMaterial3D.TransparencyEnum.Alpha or BaseMaterial3D.TransparencyEnum.AlphaHash)
+                m.SetShaderParameter("alpha_cut", b.Transparency == BaseMaterial3D.TransparencyEnum.AlphaScissor ? b.AlphaScissorThreshold : 0.5f);
+        }
+        return m;
+    }
+
+    /** Every surface of the model: its active material (an override the sticker set included) on top. */
+    public static int Apply(Node model)
+    {
+        int n = 0;
+        var stack = new Stack<Node>();
+        stack.Push(model);
+        while (stack.Count > 0)
+        {
+            var node = stack.Pop();
+            foreach (var c in node.GetChildren()) stack.Push(c);
+            if (node is not MeshInstance3D { Mesh: { } mesh } mi) continue;
+            // a material override outranks the surfaces' materials: replaced in its place
+            if (mi.MaterialOverride != null)
+            {
+                if (!(mi.MaterialOverride is ShaderMaterial { Shader: var so } && so == Shader)) { mi.MaterialOverride = From(mi.MaterialOverride); n++; }
+                continue;
+            }
+            for (int s = 0; s < mesh.GetSurfaceCount(); s++)
+            {
+                if (mi.GetActiveMaterial(s) is ShaderMaterial { Shader: var sh } && sh == Shader) continue;
+                mi.SetSurfaceOverrideMaterial(s, From(mi.GetActiveMaterial(s)));
+                n++;
+            }
+        }
+        return n;
     }
 }
