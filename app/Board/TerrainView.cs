@@ -12,7 +12,10 @@ public partial class TerrainView : Node3D
 {
     readonly TerrainMesh _tm;
     readonly ImageTexture _texture;
+    readonly Image _image;              // the level texture's picture, refilled in place for an update
     ImageTexture? _decalTexture;
+    Image? _decalImage;
+    Material[]? _decalMaterials;
     readonly Material[] _materials;
     Material? _decalMaterial;
     readonly MeshInstance3D?[] _chunks;
@@ -21,7 +24,8 @@ public partial class TerrainView : Node3D
     public TerrainView(TerrainMesh tm)
     {
         _tm = tm;
-        _texture = ImageTexture.CreateFromImage(Image.CreateFromData(tm.W, tm.H, false, Image.Format.Rgba8, tm.TexData));
+        _image = Image.CreateFromData(tm.W, tm.H, false, Image.Format.Rgba8, tm.TexData);
+        _texture = ImageTexture.CreateFromImage(_image);
         _materials = new Material[]
         {
             RawColor.Material(RawColor.Opaque, _texture),                    // map + vertexColors
@@ -35,13 +39,21 @@ public partial class TerrainView : Node3D
 
     readonly System.Collections.Generic.HashSet<int> _dirty = new();
 
+    /** Held: the view keeps what it shows (a jump's refresh is spread over frames, GameSession). */
+    public bool Held;
+
+    /** The chunks' buffers let go once they are meshes (the heavy look's are hundreds of MB). */
+    public bool ReleaseConverted;
+
     // Per frame (the web's per-tick flush is the caller's: TerrainMesh.FlushDirty)
     public void Sync()
     {
+        if (Held) return;
         var upload = Perf.Time(Perf.S.TexUpload);
         if (_tm.TextureNeedsUpdate)
         {
-            _texture.Update(Image.CreateFromData(_tm.W, _tm.H, false, Image.Format.Rgba8, _tm.TexData));
+            _image.SetData(_tm.W, _tm.H, false, Image.Format.Rgba8, _tm.TexData);
+            _texture.Update(_image);
             _tm.TextureNeedsUpdate = false;
         }
         var decals = _tm.Decals;
@@ -49,11 +61,16 @@ public partial class TerrainView : Node3D
         {
             if (_decalTexture == null)
             {
-                _decalTexture = ImageTexture.CreateFromImage(Image.CreateFromData(decals.W, decals.H, false, Image.Format.Rgba8, decals.Data));
+                _decalImage = Image.CreateFromData(decals.W, decals.H, false, Image.Format.Rgba8, decals.Data);
+                _decalTexture = ImageTexture.CreateFromImage(_decalImage);
                 _decalMaterial = RawColor.Material(RawColor.Transparent, _decalTexture);
+                _decalMaterials = new[] { _decalMaterial };
             }
             else if (decals.TextureNeedsUpdate)
-                _decalTexture.Update(Image.CreateFromData(decals.W, decals.H, false, Image.Format.Rgba8, decals.Data));
+            {
+                _decalImage!.SetData(decals.W, decals.H, false, Image.Format.Rgba8, decals.Data);
+                _decalTexture.Update(_decalImage);
+            }
             decals.TextureNeedsUpdate = false;
         }
         upload.Dispose();
@@ -62,7 +79,7 @@ public partial class TerrainView : Node3D
         foreach (int id in _dirty)
         {
             Swap(_chunks, id, _tm.ChunkMeshes[id], _materials);
-            if (_decalMaterial != null) Swap(_decals, id, _tm.DecalMeshes[id], new[] { _decalMaterial });
+            if (_decalMaterials != null) Swap(_decals, id, _tm.DecalMeshes[id], _decalMaterials);
         }
         _dirty.Clear();
     }
@@ -70,6 +87,7 @@ public partial class TerrainView : Node3D
     void Swap(MeshInstance3D?[] slots, int id, ChunkGeometry? g, Material[] materials)
     {
         var mesh = g == null ? null : RawColor.ToMesh(g, materials);
+        if (ReleaseConverted) g?.Release();
         if (mesh == null) { slots[id]?.QueueFree(); slots[id] = null; return; }
         if (slots[id] == null) { slots[id] = new MeshInstance3D(); AddChild(slots[id]); }
         slots[id]!.Mesh = mesh;

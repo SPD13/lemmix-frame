@@ -30,7 +30,21 @@ public sealed class ChunkGeometry
     public int[] Indices = Array.Empty<int>();
     public bool Index32;                              // three.js stores the index as Uint32 (else Uint16)
     public GeometryGroup[] Groups = Array.Empty<GeometryGroup>();
-    public int VertexCount => Positions.Length / 3;
+    public int VertexCount => _released >= 0 ? _released : Positions.Length / 3;
+
+    int _released = -1;
+    public bool Released => _released >= 0;
+
+    /// <summary>The host made its own copy (a GPU mesh): the buffers are let go, the vertex count kept.
+    /// The mesher never reads a geometry back; a re-mesh makes a new one.</summary>
+    public void Release()
+    {
+        if (_released >= 0) return;
+        _released = Positions.Length / 3;
+        Positions = Array.Empty<float>(); Uvs = Array.Empty<float>(); Indices = Array.Empty<int>();
+        Colors = Colors == null ? null : Array.Empty<float>();
+        Normals = Normals == null ? null : Array.Empty<float>();
+    }
 }
 
 public sealed class TerrainMesh : IDisposable
@@ -122,7 +136,7 @@ public sealed class TerrainMesh : IDisposable
     static TerrainGeometryBuilder _b => Scratch.B;
 
     /// <summary>Mesh this many dirty chunks or more on the thread pool (int.MaxValue: never).</summary>
-    public static int ParallelMin = 4;
+    public static int ParallelMin = 2;
 
     public TerrainMesh(Level level, byte[] depthMap, byte[]? reliefMap, BlendMap? blendMap, byte[]? colorMap, double? colorSoftness)
     {
@@ -564,9 +578,23 @@ public sealed class TerrainMesh : IDisposable
 
     void RefillTexRect(int x0, int y0, int w, int h)
     {
-        for (int y = y0; y < y0 + h; y++)
-            for (int x = x0; x < x0 + w; x++) PaintPixel(x, y);
+        if (x0 == 0 && y0 == 0 && w == W && h == H && PhysicsPaint == null) RefillPicture();
+        else
+            for (int y = y0; y < y0 + h; y++)
+                for (int x = x0; x < x0 + w; x++) PaintPixel(x, y);
         PaintPins();
+    }
+
+    // every pixel's PaintPixel without the clear-physics paint: the picture's colours, the mask's
+    // alpha - as one copy and one pass over the alpha bytes
+    void RefillPicture()
+    {
+        int n = W * H;
+        var src = Level.GroundImage;
+        Buffer.BlockCopy(src, 0, TexData, 0, n * 4);
+        var tex = TexData.AsSpan(0, n * 4);
+        var mask = _mask.AsSpan(0, n);
+        for (int j = 0; j < n; j++) tex[j * 4 + 3] = mask[j] != 0 ? (byte)255 : (byte)0;
     }
 
     /// <summary>One texture pixel: the picture, or the clear-physics paint (_paintPixel).</summary>
@@ -645,15 +673,26 @@ public sealed class TerrainMesh : IDisposable
     /// </summary>
     public void Resync()
     {
+        MarkResync();
+        FlushDirty(int.MaxValue);
+    }
+
+    /// <summary>Resync's first half: the maps and the texture put back in step and the changed chunks
+    /// marked dirty; FlushDirty(int.MaxValue) re-meshes them (a host may do that a frame later).</summary>
+    public void MarkResync()
+    {
         var mask = _mask;
         var depth = DepthMap; var depth0 = Depth0; var relief = Relief; var relief0 = Relief0;
+        var tex = TexData;
         for (int y = 0; y < H; y++)
         {
             for (int x = 0; x < W; x++)
             {
                 int i = y * W + x;
                 bool solid = mask[i] != 0;
-                bool changed = (TexData[i * 4 + 3] != 0) != solid;
+                bool changed = (tex[i * 4 + 3] != 0) != solid;
+                // the common pixel: in step on every count
+                if (!changed && solid == (depth[i] != DepthClass.EMPTY)) continue;
                 if (solid && depth[i] == DepthClass.EMPTY)
                 {
                     depth[i] = depth0[i] != DepthClass.EMPTY ? depth0[i] : DepthClass.TERRAIN;
@@ -676,7 +715,6 @@ public sealed class TerrainMesh : IDisposable
         }
         RefillTexRect(0, 0, W, H);
         TextureNeedsUpdate = true;
-        FlushDirty(int.MaxValue);
     }
 
     /// <summary>What app.js keeps per saved state (game.states.onSave): the depth and relief maps.</summary>
