@@ -24,6 +24,7 @@ public partial class Shots : Node
         ["skillbar"] = SkillBarShot.Make,
         ["vr-scene"] = r => ShellShots.Make(r, false),
         ["vr-catalog"] = r => ShellShots.Make(r, true),
+        ["controllers"] = ControllerShot.Make,
     };
 
     // a check to run on the saved picture (a shot may set it)

@@ -48,6 +48,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     public GameAudio Audio { get; private set; } = null!;
     public WorldEnvironment World { get; private set; } = null!;
     public XROrigin3D? Origin { get; private set; }
+    public ControllerModels? Controllers { get; private set; }
     public IXrInput Input { get; private set; } = null!;
     public Node3D Head { get; private set; } = null!;
     public VrManager Vr { get; private set; } = null!;
@@ -153,6 +154,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         // the beams, NeoLemmix's cursor at their landing, the floor grid
         try { Cursor = CursorImages.Load(Io); } catch (Exception e) { GD.PushWarning("[app] cursor: " + e.Message); }
         Pointers = new PointerView(Cursor);
+        if (Controllers != null) Pointers.HandModelShown = Controllers.Shown;
         AddChild(Pointers);
 
         BuildPages();
@@ -235,6 +237,12 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
                 foreach (var h in s.HandsValue) h.Connected = false;
                 Input = s;
                 _scriptedHead = true;
+            }
+            else
+            {
+                // the runtime's own models of the controllers, with the app's sticker
+                Controllers = new ControllerModels(Input);
+                Origin.AddChild(Controllers);
             }
         }
         else

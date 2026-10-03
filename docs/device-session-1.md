@@ -50,6 +50,10 @@ Frame; Claude checks it with you at the start.
      neolemmix.com).
    - Check that the progress and messages read like the web's setup page.
 3. **Play.** One level of each Lemmings Plus difficulty and one of the Intro pack. Check:
+   - the controllers: the Frame's own models, drawn from the runtime (no green box at the grip),
+     their trigger, buttons and stick moving with your fingers, and the Lemmix sticker on the
+     outer side of each head, upright and not smeared (its spot is worked out from the model; say
+     if it should sit elsewhere);
    - the beam, a trigger on a lemming, and the skill bar presses (left/right/middle, as on the web);
    - grip drag, two-grip scale, the thumbsticks (pan, tilt, dolly);
    - the toolbar: pause, restart, prev/next, worlds, solution, mute/volume, lock/park/move.
@@ -72,7 +76,8 @@ Frame; Claude checks it with you at the start.
 
 ## After
 
-`tools/frame-pull-report.sh` fetches `probe.json`, `perf.json` and `qa.json` into
+`tools/frame-pull-report.sh` fetches `probe.json`, `perf.json`, `qa.json` and
+`controller-models.json` (the controller models' parts and where the sticker went) into
 `build/frame/`. Claude reads them and sets the device defaults:
 - the renderer;
 - the controller profile;

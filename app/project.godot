@@ -24,4 +24,5 @@ openxr/enabled=true
 openxr/reference_space=1
 openxr/foveation_level=0
 openxr/foveation_dynamic=false
+openxr/extensions/render_model=true
 shaders/enabled=true

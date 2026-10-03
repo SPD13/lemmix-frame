@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Godot;
 using Lemmix.App.Xr;
@@ -8,7 +9,8 @@ namespace Lemmix.App.Shell;
 
 // web/3d/js/vr.js, what the controllers draw: per hand a lightsaber beam (a bright core inside a
 // soft additive halo, stretched to where the ray lands), the hand marker at the aim pose and a
-// box at the grip pose (green, over everything), the impact dot where the beam lands; NeoLemmix's
+// box at the grip pose (green, over everything) - unless the runtime's model of the controller is
+// drawn there (ControllerModels) -, the impact dot where the beam lands; NeoLemmix's
 // cursor (cursor.js: a cross, a square over a lemming, an arrow with the direction filter) at the
 // landing on the board in place of the dot; the dim floor grid shown in a session until the
 // room's floor takes over. Updated once a frame after VrManager.Update, allocation-free.
@@ -26,6 +28,8 @@ public sealed partial class PointerView : Node3D
 
     readonly Hand[] _hands = new Hand[2];
     public readonly MeshInstance3D Floor;
+    // whether the runtime's controller model stands for this hand (then no box at the grip)
+    public Func<int, bool>? HandModelShown;
     readonly CursorImages? _cursor;
     readonly Dictionary<string, ImageTexture> _cursorTex = new(System.StringComparer.Ordinal);
 
@@ -156,7 +160,7 @@ public sealed partial class PointerView : Node3D
             var src = input.Hands[i];
             bool shown = presenting && hasControllers && src.Connected;
             h.Aim.Visible = shown;
-            h.Grip.Visible = shown;
+            h.Grip.Visible = shown && !(HandModelShown?.Invoke(i) ?? false);
             if (!shown)
             {
                 h.Dot.Visible = false;
