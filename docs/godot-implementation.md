@@ -196,8 +196,9 @@ oracles that the change touches (`node oracle/<x>.js`), run the core tests, port
 (`application/boot_splash/image`, background `boot_splash/bg_color`, a dark dirt brown): the
 NeoLemmix logo over its title screen's dirt background, "STEAM FRAME EDITION" under it. It, the
 lobby's subtitle (`app/Splash/subtitle.png`) and the Steam library's art (`steam/library/`) are
-built on the Mac by `tools/art/make-art.sh [gfx/menu dir]` (by default from the Frame's NeoLemmix
-install, over ssh) with CoreGraphics. The logo, background and sign are NeoLemmix's artwork,
+built on the Mac by `tools/art/make-art.sh [neolemmix dir]` (by default from the Frame's NeoLemmix
+install, over ssh: its menu graphics, default lemmings and `orig_dirt` style) with CoreGraphics;
+the Steam hero is a small Dirt level with lemmings at work, drawn at 10x. The logo, background and sign are NeoLemmix's artwork,
 bundled at the project owner's decision (`app/Splash/README.md`).
 
 ### 6.2 `Shell/App` (one node, partial class)

@@ -1,4 +1,4 @@
-// make-art.swift <neolemmix gfx/menu dir> <repo root>
+// make-art.swift <neolemmix gfx/menu dir> <neolemmix styles dir> <repo root>
 // The app's own artwork, from NeoLemmix's title screen as the newer releases draw it (the dirt
 // background.png, logo.png) and a "STEAM FRAME EDITION" subtitle in a heavy slab serif, yellow
 // with the logo's dark green outline and a drop shadow:
@@ -7,7 +7,8 @@
 //   steam/library/capsule.png      600 x 900    Steam library capsule (with sign_group.png's lemming,
 //                                               "VR" on its board)
 //   steam/library/header.png       920 x 430    Steam library header
-//   steam/library/hero.png         3840 x 1240  Steam library hero (no logo: Steam lays it over)
+//   steam/library/hero.png         3840 x 1240  Steam library hero (no logo: Steam lays it over): a
+//                                               small Dirt level at 10x, lemmings at work on it
 //   steam/library/logo.png         1280 x 720   Steam library logo, transparent
 // Every picture: the dirt tiled, a warm glow behind the logo, the edges darkened. Run on the Mac
 // (CoreGraphics, CoreText): tools/art/make-art.sh.
@@ -18,11 +19,11 @@ import ImageIO
 import UniformTypeIdentifiers
 
 let args = CommandLine.arguments
-guard args.count == 3 else { FileHandle.standardError.write("usage: make-art <gfx/menu dir> <repo root>\n".data(using: .utf8)!); exit(2) }
-let menu = URL(fileURLWithPath: args[1]), root = URL(fileURLWithPath: args[2])
+guard args.count == 4 else { FileHandle.standardError.write("usage: make-art <gfx/menu dir> <styles dir> <repo root>\n".data(using: .utf8)!); exit(2) }
+let menu = URL(fileURLWithPath: args[1]), styles = URL(fileURLWithPath: args[2]), root = URL(fileURLWithPath: args[3])
 
-func load(_ name: String) -> CGImage {
-    guard let src = CGImageSourceCreateWithURL(menu.appendingPathComponent(name) as CFURL, nil),
+func load(_ name: String, from dir: URL = menu) -> CGImage {
+    guard let src = CGImageSourceCreateWithURL(dir.appendingPathComponent(name) as CFURL, nil),
           let img = CGImageSourceCreateImageAtIndex(src, 0, nil) else { fatalError("cannot read \(name)") }
     return img
 }
@@ -119,6 +120,140 @@ func titleBlock(_ p: Picture, logoWidth: CGFloat, centreY: CGFloat) {
     drawSubtitle(p, size: size, baseline: top + lh + gap)
 }
 
+// ---- pixels: a level's worth, drawn the way the game draws them, blown up afterwards
+final class Pixels {
+    let w: Int, h: Int
+    var d: [UInt8]                                    // RGBA, straight alpha
+    init(_ w: Int, _ h: Int) { self.w = w; self.h = h; d = [UInt8](repeating: 0, count: w * h * 4) }
+    init(_ img: CGImage) {
+        w = img.width; h = img.height
+        d = [UInt8](repeating: 0, count: w * h * 4)
+        let c = CGContext(data: &d, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: cs,
+                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        c.draw(img, in: CGRect(x: 0, y: 0, width: w, height: h))
+        // (premultiplied: the pieces' alpha is all or nothing, so the colours stand)
+    }
+    func a(_ x: Int, _ y: Int) -> UInt8 { x < 0 || y < 0 || x >= w || y >= h ? 0 : d[(y * w + x) * 4 + 3] }
+    // `src`'s box (sx, sy, sw, sh) over this at (x, y), mirrored across if `flip`
+    func put(_ src: Pixels, _ x: Int, _ y: Int, sx: Int = 0, sy: Int = 0, sw: Int? = nil, sh: Int? = nil, flip: Bool = false) {
+        let bw = sw ?? src.w, bh = sh ?? src.h
+        for j in 0..<bh { for i in 0..<bw {
+            let fx = sx + (flip ? bw - 1 - i : i), fy = sy + j, tx = x + i, ty = y + j
+            if tx < 0 || ty < 0 || tx >= w || ty >= h { continue }
+            let si = (fy * src.w + fx) * 4
+            if src.d[si + 3] < 128 { continue }
+            // the sprites' mask colour (magenta) is never drawn
+            if src.d[si] == 255 && src.d[si + 1] == 0 && src.d[si + 2] == 255 { continue }
+            let di = (ty * w + tx) * 4
+            d[di] = src.d[si]; d[di + 1] = src.d[si + 1]; d[di + 2] = src.d[si + 2]; d[di + 3] = 255
+        } }
+    }
+    func clear(_ x: Int, _ y: Int, _ cw: Int, _ ch: Int) {
+        for j in y..<(y + ch) { for i in x..<(x + cw) where i >= 0 && j >= 0 && i < w && j < h { d[(j * w + i) * 4 + 3] = 0 } }
+    }
+    func fill(_ x: Int, _ y: Int, _ cw: Int, _ ch: Int, _ r: UInt8, _ g: UInt8, _ b: UInt8) {
+        for j in y..<(y + ch) { for i in x..<(x + cw) where i >= 0 && j >= 0 && i < w && j < h {
+            let di = (j * w + i) * 4; d[di] = r; d[di + 1] = g; d[di + 2] = b; d[di + 3] = 255 } }
+    }
+    // the first solid row from the top in a column (the ground a lemming stands on), or h
+    func surface(_ x: Int, from y0: Int = 0) -> Int { var y = y0; while y < h && a(x, y) == 0 { y += 1 }; return y }
+    func image() -> CGImage {
+        var p = d                                       // premultiply for CoreGraphics
+        for i in stride(from: 0, to: p.count, by: 4) { let al = Int(p[i + 3]); if al < 255 { p[i] = UInt8(Int(p[i]) * al / 255); p[i + 1] = UInt8(Int(p[i + 1]) * al / 255); p[i + 2] = UInt8(Int(p[i + 2]) * al / 255) } }
+        let c = CGContext(data: &p, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: cs,
+                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        return c.makeImage()!
+    }
+}
+
+// a lemming animation from the sprite set: frames stacked down, left-facing in the left half
+// and right-facing in the right; its frame count and feet from scheme.nxmi
+struct Anim { let sheet: Pixels; let frames: Int; let footR: (Int, Int); let footL: (Int, Int) }
+let lemmingsDir = styles.appendingPathComponent("default/lemmings")
+let scheme = (try? String(contentsOf: lemmingsDir.appendingPathComponent("scheme.nxmi"), encoding: .utf8)) ?? ""
+func anim(_ name: String) -> Anim {
+    // the $NAME section: FRAMES, then $RIGHT / $LEFT with FOOT_X / FOOT_Y
+    let lines = scheme.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }
+    var i = lines.firstIndex(of: "$" + name.uppercased())!
+    var frames = 1, side = "", foot: [String: (Int, Int)] = [:], depth = 0
+    i += 1
+    while i < lines.count {
+        let l = lines[i]; i += 1
+        if l == "$END" { if depth == 0 { break }; depth -= 1; continue }
+        if l.hasPrefix("$") { side = String(l.dropFirst()); depth += 1; continue }
+        let parts = l.split(separator: " ")
+        guard parts.count == 2, let v = Int(parts[1]) else { continue }
+        if parts[0] == "FRAMES" { frames = v }
+        else if parts[0] == "FOOT_X" { foot[side] = (v, foot[side]?.1 ?? 0) }
+        else if parts[0] == "FOOT_Y" { foot[side] = (foot[side]?.0 ?? 0, v) }
+    }
+    return Anim(sheet: Pixels(load(name + ".png", from: lemmingsDir)), frames: frames, footR: foot["RIGHT"] ?? (8, 10), footL: foot["LEFT"] ?? (8, 10))
+}
+// a lemming of `a` at frame `f`, its feet at (x, y), facing right or left
+func lemming(_ on: Pixels, _ a: Anim, _ f: Int, _ x: Int, _ y: Int, right: Bool = true) {
+    let fw = a.sheet.w / 2, fh = a.sheet.h / a.frames, foot = right ? a.footR : a.footL
+    on.put(a.sheet, x - foot.0, y - foot.1, sx: right ? fw : 0, sy: (f % a.frames) * fh, sw: fw, sh: fh)
+}
+
+// the hero's level: 384 x 124 game pixels (10x: 3840 x 1240). Steam lays the logo over the
+// bottom left, so the busy part is in the middle and on the right.
+func heroScene() -> Pixels {
+    let dirtDir = styles.appendingPathComponent("orig_dirt")
+    func piece(_ n: String) -> Pixels { Pixels(load(n + ".png", from: dirtDir.appendingPathComponent("terrain"))) }
+    func object(_ n: String) -> Pixels { Pixels(load(n + ".png", from: dirtDir.appendingPathComponent("objects"))) }
+    let W = 384, H = 124
+    let terrain = Pixels(W, H)
+    // the ground: the long flat clump end to end, every other one mirrored, a little grass on it
+    let slab = piece("clump_04")
+    var x = -8, flip = false
+    while x < W { terrain.put(slab, x, H - slab.h, flip: flip); x += slab.w - 6; flip.toggle() }
+    // a hill on the right (the exit on top, a climber up its side) and a mound for the basher
+    let hill = piece("clump_05")
+    let hillX = 304
+    terrain.put(hill, hillX, H - hill.h)
+    let mound = piece("clump_02")
+    let moundX = 244
+    terrain.put(mound, moundX, H - slab.h - mound.h + 10)
+    let ground = { (x: Int) in terrain.surface(x) }
+
+    // the digger's hole and the basher's tunnel, cut before anyone stands in them
+    let digX = 214, digDepth = 7
+    let digTop = ground(digX)
+    terrain.clear(digX - 4, digTop, 9, digDepth)
+    let bashY = ground(moundX - 6)
+    terrain.clear(moundX - 2, bashY - 10, 13, 10)
+
+    let scene = Pixels(W, H)
+    // the trapdoor, open, a lemming dropping from it; the exit on the hill
+    let window = object("window"), wf = window.h / 10
+    scene.put(window, 150, 6, sy: 9 * wf, sh: wf)
+    let exit = object("exit"), ef = exit.h / 6
+    let hillTop = ground(hillX + hill.w / 2 + 2)
+    scene.put(exit, hillX + hill.w / 2 - exit.w / 2, hillTop - ef + 2, sy: 0, sh: ef)
+    scene.put(terrain, 0, 0)
+
+    let walker = anim("walker"), faller = anim("faller"), blocker = anim("blocker"), builder = anim("builder")
+    let digger = anim("digger"), basher = anim("basher"), climber = anim("climber"), floater = anim("floater")
+    let exiter = anim("exiter")
+    lemming(scene, faller, 1, 174, 34)
+    lemming(scene, faller, 3, 173, 62)
+    lemming(scene, walker, 2, 70, ground(70))
+    lemming(scene, walker, 6, 112, ground(112))
+    lemming(scene, walker, 3, 140, ground(140), right: false)
+    lemming(scene, blocker, 4, 160, ground(160))
+    // the builder on his fourth brick, going up to the right
+    let bx = 178, by = ground(bx)
+    for i in 0..<5 { scene.fill(bx - 2 + i * 2, by - 1 - i, 6, 1, 0xD0, 0x80, 0x20) }
+    lemming(scene, builder, 6, bx + 8, by - 4)
+    lemming(scene, digger, 5, digX, digTop + digDepth - 2)
+    lemming(scene, basher, 6, moundX + 4, bashY)
+    lemming(scene, climber, 3, hillX + 3, H - 40)
+    lemming(scene, floater, 10, 274, 46, right: false)
+    lemming(scene, exiter, 3, hillX + hill.w / 2 + 1, hillTop)
+    lemming(scene, walker, 1, 360, ground(360), right: false)
+    return scene
+}
+
 // ---- the boot splash
 do {
     let p = Picture(1920, 1080)
@@ -156,7 +291,10 @@ do {
 }
 do {
     let p = Picture(3840, 1240)
-    dirt(p, tile: 2.0, glow: CGPoint(x: 1920, y: 620), glowRadius: 1700)
+    dirt(p, tile: 2.0, glow: CGPoint(x: 2300, y: 560), glowRadius: 1900)
+    let scene = heroScene()
+    p.ctx.interpolationQuality = .none
+    p.ctx.draw(scene.image(), in: CGRect(x: 0, y: 0, width: 3840, height: 1240))
     p.save("steam/library/hero.png")
 }
 do {
