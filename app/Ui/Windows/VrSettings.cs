@@ -14,7 +14,7 @@ public sealed record SettingRow(string Label, Func<bool>? Get, Action Act, Func<
 // with its slider's range, as far up as down (up: a higher view), and its reset to 0.
 public sealed class FloorControl
 {
-    public const float Min = -1.0f, Max = 1.0f;
+    public const float Min = -0.6f, Max = 0.6f;
     public required Func<float> Get;
     public required Action<float> Set;
     public required Action Reset;
