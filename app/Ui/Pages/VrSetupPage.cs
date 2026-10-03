@@ -16,6 +16,11 @@ namespace Lemmix.App.Ui.Pages;
 // around) into the import folder and installs them; "install zip…" lists the zips the player put
 // in that folder. The asset mode and the launcher's server are not the native app's, nor are the
 // classic DOS games: those parts of the web page are left out.
+//
+// Read in a headset, it departs from the web page (device session 1, 2 Oct 2026): a larger scale
+// (2.1 canvas px a CSS px, the content 600 CSS px wide: the same canvas width), body text bright
+// rather than dim, one big "Get …" button per download and no zip button (a zip installs from a
+// computer, through the upload server), the help cut to where the files come from.
 public sealed class VrSetupPage : VrPage
 {
     public const int PAGE_W = 1440, PAGE_H = 1000;
@@ -57,7 +62,7 @@ public sealed class VrSetupPage : VrPage
     Texture2D? _logo;
     bool _logoTried;
 
-    public VrSetupPage(ISetupBackend backend, IPageConfirm confirm) : base("setup", PAGE_W, PAGE_H, 1.5f)
+    public VrSetupPage(ISetupBackend backend, IPageConfirm confirm) : base("setup", PAGE_W, PAGE_H, 2.1f)
     {
         Backend = backend;
         Confirm = confirm;
@@ -298,8 +303,6 @@ public sealed class VrSetupPage : VrPage
             case "get-engine": Download(Downloads.Engine, "engine"); return;
             case "get-styles": Download(Downloads.Styles, "styles"); return;
             case "get-packs": Download(Downloads.Packs, "levels"); return;
-            case "zip-engine": case "zip-styles": case "zip-levels":
-                PickFile(id, ".zip", "msg"); return;
         }
         if (id.StartsWith("del:", StringComparison.Ordinal)) { DeleteDir(id[4..]); return; }
         if (id.StartsWith("dl-", StringComparison.Ordinal)) { ExportFile(id[3..]); return; }
@@ -310,7 +313,7 @@ public sealed class VrSetupPage : VrPage
     void PickFile(string id, string ext, string msgKind)
     {
         var files = Backend.Files.List(Backend.Files.ImportFolder, ext);
-        string msg = msgKind == "msg" ? (id == "zip-levels" ? "levels" : "nx") : msgKind;
+        string msg = msgKind;
         if (files.Count == 0)
         {
             Say(msg, "no " + ext + " file in " + Backend.Files.ImportFolder + " - copy one there first", true);
@@ -323,12 +326,6 @@ public sealed class VrSetupPage : VrPage
 
     protected override void Choose(string popupId, string value)
     {
-        switch (popupId)
-        {
-            case "zip-engine": InstallZip(value, "engine"); return;
-            case "zip-styles": InstallZip(value, "styles"); return;
-            case "zip-levels": InstallZip(value, "levels"); return;
-        }
         if (popupId.StartsWith("ul-", StringComparison.Ordinal)) ImportFile(popupId[3..], value);
     }
 
@@ -339,8 +336,8 @@ public sealed class VrSetupPage : VrPage
     }
 
     // ---------------------------------------------------------------- painting
-    float X0 => U(30);                // the page's content, left
-    float CW => U(840);               // and its width
+    float X0 => U(21);                // the page's content, left
+    float CW => U(600);               // and its width
     string F(float css, bool bold = false) => Font(css, bold);
 
     Flowed FlowCached(Run[] runs, float w, float indent = 0)
@@ -359,8 +356,8 @@ public sealed class VrSetupPage : VrPage
         return f.Lines * U(lineCss);
     }
 
-    Run Dim(string t) => new(t, F(11), Css.Dim);
-    Run DimB(string t) => new(t, F(11, true), Css.Dim);
+    Run Dim(string t) => new(t, F(11), Css.Text);
+    Run DimB(string t) => new(t, F(11, true), Css.Text);
     Run Lnk(string t) => new(t, F(11), Css.Link);
 
     float HeadH;
@@ -460,6 +457,15 @@ public sealed class VrSetupPage : VrPage
         return h;
     }
 
+    // the "Get …" buttons: larger than the page's others
+    const float GetCss = 15, GetH = 40;
+    public static readonly Dictionary<string, string> GetLabel = new()
+    {
+        ["engine"] = "Get NeoLemmix", ["styles"] = "Get Style Packages", ["packs"] = "Get Lemmings Plus Packs",
+    };
+
+    float GetButton(string kind, float x, float y) => Button("get-" + kind, GetLabel[kind], x, y, !Busy, "primary", GetCss, height: U(GetH));
+
     float H2(string text, float x, float y, bool paint)
     {
         if (paint)
@@ -488,15 +494,9 @@ public sealed class VrSetupPage : VrPage
     {
         float y0 = y;
         y += H2("NeoLemmix", x, y, paint);
-        y += Para(new[]
-        {
-            Dim("The files come from "), Lnk("neolemmix.com"),
-            Dim(": the first button downloads the official zip from there and installs it, the second installs a zip you saved in the import folder ("
-                + Backend.Files.ImportFolder + ")."),
-        }, x, y, w, 17.6f, paint);
-        y += Para(new[] { Dim("This is the app's storage on this headset: installs land here.") }, x, y, w, 17.6f, paint);
-        y += UnitRow("engine", "NeoLemmix", "gfx, sounds, music, the classic styles and its two level packs", Downloads.Engine, Engine, x, y, w, paint);
-        y += UnitRow("styles", "Styles package", "every style the level packs use", Downloads.Styles, Styles, x, y, w, paint);
+        y += Para(new[] { Dim("The files come from "), Lnk("neolemmix.com") }, x, y, w, 17.6f, paint);
+        y += UnitRow("engine", "NeoLemmix", Engine, x, y, w, paint);
+        y += UnitRow("styles", "Styles", Styles, x, y, w, paint);
         y += Msg("nx", x, y, w, paint);
         return y - y0;
     }
@@ -521,29 +521,27 @@ public sealed class VrSetupPage : VrPage
         return w;
     }
 
-    float UnitRow(string kind, string name, string what, Downloads.Official o, SetupUnit? u, float x, float y, float w, bool paint)
+    float UnitRow(string kind, string name, SetupUnit? u, float x, float y, float w, bool paint)
     {
         float top = y + U(6);
-        float line1 = U(25.6f), h = U(6) + line1 + U(10) + U(17.6f) + U(6) + U(2);
+        float line1 = U(GetH), h = U(8) + line1 + U(8) + U(17.6f) + U(8) + U(2);
         if (!paint) return h;
         Row(x, top, w, h);
-        float ix = x + U(13), mid = top + U(7) + line1 / 2;
-        float cxPos = ix + WhereBadge(ix, mid, true) + U(10);
+        float ix = x + U(13), mid = top + U(8) + line1 / 2;
         // the dot: green when installed, red when not, glowing
         cx.fillStyle = u != null ? "rgba(111, 206, 126, 0.35)" : "rgba(224, 85, 74, 0.35)";
-        cx.beginPath(); cx.arc(cxPos + U(5), mid, U(8), 0, Mathf.Tau); cx.fill();
+        cx.beginPath(); cx.arc(ix + U(8), mid, U(8), 0, Mathf.Tau); cx.fill();
         cx.fillStyle = u != null ? Css.Green : "#e0554a";
-        cx.beginPath(); cx.arc(cxPos + U(5), mid, U(5), 0, Mathf.Tau); cx.fill();
-        float nameX = cxPos + U(20);
-        string get = "1. get " + o.Name + " (" + o.Size + ")", zip = u != null ? "2. re-install zip…" : "2. install zip…";
-        float bz = ButtonW(zip), bg = ButtonW(get);
-        float bx2 = x + w - U(13) - bz, bx1 = bx2 - U(10) - bg;
-        Button("get-" + kind, get, bx1, mid - ButtonH / 2, !Busy);
-        Button("zip-" + kind, zip, bx2, mid - ButtonH / 2, !Busy);
-        NameWithDim(name, what, nameX, mid, bx1 - U(10) - nameX);
+        cx.beginPath(); cx.arc(ix + U(8), mid, U(5), 0, Mathf.Tau); cx.fill();
+        float nameX = ix + U(24);
+        float bw = ButtonW(GetLabel[kind], GetCss), bx = x + w - U(13) - bw;
+        GetButton(kind, bx, mid - U(GetH) / 2);
+        cx.font = F(14, true);
+        cx.fillStyle = Css.Bright;
+        cx.fillText(PageText.Fit(cx, name, bx - U(10) - nameX), nameX, mid);
         cx.font = F(11);
-        cx.fillStyle = Css.Dim;
-        cx.fillText(UnitState(u), ix + U(83), top + U(7) + line1 + U(10) + U(8.8f));
+        cx.fillStyle = Css.Text;
+        cx.fillText(UnitState(u), nameX, top + U(8) + line1 + U(8) + U(8.8f));
         return h;
     }
 
@@ -586,28 +584,10 @@ public sealed class VrSetupPage : VrPage
     {
         float y0 = y;
         y += H2("Levels", x, y, paint);
-        y += Para(new[]
-        {
-            DimB("None of the copyrighted assets ship with this engine."),
-            Dim(" You need to own the original game to use the Lemmings and Oh No! More Lemmings levels. The NeoLemmix levels are provided by their authors, and their licences apply. Check the licence of the levels with their respective authors."),
-        }, x, y, w, 17.6f, paint);
-        y += Para(new[] { Dim("A level zip lands in its own directory (NeoLemmix packs): put the zip in the import folder and install it with the second button.") }, x, y, w, 17.6f, paint);
-        y += Para(new[]
-        {
-            Dim("The Lemmings Plus packs come from "), Lnk("neolemmix.com"),
-            Dim(": the first button downloads the official zip from there and installs it, the second installs any level pack zip from the import folder."),
-        }, x, y, w, 17.6f, paint);
-        // the buttons
-        y += U(8);
-        string get = "1. get " + Downloads.Packs.Name + " (" + Downloads.Packs.Size + ")";
-        if (paint)
-        {
-            float bx = x;
-            bx += Button("get-packs", get, bx, y, !Busy) + U(6);
-            Button("zip-levels", "2. install zip…", bx, y, !Busy);
-        }
-        y += ButtonH;
-        y += Para(new[] { Dim("This is the app's storage on this headset: installs land here and delete removes from it.") }, x, y, w, 17.6f, paint);
+        y += Para(new[] { Dim("The files come from "), Lnk("neolemmix.com"), Dim(". The levels' licences are their authors'.") }, x, y, w, 17.6f, paint);
+        y += U(6);
+        if (paint) GetButton("packs", x, y);
+        y += U(GetH) + U(10);
         if (LevelDirs.Count == 0)
         {
             if (paint)
@@ -662,47 +642,30 @@ public sealed class VrSetupPage : VrPage
         return y - y0;
     }
 
+    // a level directory: its name large, what it holds under it, a delete button (in a headset the
+    // web row's badges and source name only crowd it)
     float DirRow(SetupDir d, float x, float y, float w, bool paint)
     {
-        float top = y + U(6), line = U(25.6f), h = U(6) + line + U(14) + U(6);
+        float top = y + U(6), line = U(22), h = U(8) + line + U(4) + U(17.6f) + U(8) + U(6);
         if (!paint || !InView(y, h)) return h;
         Row(x, top, w, h);
-        float ix = x + U(13), mid = top + U(7) + line / 2;
-        float nx = ix + WhereBadge(ix, mid, true) + U(10);
-        float right = x + w - U(13);
-        // right to left: delete, what is known of it, the count, the engine badge
+        float ix = x + U(13), right = x + w - U(13);
         string del = "delete";
-        float bw = ButtonW(del);
-        Button("del:" + d.Dir, del, right - bw, mid - ButtonH / 2, !Busy);
-        right -= bw + U(10);
-        string about = string.Join(" · ", new[] { d.Bytes != null ? PageText.Mb(d.Bytes) : "", d.Files != null ? d.Files + " files" : "", d.Source }.Where(s => s != ""));
-        cx.font = F(11);
-        if (about != "")
-        {
-            float aw = Math.Min(cx.measureText(about).width, U(300));
-            cx.fillStyle = Css.Dim;
-            cx.fillText(PageText.Fit(cx, about, aw), right - aw, mid);
-            right -= aw + U(10);
-        }
-        if (d.Count != null)
-        {
-            string c = d.Count + " levels";
-            float cw = cx.measureText(c).width;
-            cx.fillStyle = Css.Dim;
-            cx.fillText(c, right - cw, mid);
-            right -= cw + U(10);
-        }
-        string engine = d.Engine ?? "";
-        string badge = engine != "" ? engine : "no levels found";
-        string col = engine == "lemmix" ? "#ffb066" : engine == "classic" ? Css.Link : Css.Dim;
-        string border = engine == "lemmix" ? "#6b4a2f" : engine == "classic" ? "#2f5f6b" : Css.BtnBorder;
-        cx.font = F(10);
-        float bwid = PageText.Spaced(cx, badge.ToUpperInvariant(), 0, 0, U(0.8f), false) + U(14);
-        Chip(badge, right - bwid, mid, "rgba(0,0,0,0)", col, 10, border, upper: true, spacing: 0.8f);
-        right -= bwid + U(10);
-        string name = d.Name ?? d.Dir;
+        float bh = U(34), bw = ButtonW(del, 13);
+        Button("del:" + d.Dir, del, right - bw, top + (h - U(6) - bh) / 2, !Busy, "warn", 13, height: bh);
+        float maxW = right - bw - U(14) - ix;
         // .row.empty: a directory the index has no levels from, its name dim
-        NameWithDim(name, d.Name != null && d.Name != d.Dir ? d.Dir : "", nx, mid, right - nx, d.Name != null ? Css.Bright : Css.Dim);
+        cx.font = F(14, true);
+        cx.fillStyle = d.Name != null ? Css.Bright : Css.Dim;
+        cx.fillText(PageText.Fit(cx, d.Name ?? d.Dir, maxW), ix, top + U(8) + line / 2);
+        string about = string.Join(" · ", new[]
+        {
+            d.Count != null ? d.Count + " levels" : d.Engine == null ? "no levels found" : "",
+            d.Bytes != null ? PageText.Mb(d.Bytes) : "",
+        }.Where(t => t != ""));
+        cx.font = F(11);
+        cx.fillStyle = Css.Text;
+        cx.fillText(PageText.Fit(cx, about, maxW), ix, top + U(8) + line + U(4) + U(8.8f));
         return h;
     }
 

@@ -147,11 +147,9 @@ public static class PagesTests
         b.Mem.Put("/data/import", "NeoLemmix_V12.14.0.zip", "", 7_043_210);
         b.Zips[zip] = EngineZip;
         b.PlanOf = path => new InstallPlan("engine", "NeoLemmix", new UnitInfo { Id = "engine", Files = 1489 }, new() { "NeoLemmix_Introduction_Pack" }, new() { "NeoLemmix_Introduction_Pack" });
-        // "2. re-install zip…": the import folder's zips, then the one chosen
-        Check.Equal("2. re-install zip…", "2. re-install zip…", "label");
-        rig.Press("zip-engine");
-        Check.True(p.Popup != null && p.Popup.Options.Count == 1 && p.Popup.Options[0].Label == "NeoLemmix_V12.14.0.zip · 7.0 MB", "the import folder's zips in a list");
-        rig.Press("popup:0");
+        // a zip in the import folder (the page has no zip button: a download lands there, as does a
+        // zip a computer uploads)
+        p.InstallZip(zip, "engine");
         Check.Equal("Replace NeoLemmix?", c.Last.Title, "replacing asks first");
         Check.Equal("replace", c.Last.Verb, "its verb");
         Check.Equal("The 1489 files installed on " + PageText.Date(PageFixture.ShotDate) + " on the headset are removed first.", c.Last.Body, "its body");
@@ -205,9 +203,6 @@ public static class PagesTests
         p.WaitIdle();
         Check.Equal("install failed: disk full", p.Messages["nx"].Text, "the failure");
         Check.True(p.Messages["nx"].Bad && !p.Busy, "red, and the buttons back");
-        // nothing in the import folder
-        rig.Press("zip-levels");
-        Check.Equal("no .zip file in /data/import - copy one there first", p.Messages["levels"].Text, "an empty import folder");
     }
 
     [AppTest]
@@ -219,7 +214,9 @@ public static class PagesTests
         b.Zips[b.DownloadTo] = StylesZip;
         b.Mem.Put("/data/import", "styles.zip", "", 91_000_000);
         b.PlanOf = _ => new InstallPlan("styles", "the styles package", new UnitInfo { Id = "styles", Files = 9817 }, new(), new());
-        Check.Equal("1. get the styles package (92 MB)", "1. get " + Downloads.Styles.Name + " (" + Downloads.Styles.Size + ")", "the button's label");
+        Check.Equal("Get Style Packages", VrSetupPage.GetLabel["styles"], "the button's label");
+        p.Paint();
+        Check.True(!p.Regions.Any(r => r.Id.StartsWith("zip-", StringComparison.Ordinal)), "no zip buttons");
         rig.Press("get-styles");
         p.WaitIdle();
         Check.Equal("download styles", b.Log[0], "downloaded from neolemmix.com");

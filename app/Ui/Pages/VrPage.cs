@@ -131,9 +131,9 @@ public abstract class VrPage
     public float ButtonW(string label, float css = 11) { cx.font = Font(css); return cx.measureText(label).width + U(22); }
 
     /** A <button>: its ground, its border, its label; registered under `id`. */
-    protected float Button(string id, string label, float x, float y, bool enabled = true, string kind = "", float css = 11, float? width = null)
+    protected float Button(string id, string label, float x, float y, bool enabled = true, string kind = "", float css = 11, float? width = null, float? height = null)
     {
-        float w = width ?? ButtonW(label, css), h = ButtonH;
+        float w = width ?? ButtonW(label, css), h = height ?? ButtonH;
         bool hot = enabled && Hot(id);
         string bg = Css.BtnBg, border = Css.BtnBorder, color = Css.Text;
         if (kind == "primary") { bg = hot ? "#26485c" : "#173442"; border = Css.Link; color = Css.Link; }

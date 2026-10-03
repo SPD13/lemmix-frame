@@ -54,6 +54,12 @@ public partial class PageShots : Node
             for (float s = 0; p.RegionRect("upload-server") == null && s <= p.ContentHeight; s += p.View.Size.Y / 4) { p.ScrollTo(s); p.Paint(); }
             p.ScrollTo(p.Scroll + 260 * p.S);
         }),
+        ["setup-levels"] = () => Setup(p =>
+        {
+            p.Paint();
+            for (float s = 0; p.RegionRect("get-packs") == null && s <= p.ContentHeight; s += p.View.Size.Y / 4) { p.ScrollTo(s); p.Paint(); }
+            p.ScrollTo(p.Scroll + 200 * p.S);
+        }),
         ["setup-empty"] = () =>
         {
             var b = new PageFixture.Setup { Levels = false, Store = (8000, 10_740_000_000) };
@@ -61,10 +67,11 @@ public partial class PageShots : Node
         },
         ["setup-popup"] = () => Setup(p =>
         {
-            ((PageFixture.Setup)p.Backend).Mem.Put("/data/import", "NeoLemmix_V12.14.0.zip", "", 7_043_210);
-            ((PageFixture.Setup)p.Backend).Mem.Put("/data/import", "LemmingsPlus_All_20201114.zip", "", 21_870_000);
+            ((PageFixture.Setup)p.Backend).Mem.Put("/data/import", "lemmings-3d-controls.json", "{}", 4_210);
+            ((PageFixture.Setup)p.Backend).Mem.Put("/data/import", "lemmings-3d-prefs.json", "{}", 1_870);
             p.Paint();
-            p.Press(new PagePick("zip-engine"));
+            for (float s = 0; p.RegionRect("ul-controls") == null && s <= p.ContentHeight; s += p.View.Size.Y / 2) { p.ScrollTo(s); p.Paint(); }
+            p.Press(new PagePick("ul-controls"));
         }),
         ["setup-confirm"] = () =>
         {
