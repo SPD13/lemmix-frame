@@ -76,7 +76,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         Windows.WindowRoot.Position += up;
         Pages.Root.Position += up;
         if (!Windows.Bar.Locked) Windows.Toolbar.GuiRoot.Position += up;
-        if (Session != null) Env.PlaceForXR(DioramaRoot.Transform, HeadPose?.Origin);
+        if (Session != null || _lobbyRoom) Env.PlaceForXR(DioramaRoot.Transform, HeadPose?.Origin);
     }
 
     // every 5 s in a session: the head's height above the play space's floor (the Stage space's
@@ -409,10 +409,11 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         Pointers.Update(Vr, Input, cur?.Hovered != null, cur?.Game.Sim.EffectiveSelectDx ?? 0, DioramaRoot.Scale.X);
         Pointers.SetFloor(presenting, Env.Active && Env.Shown);
         if (Catalog.PollThumbs() && Windows.Catalog.Root.Visible) Windows.Catalog.Paint();
-        // the lobby: up in a session while no level is on the board, its scroller turning
+        // the lobby: up in a session while no level is on the board, its scroller turning, the Dirt room round it
         Lobby.Root.Visible = presenting && Session == null;
         Lobby.SetShaded(Windows.AnyWindowUp || Pages.AnyUp);
         Lobby.Update(now);
+        LobbyRoomFrame(presenting);
         CheckLevelEnd(now);
     }
 
@@ -502,19 +503,27 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         if (Session == null) return false;
         var head = headPose ?? HeadNow();
         var headPos = head.Origin;
-        // along the play space's default forward, as the windows are (DefaultForward): the board
-        // and the windows face the same way and stand in front of the player whatever way the head
-        // was turned when the level loaded (a native departure: the web places it on the gaze)
-        var fwd = DefaultForward();
-        float yaw = MathF.Atan2(-fwd.X, -fwd.Z);
-        var basis = new Basis(Vector3.Up, yaw) * Basis.FromScale(Vector3.One * VR_PIXEL_SCALE);
-        var focusLocal = new Vector3(FocusX, Session.Level.Height / 2f, (float)BoardZ.TERRAIN_DEPTH / 2);
-        var target = headPos + fwd * BoardAhead;
-        target.Y = Math.Max(0.7f, headPos.Y - BoardBelowEye); // just below eye level
-        DioramaRoot.Transform = new Transform3D(basis, target - basis * focusLocal);
+        DioramaRoot.Transform = BoardPlacement(headPos, Session.Level.Width, Session.Level.Height);
         Windows.Bar.OnDioramaPlaced();
         Env.PlaceForXR(DioramaRoot.Transform, headPos);
         return true;
+    }
+
+    /**
+     * Where a board of w x h pixels goes: along the play space's default forward, as the windows
+     * are (DefaultForward), so the board and the windows face the same way and stand in front of
+     * the player whatever way the head was turned when the level loaded (a native departure: the
+     * web places it on the gaze); its focus BoardAhead off and just below eye level.
+     */
+    Transform3D BoardPlacement(Vector3 headPos, float w, float h)
+    {
+        var fwd = DefaultForward();
+        float yaw = MathF.Atan2(-fwd.X, -fwd.Z);
+        var basis = new Basis(Vector3.Up, yaw) * Basis.FromScale(Vector3.One * VR_PIXEL_SCALE);
+        var focusLocal = new Vector3(w / 2f, h / 2f, (float)BoardZ.TERRAIN_DEPTH / 2);
+        var target = headPos + fwd * BoardAhead;
+        target.Y = Math.Max(0.7f, headPos.Y - BoardBelowEye); // just below eye level
+        return new Transform3D(basis, target - basis * focusLocal);
     }
 
     public void OnRecenter(Transform3D? headPose)

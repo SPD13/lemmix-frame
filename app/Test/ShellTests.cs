@@ -179,6 +179,30 @@ public static class ShellTests
     }
 
     [AppTest]
+    public static void TheLobbyStandsInTheDirtRoom()
+    {
+        if (!HaveAssets()) return;
+        using var rig = new Rig();
+        var app = rig.App;
+        rig.Frame();
+        // (the rig starts with the room off: the fog, built at once, is enough to see whose it is)
+        app.Fx.ToggleEnvironment();
+        rig.Frame();
+        Check.Equal("fog", app.Env.Mode, "the room on");
+        Check.True(app.Env.Active, "a room is up round the lobby");
+        Check.Equal("nx:" + ShellApp.LobbyStyle + "|fog", app.Env.CurrentGallery?.Key, "the Dirt gallery's");
+        Check.True(app.Env.FloorWorldY() is > -0.05 and < 0.05, "its floor on the play space's (" + app.Env.FloorWorldY() + ")");
+        // a level brings its own room; back in the lobby, the Dirt one again
+        app.EnterLevel(Builders);
+        rig.Frame();
+        Check.True(app.Env.CurrentGallery?.Key != "nx:" + ShellApp.LobbyStyle + "|fog", "the level's room (" + app.Env.CurrentGallery?.Key + ")");
+        app.ExitToLobby();
+        rig.Frame();
+        Check.Equal("nx:" + ShellApp.LobbyStyle + "|fog", app.Env.CurrentGallery?.Key, "the Dirt room back");
+        Check.True(app.Env.Active, "and up");
+    }
+
+    [AppTest]
     public static void TheToolbarsExitGoesBackToTheLobby()
     {
         if (!HaveAssets()) return;

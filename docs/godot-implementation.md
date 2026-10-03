@@ -289,7 +289,10 @@ swapped for a drawn headset) opens the VR window as the bar's VR button does, **
 (`TitleArt.RemoveKeyCap`); under the beam a sign glows as NeoLemmix's does under the mouse
 (`MakeClickableImageAuto`'s glow) and steps forward. While a window or a page is up the screen is
 veiled and the signs put away. The catalog is never locked any more: its close (and Escape) go
-back to the lobby. The toolbar's exit (the door) also comes back here, after asking. Without the menu art the screen and signs are drawn plainly. Picks are
+back to the lobby. The toolbar's exit (the door) also comes back here, after asking. The room round the lobby is the Dirt gallery's
+(`orig_dirt`: its scenery, or envgen's rings and haze, as the environment switch says), laid out
+for a 1600 x 160 board standing where a level's would (`App.Lobby.cs`); a level's room replaces
+it, and leaving the level brings it back. Without the menu art the screen and signs are drawn plainly. Picks are
 `lobbyplay`, `lobbyvr`, `lobbyquit` (`App.ActOnLobby`); shots `vr-lobby`, `vr-lobby-vr`.
 
 **Placement (native).** Windows and pages open from the head's position **facing the play

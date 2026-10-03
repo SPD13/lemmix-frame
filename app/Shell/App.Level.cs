@@ -112,6 +112,7 @@ public sealed partial class App
     public void LoadLevel()
     {
         DisposeSession();
+        _lobbyRoom = false; // the level's room takes the lobby's place
         Windows.SetLevelText(null);
         Windows.Status.Set(note: "loading…", kind: "");
 

@@ -172,6 +172,10 @@ public sealed class EnvProfile
     // text, null when there is none (an empty profile).
     public static EnvProfile ForLevel(Level level, Func<string, string?> read) =>
         Merge(UrlsFor(level).Select(u => read(u) is string text ? Parse(text) : new EnvProfile()));
+
+    // A style's own profile, with no level (native: the lobby's room is a style's gallery)
+    public static EnvProfile ForStyle(string style, Func<string, string?> read) =>
+        read("3d/profiles/nx-" + style + ".json") is string text ? Parse(text) : new EnvProfile();
 }
 
 // A terrain piece the context is drawn from: what a level piece (or a gallery's style piece) is.

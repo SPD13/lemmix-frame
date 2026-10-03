@@ -189,7 +189,7 @@ public sealed partial class GameSession : Node
         catch (JsonException) { return null; }
     }
 
-    static string? ReadProfile(string dir, string file)
+    public static string? ReadProfile(string dir, string file)
     {
         string path = dir.TrimEnd('/') + "/" + file;
         if (path.StartsWith("res://") || path.StartsWith("user://"))
