@@ -17,6 +17,10 @@ public sealed partial class SpritePool : Node3D
     readonly bool _blend;
     readonly List<MeshInstance3D> _pool = new();
     readonly List<Slot> _slots = new();
+    // what each node was last given: a call into the engine only when it changes (most sprites keep
+    // their mesh and material from tick to tick, a still one its place)
+    readonly List<Shown> _shown = new();
+    struct Shown { public bool Visible; public Mesh? Mesh; public Material? Material; public Transform3D Transform; public bool Placed; }
     Dictionary<string, (double X, double Y)> _prev = new(StringComparer.Ordinal);
     Dictionary<string, (double X, double Y)> _next = new(StringComparer.Ordinal);
     public int ActiveCount { get; private set; }
@@ -39,11 +43,40 @@ public sealed partial class SpritePool : Node3D
             var m = new MeshInstance3D { CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
             _pool.Add(m);
             _slots.Add(default);
+            _shown.Add(new Shown { Visible = true });
             AddChild(m);
         }
         var mesh = _pool[i];
-        mesh.Visible = true;
+        SetVisible(i, true);
         return mesh;
+    }
+
+    void SetVisible(int i, bool v)
+    {
+        var s = _shown[i];
+        if (s.Visible == v) return;
+        _pool[i].Visible = v;
+        s.Visible = v;
+        _shown[i] = s;
+    }
+
+    void Show(int i, Mesh? mesh, Material? material, in Transform3D t)
+    {
+        var s = _shown[i];
+        var node = _pool[i];
+        if (!ReferenceEquals(s.Mesh, mesh)) { node.Mesh = mesh; s.Mesh = mesh; }
+        if (!ReferenceEquals(s.Material, material)) { node.MaterialOverride = material; s.Material = material; }
+        if (!s.Placed || s.Transform != t) { node.Transform = t; s.Transform = t; s.Placed = true; }
+        _shown[i] = s;
+    }
+
+    void Place(int i, in Transform3D t)
+    {
+        var s = _shown[i];
+        if (s.Placed && s.Transform == t) return;
+        _pool[i].Transform = t;
+        s.Transform = t; s.Placed = true;
+        _shown[i] = s;
     }
 
     // sync(items, zFor, interpolate, flat)
@@ -55,25 +88,23 @@ public sealed partial class SpritePool : Node3D
             var item = items[i];
             if (item.Off)
             {
-                var hidden = Acquire(i);
-                hidden.Visible = false;
+                Acquire(i);
+                SetVisible(i, false);
                 _slots[i] = default;
                 continue;
             }
             var entry = item.Frame != null ? _cache.ForFrame(item.Frame) : _cache.ForMask(item.Mask!);
             int offX = item.Frame != null ? item.Frame.OffsetX : item.Mask!.OffsetX;
             int offY = item.Frame != null ? item.Frame.OffsetY : item.Mask!.OffsetY;
-            var mesh = Acquire(i);
-            mesh.Mesh = _materials.Mesh(entry.Geometry);
+            Acquire(i);
             var sm = flat && item.Frame != null ? _cache.FlatMaterialFor(item.Frame)
                 : (_blend && item.Frame != null) ? _cache.BlendedMaterialFor(item.Frame)
                 : entry.Material;
-            mesh.MaterialOverride = _materials.For(sm);
             double bx = item.X + offX;
             double by = item.Y + offY + (item.FlipY ? entry.H : 0);
             double z = zFor(item.Layer) + i * 0.02;
             double sy = item.FlipY ? -1 : 1;
-            mesh.Transform = BoardMaterials.Place(bx, by, z, sy);
+            Show(i, _materials.Mesh(entry.Geometry), _materials.For(sm), BoardMaterials.Place(bx, by, z, sy));
             var slot = new Slot { Z = z, ScaleY = sy, Cx = bx, Cy = by, Px = bx, Py = by };
             if (interpolate && item.Key != null)
             {
@@ -85,7 +116,7 @@ public sealed partial class SpritePool : Node3D
         }
         for (int i = items.Count; i < _pool.Count; i++)
         {
-            _pool[i].Visible = false;
+            SetVisible(i, false);
             _slots[i] = default;
         }
         ActiveCount = items.Count;
@@ -99,7 +130,7 @@ public sealed partial class SpritePool : Node3D
         {
             var s = _slots[i];
             if (!s.Interp) continue;
-            _pool[i].Transform = BoardMaterials.Place(BillboardPool.Lerp(s.Px, s.Cx, alpha), BillboardPool.Lerp(s.Py, s.Cy, alpha), s.Z, s.ScaleY);
+            Place(i, BoardMaterials.Place(BillboardPool.Lerp(s.Px, s.Cx, alpha), BillboardPool.Lerp(s.Py, s.Cy, alpha), s.Z, s.ScaleY));
         }
     }
 

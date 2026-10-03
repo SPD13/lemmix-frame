@@ -96,6 +96,22 @@ public sealed partial class BoardScene : Node3D
     readonly Dictionary<WaveStack, List<MeshInstance3D>> _stackMeshes = new(ReferenceEqualityComparer.Instance);
     readonly Dictionary<MeshInstance3D, bool> _emptySlice = new(ReferenceEqualityComparer.Instance);
 
+    // what the portals' and slices' nodes were last given: the engine is called only on a change
+    sealed class NodeShown { public bool Visible = true; public Mesh? Mesh; public Material? Material; public Transform3D Transform; public bool Placed; }
+    readonly Dictionary<MeshInstance3D, NodeShown> _nodeShown = new(ReferenceEqualityComparer.Instance);
+    NodeShown ShownOf(MeshInstance3D m)
+    {
+        if (!_nodeShown.TryGetValue(m, out var s))
+        {
+            _nodeShown[m] = s = new NodeShown { Visible = m.Visible, Mesh = m.Mesh, Material = m.MaterialOverride, Transform = m.Transform, Placed = true };
+        }
+        return s;
+    }
+    void SetVisible(MeshInstance3D m, bool v) { var s = ShownOf(m); if (s.Visible != v) { m.Visible = v; s.Visible = v; } }
+    void SetMesh(MeshInstance3D m, Mesh? mesh) { var s = ShownOf(m); if (!ReferenceEquals(s.Mesh, mesh)) { m.Mesh = mesh; s.Mesh = mesh; } }
+    void SetMaterial(MeshInstance3D m, Material? mat) { var s = ShownOf(m); if (!ReferenceEquals(s.Material, mat)) { m.MaterialOverride = mat; s.Material = mat; } }
+    void SetTransform(MeshInstance3D m, in Transform3D t) { var s = ShownOf(m); if (s.Transform != t) { m.Transform = t; s.Transform = t; } }
+
     // what the page tells the bridge
     public (int X, int Y)? CursorSim;              // the pointer on the board (cursorSim)
     public bool ShadowsOn = true;                  // state.shadows
@@ -378,11 +394,11 @@ public sealed partial class BoardScene : Node3D
                 // a hatch keeps the open frame on its ceiling square: its doors are geometry
                 var shown = portal.Hatch != null ? frames[0] : (frame ?? frames[0]);
                 if (shown != null)
-                    nodes.Mesh.MaterialOverride = Materials.For(game.ClearPhysics ? Cache.FlatMaterialFor(shown) : Cache.BlendedMaterialFor(shown));
+                    SetMaterial(nodes.Mesh, Materials.For(game.ClearPhysics ? Cache.FlatMaterialFor(shown) : Cache.BlendedMaterialFor(shown)));
                 if (nodes.Flaps != null)
                 {
                     var door = Materials.For(game.ClearPhysics ? Cache.FlatMaterialFor(portal.ClosedFrame) : Cache.BlendedMaterialFor(portal.ClosedFrame));
-                    foreach (var f in nodes.Flaps) f.Mesh.MaterialOverride = door;
+                    foreach (var f in nodes.Flaps) SetMaterial(f.Mesh, door);
                 }
                 if (nodes.Flaps == null || portal.Openness == null) continue;
                 double angle = Render.Portals.FlapAngle(portal, frame!);
@@ -390,8 +406,8 @@ public sealed partial class BoardScene : Node3D
                 if (angle > 0) _doorSfxPlayed = true;
                 foreach (var f in nodes.Flaps)
                 {
-                    var t = f.Mesh.Transform;
-                    f.Mesh.Transform = new Transform3D(new Basis(Vector3.Back, (float)(f.Sign * angle)), t.Origin);
+                    var t = ShownOf(f.Mesh).Transform;
+                    SetTransform(f.Mesh, new Transform3D(new Basis(Vector3.Back, (float)(f.Sign * angle)), t.Origin));
                 }
             }
         }
@@ -411,13 +427,13 @@ public sealed partial class BoardScene : Node3D
                     var frame = shown[k];
                     var mesh = meshes[k];
                     _emptySlice[mesh] = frame == null;
-                    mesh.Visible = frame != null;
+                    SetVisible(mesh, frame != null);
                     if (frame == null) continue;
                     var entry = WaveEntryFor(k > 0 ? shown[k - 1] : null, frame, k + 1 < meshes.Count ? shown[k + 1] : null);
-                    mesh.Mesh = Materials.Mesh(entry.Geometry);
-                    mesh.MaterialOverride = Materials.For(game.ClearPhysics ? Cache.FlatMaterialFor(frame) : Cache.BlendedMaterialFor(frame));
-                    mesh.Transform = BoardMaterials.Place(obj.X + frame.OffsetX, obj.Y + frame.OffsetY + (stack.FlipY ? entry.H : 0),
-                        BoardZ.WAVE_FRONT_Z - (k + 1) * BoardZ.SPRITE_DEPTH, stack.FlipY ? -1 : 1);
+                    SetMesh(mesh, Materials.Mesh(entry.Geometry));
+                    SetMaterial(mesh, Materials.For(game.ClearPhysics ? Cache.FlatMaterialFor(frame) : Cache.BlendedMaterialFor(frame)));
+                    SetTransform(mesh, BoardMaterials.Place(obj.X + frame.OffsetX, obj.Y + frame.OffsetY + (stack.FlipY ? entry.H : 0),
+                        BoardZ.WAVE_FRONT_Z - (k + 1) * BoardZ.SPRITE_DEPTH, stack.FlipY ? -1 : 1));
                 }
             }
         }
