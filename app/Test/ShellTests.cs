@@ -31,6 +31,7 @@ public static class ShellTests
         public readonly ScriptedXrInput Input = new();
         public readonly ShellApp App;
         public readonly string UserData;
+        public bool Quit;                   // the app asked to end
 
         public Rig(string? assets = null, params string[] args)
         {
@@ -41,6 +42,7 @@ public static class ShellTests
                 Args = ShellArgs.Parse(args.Append("--environment=none")),
                 Input = Input, Store = new LocalStore(), Clock = () => Now, Manual = true,
                 EnvironmentInBackground = false, UserDataDir = UserData, AssetRoot = assets ?? TerrainShot.Assets,
+                Quit = () => Quit = true,
             });
             ((SceneTree)Godot.Engine.GetMainLoop()).Root.AddChild(App);
             // the hands down by the sides, pointing ahead
@@ -104,21 +106,73 @@ public static class ShellTests
         return rig.Session;
     }
 
-    // ------------------------------------------------------------ the catalog
+    // ------------------------------------------------------------ the lobby and the catalog
+    // the lobby's sign for a tool
+    static Panel3D Sign(ShellApp app, string tool) => app.Lobby.Signs[Array.IndexOf(VrLobby.Tools, tool)];
+
     [AppTest]
-    public static void StartsOnTheLockedCatalog()
+    public static void StartsOnTheLobby()
     {
         if (!HaveAssets()) return;
         using var rig = new Rig();
-        var w = rig.App.Windows;
-        Check.True(w.Catalog.Root.Visible, "the catalog is up");
-        Check.True(rig.App.Locked, "locked until a level is chosen");
-        Check.True(!w.Catalog.Close.Visible, "a locked catalog has no close");
-        Check.True(rig.App.Session == null, "no level on the board");
-        Check.Equal("choose a level", w.Status.Status.Name, "the strip");
-        // Escape does not close a locked catalog
-        rig.App.KeyDown("Escape");
-        Check.True(w.Catalog.Root.Visible, "still up after Escape");
+        rig.Frame();
+        var app = rig.App;
+        var w = app.Windows;
+        Check.True(app.Lobby.Root.Visible, "the lobby is up");
+        Check.True(app.Lobby.HasArt, "drawn with NeoLemmix's title art");
+        Check.True(!w.Catalog.Root.Visible && !w.AnyWindowUp, "no window over it");
+        Check.True(app.Locked && app.Session == null, "no level chosen");
+        // the beam on a sign lights it and steps it forward; the screen stops the beam
+        var play = Sign(app, "lobbyplay");
+        float z = play.Position.Z;
+        Rig.At(rig.Right, new Vector3(0.1f, 1.45f, 0), play.GlobalPosition);
+        rig.Frame();
+        Check.Equal("lobbyplay", app.Lobby.Hover, "the sign under the beam");
+        Check.True(play.Position.Z > z, "it steps toward the player");
+        Check.True(app.Vr.LastHit(1) != null, "the beam lands on it");
+        Rig.At(rig.Right, new Vector3(0.1f, 1.45f, 0), app.Lobby.Screen.GlobalTransform * new Vector3(0, 0.3f, 0));
+        rig.Frame();
+        Check.True(app.Lobby.Hover == null, "the logo is not a sign");
+        Check.True(app.Vr.LastHit(1) != null, "the screen ends the beam");
+        // the scroller is up and turning
+        for (int i = 0; i < 10; i++) rig.Frame(50);
+        Check.True(app.Lobby.Scroller.Visible, "the scroller is up");
+    }
+
+    [AppTest]
+    public static void TheLobbysSignsOpenTheCatalogTheVrWindowAndQuit()
+    {
+        if (!HaveAssets()) return;
+        using var rig = new Rig();
+        rig.Frame();
+        var app = rig.App;
+        var w = app.Windows;
+        // PLAY: the world catalog, which closes back to the lobby
+        rig.Click(Sign(app, "lobbyplay"));
+        Check.True(w.Catalog.Root.Visible, "PLAY opens the catalog");
+        Check.True(w.Catalog.Close.Visible, "with a close: the lobby is behind it");
+        rig.Frame();
+        Check.True(app.Lobby.Shade.Visible, "the lobby veiled behind it");
+        rig.Click(w.Catalog.Close);
+        Check.True(!w.Catalog.Root.Visible && app.Lobby.Root.Visible, "closed, the lobby again");
+        rig.Frame();
+        Check.True(!app.Lobby.Shade.Visible, "unveiled");
+        rig.Click(Sign(app, "lobbyplay"));
+        app.KeyDown("Escape");
+        Check.True(!w.Catalog.Root.Visible, "Escape closes it too");
+        // VR SETTINGS: the VR window the bar's VR button opens
+        rig.Frame();
+        rig.Click(Sign(app, "lobbyvr"));
+        Check.True(w.VrOptions.Root.Visible, "VR SETTINGS opens the VR window");
+        // a window up owns the beam: the signs behind it cannot be hit
+        Check.True(app.Pick(new Vector3(0.1f, 1.45f, 0), (Sign(app, "lobbyquit").GlobalPosition - new Vector3(0.1f, 1.45f, 0)).Normalized()) is not { BarTool: "lobbyquit" }, "QUIT is behind the window");
+        rig.Click(w.VrOptions.Close);
+        Check.True(!w.VrOptions.Root.Visible, "closed");
+        Check.True(!rig.Quit, "still running");
+        // QUIT: the app ends
+        rig.Frame();
+        rig.Click(Sign(app, "lobbyquit"));
+        Check.True(rig.Quit, "QUIT ends the app");
     }
 
     [AppTest]
@@ -128,6 +182,7 @@ public static class ShellTests
         using var rig = new Rig();
         var app = rig.App;
         var cat = app.Windows.Catalog;
+        rig.Click(Sign(app, "lobbyplay"));
         // down the tree with the beam: the pack's row, then its rank's
         int pack = cat.Items.FindIndex(it => it.Kind == "dir" && it.Path == "Lemmings_Redux");
         Check.True(pack >= 0, "the Redux pack is a row");
@@ -398,6 +453,7 @@ public static class ShellTests
         if (!HaveAssets()) return;
         using var rig = new Rig();
         var app = rig.App;
+        rig.Click(Sign(app, "lobbyplay"));
         Node3D Entry(string name) => app.Windows.Catalog.Root.GetNode<Node3D>("vr-" + name);
         rig.Click(Entry("catsetup"));
         Check.True(app.Pages.Current == app.SetupPage, "the catalog's setup entry");

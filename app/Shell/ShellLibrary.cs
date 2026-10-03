@@ -55,7 +55,8 @@ public sealed class ShellLibrary : ICatalogLibrary
     }
     public void Navigate(string path) => _app.Library.Navigate(path);
     public void Up() => _app.Library.Up();
-    public bool Locked => _app.Locked;
+    // the lobby stands behind the catalog: it can always be closed, back to the lobby without a level
+    public bool Locked => false;
     public string? CurrentLevelId => _app.LevelId;
     public CatalogNode? NodeOf(string levelId) =>
         _app.Tree.ById.TryGetValue(levelId, out var hit) && _byPath.TryGetValue(hit.Node.Path ?? "", out var c) ? c : null;

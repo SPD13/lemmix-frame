@@ -275,6 +275,23 @@ solutions, controls dialog, key hints, replay files, QA checklist — plus the V
 is a `VrPage`: CSS-like units (`U(css)` = css × `S` canvas px), widgets (`Button`, `Checkbox`,
 `Select`, popups), regions for hit-testing, a scrolled body, background work through `Post`.
 
+**The lobby (native, `Ui/Windows/VrLobby`).** The app's title screen, up in a session while no
+level is on the board: NeoLemmix's main menu (`GameMenuScreen.pas`, numbers from
+`data/title.nxmi`) as a 1.5 m screen 1.4 m off in the windows' frame - centred on the line the
+windows open along and leaning back to face the eyes - built from the installed
+`neolemmix/gfx/menu/` by `core/.../Ui/TitleArt.cs`: `background.png` tiled, `logo.png`, a footer
+in `menu_font.png` (what the sign under the beam does; the app's version), and the scroller (the
+reel turned by the two worker lemmings, `TitleScroller`, lines in `VrLobby.ScrollerLines`). Three
+signs float 12 cm in front, the headset's own: **PLAY** (`sign_play.png`) opens the world
+catalog (setup when nothing is installed), **VR SETTINGS** (`sign_config.png`, its music note
+swapped for a drawn headset) opens the VR window as the bar's VR button does, **QUIT**
+(`sign_quit.png`) ends the app at once. Their key caps (F1, F3, Esc) are taken off
+(`TitleArt.RemoveKeyCap`); under the beam a sign glows as NeoLemmix's does under the mouse
+(`MakeClickableImageAuto`'s glow) and steps forward. While a window or a page is up the screen is
+veiled and the signs put away. The catalog is never locked any more: its close (and Escape) go
+back to the lobby. Without the menu art the screen and signs are drawn plainly. Picks are
+`lobbyplay`, `lobbyvr`, `lobbyquit` (`App.ActOnLobby`); shots `vr-lobby`, `vr-lobby-vr`.
+
 **Placement (native).** Windows and pages open from the head's position **facing the play
 space's default forward** (its −Z, turned by the yaw correction as the board is), not along the
 gaze: `App.WindowPose`/`FrontOf`, used by both hosts' `PlaceWindows` and on recenter.
@@ -285,6 +302,7 @@ gaze: `App.WindowPose`/`FrontOf`, used by both hosts' `PlaceWindows` and on rece
 |---|---|---|
 | −128…21 | board materials (clamped web render orders), opaque pass first | tested |
 | 0…4 | skill bar parts (web orders 50…54 minus 50), minimap 1 | — |
+| 0 | the lobby's screen (opaque), its signs, scroller and veil (transparent, behind the windows) | tested |
 | 54 / 55 | pages / page buttons and the VR keyboard (`GUI_ORDER_PAGE[_BTN]`) | off |
 | 55 | toolbar icons, status strip, volume (`GUI_ORDER_BAR_TOOL`) | off |
 | 56 | modal, catalog, settings, level text (`GUI_ORDER_MODAL`) | off |
@@ -423,6 +441,7 @@ run with `--scenery=off`, or revert the commits on branch `scenery`.
 | Level upload server + browser page (files, folders, zips, settings backup) | levels cannot ship |
 | `CommandSelectSkill(0)` selects the first skill; a release-rate click changes the rate once | web bugs, fixed in both (web `a5b7b4f`) |
 | Preferences imported from a computer apply at the next start | effects are read at start, as the web's reload |
+| A lobby (NeoLemmix's title screen: PLAY, VR SETTINGS, QUIT) at start instead of a locked catalog; the catalog closes back to it | a title screen for the native app (6.4) |
 | A gallery with a scenery (`3d/env/<style>/scenery/`) shows it instead of envgen's rings; `--scenery=off` restores the rings | a room going to a far, hazy horizon (6.11) |
 
 ---
@@ -459,7 +478,7 @@ an `override.cfg` next to the executable to flip a project setting without rebui
 | Core | `make core` (Mac), `make core-linux` (sniper arm64, case-sensitive FS) | xunit v3: oracle comparisons, installer, upload server over HTTP, store, hotkeys, library, audio. `LINUX_ASSETS=1` streams the assets so the oracle tests run on Linux too; `LEMMIX_DOWNLOAD_TEST=1` downloads the real zips |
 | App | `make app-test` (`-- --test [filter]`) | `[AppTest]` static methods in `app/Test/*Tests.cs`, run inside Godot headless: VR manager with scripted poses, windows, pages (with fake backends, `PageFixture`), the shell end to end (`ShellTests.Rig`: a real App with scripted input and a manual clock), board, audio, controllers, upload server, XR input maths |
 | Smoke | `make app-smoke`, `make linux-smoke` (exported build in sniper) | the app starts; the export starts |
-| Shots | `tools/render.sh build/shots --shot <name> /out/<file>.png` | the render box (Vulkan Mobile, Xvfb): `board*`, `terrain`, `skillbar`, `vr-scene`, `win-*`, `windows-scene`, `windows-over-ui`, `page-*` (e.g. `page-setup`, `page-setup-levels`, `page-setup-upload`), `controllers`, `controllers-over-scene`, `icon-quit[-hover]`. `RENDER_ASSETS=1` for shots that need levels |
+| Shots | `tools/render.sh build/shots --shot <name> /out/<file>.png` | the render box (Vulkan Mobile, Xvfb): `board*`, `terrain`, `skillbar`, `vr-scene`, `vr-lobby`, `vr-lobby-vr`, `vr-catalog`, `win-*`, `windows-scene`, `windows-over-ui`, `page-*` (e.g. `page-setup`, `page-setup-levels`, `page-setup-upload`), `controllers`, `controllers-over-scene`, `icon-quit[-hover]`. `RENDER_ASSETS=1` for shots that need levels |
 | Gate | `make verify` | core, core-linux, app-smoke, app-test, linux-smoke |
 
 A test fails by throwing (`Check.True/Equal/Near`). An app test that needs the scene tree adds its
