@@ -65,8 +65,9 @@ public sealed class AppOptions
     public Func<double>? Clock;             // ms; Time.GetTicksUsec by default
     public bool Manual;                     // no _Process: the caller runs Frame(now)
     public bool EnvironmentInBackground = true;
+    public bool SpreadRestore;              // a jump's refresh spread over frames (the real app; tests check the board at once)
 
-    public static AppOptions FromCommandLine(string[] userArgs) => new() { Args = ShellArgs.Parse(userArgs) };
+    public static AppOptions FromCommandLine(string[] userArgs) => new() { Args = ShellArgs.Parse(userArgs), SpreadRestore = true };
 
     // the asset root as the app resolves it: --assets, then WEB_ASSETS (tests, benchmarks), then the
     // user data's assets folder (where the setup page installs)

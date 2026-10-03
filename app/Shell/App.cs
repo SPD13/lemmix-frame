@@ -84,6 +84,9 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     {
         if (_built) return;
         _built = true;
+        // play is frame-paced: the collector's full collections run in the background rather than
+        // blocking a frame (concurrent GC is on; a level's load collects in full, CollectAfterLoad)
+        System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
         Now = Options.Clock ?? (() => Time.GetTicksUsec() / 1000.0);
         var args = Options.Args;
 
@@ -283,6 +286,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         _last = now;
         DrainUploadEvents();
         if (_reload) { _reload = false; if (LevelId != null) LoadLevel(); }
+        CollectAfterLoad();
         if (_scriptedHead && Input.Head is Transform3D hp && Head.IsInsideTree()) Head.GlobalTransform = hp;
         bool presenting = Vr.Presenting;
         if (presenting != _wasPresenting)
@@ -295,7 +299,8 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         if (s != null)
         {
             s.Step(now);
-            if (Bar != null)
+            // (a jump's refresh under way: the bar goes on showing the frame the board shows)
+            if (Bar != null && !s.RestorePending)
             {
                 using var bar = Perf.Time(Perf.S.Bar);
                 Bar.SetViewRect(VisibleLevelRect());

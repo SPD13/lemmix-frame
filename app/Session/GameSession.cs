@@ -88,6 +88,7 @@ public sealed class SessionOptions
     public Func<double>? Clock;                     // ms; Time.GetTicksUsec by default
     public string? ReplayText;                      // a NeoLemmix replay (.nxrp) to play from the start (?nxrp=, ?solution=1)
     public string ReplayKind = "file";              // "solution": a stored solution, watched (no clear recorded)
+    public bool SpreadRestore;                      // a jump's refresh spread over the next frames (GameSession.RefreshAfterRestore)
 }
 
 // web/3d/js/app.js loadLevel + animateBody, the session half: the Game for a level, the board
@@ -158,7 +159,11 @@ public sealed partial class GameSession : Node
         // the per-tick bridge, after the game's own handler
         game.GameTimer.OnGameTick.On(_ => Board.SyncScene(false));
         game.OnRestore.On(RefreshAfterRestore);
-        game.OnOptionChanged = () => { if (!game.GameTimer.IsRunning()) Board.SyncScene(true); };
+        game.OnOptionChanged = () => { FinishRestore(); if (!game.GameTimer.IsRunning()) Board.SyncScene(true); };
+        // a refresh still spread out completes before anything changes the game again: a tick
+        // (before the queued commands run), another jump
+        game.GameTimer.OnBeforeGameTick.OnFirst(_ => FinishRestore());
+        game.States.BeforeJump = FinishRestore;
         game.OnGameEnd.On(r => LevelEnded?.Invoke(r));
         game.GameTimer.SpeedFactor = o.Speed;
 
@@ -251,6 +256,8 @@ public sealed partial class GameSession : Node
         var timer = Game.GameTimer;
         int ticks = 0;
         double alpha = 1;
+        _steps++;
+        AdvanceRestore();
         if (timer.IsRunning())
         {
             double tickMs = timer.TimePerFrameMs / timer.SpeedFactor;
@@ -267,10 +274,13 @@ public sealed partial class GameSession : Node
         Alpha = alpha;
         Board.ApplyInterpolation(alpha);
         Board.Particles.UpdateScale();
-        UpdateHoverRing();
-        Board.CpmAnimate(now);
-        Board.Markers.Hidden = Game.ClearPhysics;
-        Board.Markers.UpdateFor(now);
+        if (!RestorePending)
+        {
+            UpdateHoverRing();
+            Board.CpmAnimate(now);
+            Board.Markers.Hidden = Game.ClearPhysics;
+            Board.Markers.UpdateFor(now);
+        }
         Board.TerrainView.Sync();
         if (Environment != null && Eye != null && Board.GetParent() is Node3D root)
         {
@@ -322,17 +332,80 @@ public sealed partial class GameSession : Node
 
     // refreshAfterRestore: the game jumped to another frame; the scene's copies refreshed and the
     // frame drawn as a tick would
+    //
+    // Spread (Options.SpreadRestore, the shell's play): a jump re-simulates up to 170 frames, then
+    // the terrain is put back in step and its changed chunks re-meshed and uploaded - more than a
+    // 90 Hz frame on a big level. The board goes on showing the frame it showed (the one before the
+    // jump: a correct state, the skills bar with it) while the next frames do one part each: the
+    // maps and texture put back in step, the chunks re-meshed, then the new frame drawn at once.
+    // Anything that would change the game first (a tick, another jump, a switch) completes it.
     void RefreshAfterRestore(RestoreInfo info)
     {
         if (Disposed) return;
         using var _ = Perf.Time(Perf.S.Restore);
+        TickDebt = 0;
+        if (Options.SpreadRestore)
+        {
+            _restoreStage = 1;
+            _restoreStep = _steps;
+            _restoreFrame = Godot.Engine.GetProcessFrames();
+            Board.TerrainView.Held = true;
+            Restored?.Invoke(info);
+            PauseChanged?.Invoke();
+            return;
+        }
         using (Perf.Time(Perf.S.Resync)) Board.Terrain.Resync();
         Board.Lemmings.ClearPrevPositions();
         Board.ResetSceneMemory();
-        TickDebt = 0;
         Restored?.Invoke(info);
         Board.SyncScene(false);
         PauseChanged?.Invoke();
+    }
+
+    int _restoreStage;      // 1: the maps to put back in step next, 2: the chunks to re-mesh, 3: the frame to draw
+    // the frame the jump came in and the Step calls by then: its stages start with the next frame
+    // (or, stepped by hand, the second Step after it)
+    long _steps, _restoreStep;
+    ulong _restoreFrame;
+
+    /** A jump's refresh is under way: the board still shows the frame before it. */
+    public bool RestorePending => _restoreStage > 0;
+
+    // one stage a frame, from the frame after the jump
+    void AdvanceRestore()
+    {
+        if (_restoreStage == 0) return;
+        if (Godot.Engine.GetProcessFrames() == _restoreFrame && _steps < _restoreStep + 2) return;
+        using var _ = Perf.Time(Perf.S.Restore);
+        switch (_restoreStage)
+        {
+            case 1:
+                using (Perf.Time(Perf.S.Resync)) Board.Terrain.MarkResync();
+                _restoreStage = 2;
+                break;
+            case 2:
+                using (Perf.Time(Perf.S.Mesh)) Board.Terrain.FlushDirty(int.MaxValue);
+                _restoreStage = 3;
+                break;
+            default:
+                FinishRestore();
+                break;
+        }
+    }
+
+    // the rest of the refresh, now: what Resync and the jump's frame would have done
+    void FinishRestore()
+    {
+        if (_restoreStage == 0 || Disposed) return;
+        using var _ = Perf.Time(Perf.S.Restore);
+        if (_restoreStage == 1) using (Perf.Time(Perf.S.Resync)) Board.Terrain.MarkResync();
+        if (_restoreStage <= 2) using (Perf.Time(Perf.S.Mesh)) Board.Terrain.FlushDirty(int.MaxValue);
+        _restoreStage = 0;
+        Board.Lemmings.ClearPrevPositions();
+        Board.ResetSceneMemory();
+        Board.TerrainView.Held = false;
+        Board.SyncScene(false);
+        UpdateHoverRing();
     }
 
     // ------------------------------------------------------------ sound
@@ -376,7 +449,7 @@ public sealed partial class GameSession : Node
             if (lem != null && lem.Action != BA.NONE) _hovered = lem;
         }
         else _cursorSim = null;
-        UpdateHoverRing();
+        if (!RestorePending) UpdateHoverRing();
     }
 
     // updateHoverRing: the ring follows the hovered lemming until it escapes the pointer; the
@@ -422,11 +495,11 @@ public sealed partial class GameSession : Node
 
     // ------------------------------------------------------------ switches
     public BoardSwitches Switches => Board.Switches;
-    public void SetEmboss(bool on) => Board.RebuildRelief(on);
-    public void SetSmooth(bool on) => Board.SetSmooth(on);
-    public void SetSmoothTerrain(bool on) => Board.SetSmoothTerrain(on);
-    public void SetColorBlend(string level) => Board.SetColorBlend(level);
-    public void SetShadows(bool on) { Board.Switches.Shadows = on; Board.ShadowsOn = on; if (!Running) Board.SyncScene(true); }
+    public void SetEmboss(bool on) { FinishRestore(); Board.RebuildRelief(on); }
+    public void SetSmooth(bool on) { FinishRestore(); Board.SetSmooth(on); }
+    public void SetSmoothTerrain(bool on) { FinishRestore(); Board.SetSmoothTerrain(on); }
+    public void SetColorBlend(string level) { FinishRestore(); Board.SetColorBlend(level); }
+    public void SetShadows(bool on) { FinishRestore(); Board.Switches.Shadows = on; Board.ShadowsOn = on; if (!Running) Board.SyncScene(true); }
     public void SetEnvironment(string mode) { Board.Switches.Environment = mode; Environment?.SetMode(mode); }
     public void SetMusic(bool on)
     {
@@ -435,7 +508,7 @@ public sealed partial class GameSession : Node
     }
     // the openings carve the terrain as the level is built: the level is built again
     public void SetDoors(bool on) { Board.Switches.Doors = on; ReloadRequested?.Invoke(); }
-    public void SetClearPhysics(bool on) => Game.SetClearPhysics(on);
+    public void SetClearPhysics(bool on) { FinishRestore(); Game.SetClearPhysics(on); }
 
     // the room's floor in the level's own pixels (y down from the top edge)
     double FloorYInLevel()

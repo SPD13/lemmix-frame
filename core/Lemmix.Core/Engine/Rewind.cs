@@ -13,6 +13,7 @@ public sealed class SaveStates
     public List<SavedState> States = new();
     public Action<SavedState>? OnSave;   // the renderer adds what it keeps per state
     public Action<SavedState>? OnLoad;   // and takes it back
+    public Action? BeforeJump;           // a jump in time is about to change the game (GotoFrame, RunUntil)
 
     public static int FrameOf(SavedState s) => s.Scalars.CurrentIteration;
     public int Count => States.Count;
@@ -27,6 +28,18 @@ public sealed class SaveStates
     {
         foreach (var s in before)
             if (_spares.Count < MaxSpares && !States.Contains(s)) _spares.Push(s);
+    }
+
+    // Spare states made ahead (a level's load), `extra` adding the renderer's arrays: the first
+    // saves fill them in instead of allocating their arrays during play.
+    public void Reserve(LemGame sim, int n, Action<SavedState>? extra = null)
+    {
+        for (int i = 0; i < n; i++)
+        {
+            var s = sim.SaveState();
+            extra?.Invoke(s);
+            _spares.Push(s);
+        }
     }
 
     // Keep this frame.
@@ -90,6 +103,7 @@ public static class Rewind
     // GotoSaveState: the game at `target`. Returns how many frames were simulated.
     public static int GotoFrame(LemGame sim, SaveStates states, int target)
     {
+        states.BeforeJump?.Invoke();
         target = Math.Max(0, target);
         var from = target > 0 ? states.NearestBefore(target) : states.First();
         if (from == null) throw new InvalidOperationException("rewind: no saved state before frame " + target);
@@ -113,6 +127,7 @@ public static class Rewind
     // or `maxFrames` have gone by (fHyperSpeedStopCondition). Returns the frames simulated.
     public static int RunUntil(LemGame sim, SaveStates states, Func<LemGame, bool> stop, int maxFrames)
     {
+        states.BeforeJump?.Invoke();
         int n = 0;
         while (n < maxFrames && !sim.GameFinished && !sim.StateIsUnplayable)
         {

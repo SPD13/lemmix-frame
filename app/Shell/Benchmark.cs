@@ -22,6 +22,8 @@ namespace Lemmix.App.Shell;
 public partial class Benchmark : Node
 {
     const double RunSeconds = 20, RewindEvery = 5, AssignEvery = 0.4;
+    const double RewindPauseMs = 250;  // paused at the target a moment, as a player stepping back is
+    const int RewindWindow = 6;        // the rewind's frame and the next ones (a spread refresh) count as the rewind
     const int LevelCount = 10;
     const int WarmTicks = 17;          // play is measured from the level's first second of game time
     const double SlowMs = 11.1;        // a frame over the Frame's 90 Hz budget
@@ -33,13 +35,18 @@ public partial class Benchmark : Node
     bool _warm;                        // the first ticks are behind: frames count as play
     double _loadMs, _warmMs, _warmMax;
     int _warmFrames;
-    bool _rewoundThisFrame;
+    int _rewindFramesLeft;
+    double _resumeAt;
     Lemmix.App.Session.GameSession? _session;
     bool _ended;                       // the level ended: the run ends with it (the shell would load a level)
     readonly List<double> _frames = new(4096);
     readonly List<double> _rewindMs = new();
     readonly List<double> _rewindFrameMs = new();
     readonly List<double> _frameGc = new(4096);
+    readonly List<bool> _frameRewound = new(4096);
+    // each collection seen during play: its generation, pause and what it promoted
+    readonly List<(int Gen, double PauseMs, long Promoted, bool Concurrent)> _gcs = new();
+    long _lastGcIndex;
     readonly List<double>[] _sub = new List<double>[(int)Perf.S.Count];
     readonly long[] _subBytes = new long[(int)Perf.S.Count];
     readonly List<Lemming> _lems = new();
@@ -119,11 +126,12 @@ public partial class Benchmark : Node
         _session = _app.Session;
         _ended = false;
         if (_session != null) _session.LevelEnded += _ => _ended = true;
-        _frames.Clear(); _rewindMs.Clear(); _rewindFrameMs.Clear(); _frameGc.Clear();
+        _frames.Clear(); _rewindMs.Clear(); _rewindFrameMs.Clear(); _frameGc.Clear(); _frameRewound.Clear(); _gcs.Clear();
         foreach (var l in _sub) l.Clear();
         Array.Clear(_subBytes);
         _draws = _prims = _samples = 0;
         _warm = false; _warmFrames = 0; _warmMax = 0; _warmMs = 0;
+        _rewindFramesLeft = 0; _resumeAt = 0;
         _lastFrame = double.NaN;
         _runStart = _lastRewind = _lastAssign = Now();
     }
@@ -137,6 +145,7 @@ public partial class Benchmark : Node
         _gc0 = _gcLast = GC.GetTotalPauseDuration().TotalMilliseconds;
         _gen2 = GC.CollectionCount(2); _gen1 = GC.CollectionCount(1); _gen0 = GC.CollectionCount(0);
         _alloc0 = GC.GetTotalAllocatedBytes();
+        _lastGcIndex = GC.GetGCMemoryInfo(GCKind.Any).Index;
     }
 
     double Now() => _clock.Elapsed.TotalMilliseconds;
@@ -157,12 +166,21 @@ public partial class Benchmark : Node
                 _frameGc.Add(gc - _gcLast);
                 _gcLast = gc;
                 for (int i = 0; i < _sub.Length; i++) { _sub[i].Add(Perf.Ms(Perf.Ticks[i])); _subBytes[i] += Perf.Bytes[i]; }
-                if (_rewoundThisFrame) _rewindFrameMs.Add(ms);
+                bool inRewind = _rewindFramesLeft > 0;
+                if (inRewind) { _rewindFrameMs.Add(ms); _rewindFramesLeft--; }
+                _frameRewound.Add(inRewind);
+                var info = GC.GetGCMemoryInfo(GCKind.Any);
+                if (info.Index != _lastGcIndex && info.Index != 0)
+                {
+                    _lastGcIndex = info.Index;
+                    double pause = 0;
+                    foreach (var p in info.PauseDurations) pause += p.TotalMilliseconds;
+                    _gcs.Add((info.Generation, pause, info.PromotedBytes, info.Concurrent));
+                }
             }
             else { _warmFrames++; _warmMax = Math.Max(_warmMax, ms); }
         }
         Perf.Reset();
-        _rewoundThisFrame = false;
         _lastFrame = now;
         if (_warm)
         {
@@ -173,7 +191,7 @@ public partial class Benchmark : Node
         if (s == null) return;
         if (s != _session || _ended) { Next(); return; }
         var timer = s.Game.GameTimer;
-        if (!timer.IsRunning()) timer.Continue();
+        if (!timer.IsRunning() && now >= _resumeAt) timer.Continue();
         timer.SpeedFactor = 8;
         if (!_warm)
         {
@@ -200,8 +218,8 @@ public partial class Benchmark : Node
             var sw = Stopwatch.StartNew();
             using (Perf.Time(Perf.S.Rewind)) s.Game.BackFrames(170);
             _rewindMs.Add(sw.Elapsed.TotalMilliseconds);
-            _rewoundThisFrame = true;
-            timer.Continue();
+            _rewindFramesLeft = RewindWindow;
+            _resumeAt = now + RewindPauseMs;
         }
         if ((now - _runStart) / 1000 >= RunSeconds || s.Game.Sim.GameFinished) Next();
     }
@@ -260,6 +278,30 @@ public partial class Benchmark : Node
             ["p99Ms"] = Round(Pct(os, 0.99)), ["maxMs"] = Round(os.Count == 0 ? 0 : os[^1]),
             ["slowFramesMs"] = Round(inSlow[_sub.Length], 1),
         };
+        // the five worst frames, each with its sections, GC pause and whether it rewound
+        var worst = new JsonArray();
+        foreach (int f in Enumerable.Range(0, _frames.Count).OrderByDescending(f => _frames[f]).Take(5))
+        {
+            var o = new JsonObject { ["ms"] = Round(_frames[f], 1), ["gcMs"] = Round(_frameGc[f], 1), ["rewind"] = _frameRewound[f] };
+            double sum = 0;
+            for (int i = 0; i < _sub.Length; i++)
+            {
+                sum += _sub[i][f];
+                if (_sub[i][f] >= 0.5) o[Perf.Name(i)] = Round(_sub[i][f], 1);
+            }
+            o["Other"] = Round(Math.Max(0, _frames[f] - sum), 1);
+            worst.Add(o);
+        }
+        var gcs = new JsonObject();
+        foreach (var g in _gcs.GroupBy(g => g.Gen).OrderBy(g => g.Key))
+            gcs["gen" + g.Key] = new JsonObject
+            {
+                ["count"] = g.Count(), ["concurrent"] = g.Count(x => x.Concurrent),
+                ["pauseMs"] = Round(g.Sum(x => x.PauseMs), 1), ["maxPauseMs"] = Round(g.Max(x => x.PauseMs), 2),
+                ["promotedMB"] = Round(g.Sum(x => x.Promoted) / 1048576.0),
+            };
+        double memoryMB = Round(GC.GetTotalMemory(false) / 1048576.0, 1);
+        double liveMB = Round(GC.GetTotalMemory(true) / 1048576.0, 1); // after a full collection (the run is over)
         _runs.Add(new JsonObject
         {
             ["level"] = level, ["look"] = look,
@@ -280,7 +322,11 @@ public partial class Benchmark : Node
             ["gen0"] = GC.CollectionCount(0) - _gen0, ["gen1"] = GC.CollectionCount(1) - _gen1,
             ["gen2"] = GC.CollectionCount(2) - _gen2,
             ["allocMB"] = Round((GC.GetTotalAllocatedBytes() - _alloc0) / 1048576.0, 1),
-            ["memoryMB"] = Round(GC.GetTotalMemory(false) / 1048576.0, 1),
+            ["memoryMB"] = memoryMB,
+            ["liveMB"] = liveMB,
+            ["processMB"] = Round(System.Environment.WorkingSet / 1048576.0, 1),
+            ["collections"] = gcs,
+            ["worstFrames"] = worst,
             ["sections"] = sections,
         });
         GD.Print($"[lemmix] benchmark {_index + 1}/{_plan.Count} {look} {level}: load {_loadMs:F0} ms, p99 {Round(Pct(sorted, 0.99))} ms, {slow} slow, rewind {(_rewindFrameMs.Count == 0 ? 0 : _rewindFrameMs.Max()):F1} ms, gc {GC.GetTotalPauseDuration().TotalMilliseconds - _gc0:F0} ms");

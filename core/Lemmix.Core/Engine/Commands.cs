@@ -16,6 +16,14 @@ public sealed class EventHandler<T>
         a[^1] = h;
         _handlers = a;
     }
+    // a handler that runs before the ones already there
+    public void OnFirst(Action<T> h)
+    {
+        var a = new Action<T>[_handlers.Length + 1];
+        _handlers.CopyTo(a, 1);
+        a[0] = h;
+        _handlers = a;
+    }
     public void Off(Action<T> h) => _handlers = _handlers.Where(x => x != h).ToArray();
     public void Dispose() => _handlers = Array.Empty<Action<T>>();
     public void Trigger(T arg) { foreach (var h in _handlers) h(arg); }

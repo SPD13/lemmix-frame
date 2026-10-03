@@ -104,6 +104,7 @@ public sealed partial class BoardScene : Node3D
     public double LastTickMs;                      // lastTickTime
     public Func<double> Now = () => Time.GetTicksUsec() / 1000.0;
     public int SyncCount { get; private set; }
+    public static int ReservedStates = 8;          // saved states made at the load (SaveStates.Reserve)
 
     // the bridge's memory (resetSceneMemory)
     bool _doorSfxPlayed;
@@ -152,7 +153,7 @@ public sealed partial class BoardScene : Node3D
         Decals = TerrainDecals.ForLevel(level, level.Physics);
         if (Decals != null) Terrain.SetDecals(Decals);
         Terrain.FlushDirty(int.MaxValue);
-        TerrainView = new TerrainView(Terrain) { Name = "terrain" };
+        TerrainView = new TerrainView(Terrain) { Name = "terrain", ReleaseConverted = true };
         AddChild(TerrainView);
         TerrainView.Sync();
 
@@ -265,6 +266,8 @@ public sealed partial class BoardScene : Node3D
         // a saved state carries the depth and relief maps with it
         Game.States.OnSave = s => Terrain.SaveExtra(s);
         Game.States.OnLoad = s => Terrain.LoadExtra(s);
+        // the saves of the first minutes made ahead, now (the load), not as large-object garbage in play
+        Game.States.Reserve(Game.Sim, ReservedStates, s => Terrain.SaveExtra(s));
     }
 
     // ------------------------------------------------------------ helpers
@@ -305,6 +308,15 @@ public sealed partial class BoardScene : Node3D
         var any = sim.GetPriorityLemming(BA.NONE, c.X, c.Y).Lemming;
         if (any != null && any.IsGlider && (any.Action == BA.FALLING || any.Action == BA.GLIDING)) return (any, "GLIDER");
         return null;
+    }
+
+    // a lemming's id as the capture's tag, boxed once (not once per lemming per tick)
+    static object[] _boxedIds = new object[256];
+    static object BoxedId(int id)
+    {
+        if (id < 0) return id;
+        if (id >= _boxedIds.Length) Array.Resize(ref _boxedIds, Math.Max(id + 1, _boxedIds.Length * 2));
+        return _boxedIds[id] ??= id;
     }
 
     static string? ActionName(Lemming L) => L.Removed || L.Action == BA.NONE ? null : L.ActionName;
@@ -427,7 +439,7 @@ public sealed partial class BoardScene : Node3D
                 continue;
             }
             if (!redrawOnly) NoteNearBottom(lem, ActionName(lem));
-            LemCapture.Tag = lem.Id;
+            LemCapture.Tag = BoxedId(lem.Id);
             Sprites.RenderLemming(game, lem, _drawLemming);
         }
         SyncFallers(redrawOnly);
@@ -481,7 +493,7 @@ public sealed partial class BoardScene : Node3D
             // a stand-in for the lemming: its pose and place, drawn as it was, under its key
             var L = f.Lem;
             var frame = Sprites.Frame(L.Action, L.Dx, f.Frame, SpriteSet.VariantOf(L, false, Game.ClearPhysics));
-            LemCapture.Tag = L.Id;
+            LemCapture.Tag = BoxedId(L.Id);
             if (frame != null) LemCapture.DrawFrame(frame, (int)f.X, (int)f.Y);
         }
     }
