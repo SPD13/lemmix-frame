@@ -72,6 +72,7 @@ public sealed partial class ControllerModels : Node3D
     void Added(int hand, OpenXRRenderModel model)
     {
         var h = _hands[hand] = new HandModel { Model = model };
+        GD.Print($"[xr] render model {(hand == 0 ? "left" : "right")}: {model.GetTopLevelPath()}");
         ControllerSticker.SetLayers(model, HandLayer[hand]);
         h.Report = new Dictionary<string, object?>
         {

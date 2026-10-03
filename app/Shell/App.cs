@@ -234,7 +234,9 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
             var ra = Hand("RightAim", "right_hand", "aim_pose");
             var lg = Hand("LeftGrip", "left_hand", "grip_pose");
             var rg = Hand("RightGrip", "right_hand", "grip_pose");
-            Input = new OpenXrInput(la, ra, lg, rg, cam);
+            var lp = Hand("LeftPalm", "left_hand", "palm_pose");
+            var rp = Hand("RightPalm", "right_hand", "palm_pose");
+            Input = new OpenXrInput(la, ra, lg, rg, cam, lp, rp);
             Head = cam;
             // no runtime (a desktop run): the head is that camera, standing where a player would
             if (!(XRServer.PrimaryInterface?.IsInitialized() ?? false))
@@ -268,8 +270,10 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     void ConnectOpenXr()
     {
         if (Options.Input != null || XRServer.FindInterface("OpenXR") is not OpenXRInterface xr) return;
-        xr.SessionVisible += () => { ReleaseHeldKeys(); HoldSim("xr-focus"); };
-        xr.SessionFocussed += () => ReleaseSim("xr-focus");
+        xr.SessionVisible += () => { GD.Print("[xr] session visible"); ReleaseHeldKeys(); HoldSim("xr-focus"); };
+        xr.SessionFocussed += () => { GD.Print("[xr] session focused"); ReleaseSim("xr-focus"); };
+        xr.SessionBegun += () => GD.Print("[xr] session begun");
+        xr.SessionStopping += () => GD.Print("[xr] session stopping");
         xr.PoseRecentered += () => { if (Presenting) Vr.RecenterNow(); };
     }
 
