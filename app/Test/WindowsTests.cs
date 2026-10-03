@@ -523,44 +523,30 @@ public static class WindowsTests
     }
 
     [AppTest]
-    public static void TheVrWindowsFloorSliderAndButtons()
+    public static void TheVrWindowsHeightOffsetSliderAndReset()
     {
         var host = new Host();
-        float floor = 0;
-        var log = new List<string>();
-        var control = new FloorControl
-        {
-            Get = () => floor, Set = v => floor = v,
-            Seated = () => { floor = -0.45f; log.Add("seated"); }, Standing = () => { floor = 0; log.Add("standing"); }, Reset = () => { floor = 0; log.Add("reset"); },
-        };
+        float offset = 0;
+        var control = new FloorControl { Get = () => offset, Set = v => offset = v, Reset = () => offset = 0 };
         var w = new VrWindows(host, VrSettings.Rows(new Fx()), new Node3D(), new Node3D(), null, new List<SettingRow>(), control);
         try
         {
             var v = w.VrOptions;
-            Check.True(v.H > VrSettings.VR_SET_TOP + VrSettings.VR_SET_ROW * 2 + VrSettings.SliderLen, "tall enough for the slider");
-            // the slider: up is a higher floor, down a lower one; its pick is a slider's (held and dragged)
+            Check.True(FloorControl.Max == -FloorControl.Min, "as far up as down");
             Check.True(Mathf.Abs(v.ValueAt(v.SliderTop) - FloorControl.Max) < 1e-4f && Mathf.Abs(v.ValueAt(v.SliderTop + VrSettings.SliderLen) - FloorControl.Min) < 1e-4f, "the slider's ends");
-            Check.True(Mathf.Abs(v.ValueAt(v.YOf(-0.3f)) + 0.3f) < 1e-4f, "a value and its place agree");
-            var (part, value) = v.FloorPartAt(new Vector2(VrSettings.SliderX, v.YOf(-0.6f)));
+            Check.True(Mathf.Abs(v.YOf(0) - (v.SliderTop + VrSettings.SliderLen / 2)) < 1e-3f, "0 in the middle");
+            var (part, value) = v.FloorPartAt(new Vector2(VrSettings.SliderX, v.YOf(0.4f)));
             Check.Equal("slider", part, "the slider under the beam");
             w.Act(new VrPick("bar", BarTool: "vrfloor", ScrollBar: true, Data: new WindowPickData(Volume: value)));
-            Check.True(Mathf.Abs(floor + 0.6f) < 1e-3f, "dragged to -60 cm: " + floor);
-            Check.Equal("\u221260 cm", FloorControl.Label(floor), "its label");
-            // the buttons
-            foreach (var b in VrSettings.FloorButtons)
-            {
-                float by = v.SliderTop + System.Array.IndexOf(VrSettings.FloorButtons, b) * (VrSettings.ButtonH + VrSettings.ButtonGap) + 10;
-                var (bp, _) = v.FloorPartAt(new Vector2(VrSettings.ButtonX + 20, by));
-                Check.Equal(b, bp, b + " under the beam");
-                w.Act(new VrPick("bar", BarTool: "vrsetpanel", Data: new WindowPickData(Part: bp)));
-            }
-            Check.Equal("seated standing reset", string.Join(" ", log), "each button acts");
-            Check.Equal("0 cm", FloorControl.Label(0), "zero");
-            // the hover lights the part
+            Check.True(Mathf.Abs(offset - 0.4f) < 1e-3f, "dragged up to +40 cm: " + offset);
+            Check.Equal("+40 cm", FloorControl.Label(offset), "its label");
+            Check.True(VrSettings.FloorButtons.Length == 1 && VrSettings.FloorButtons[0] == "reset", "no seated or standing button: a reset");
+            var (rp, _) = v.FloorPartAt(new Vector2(VrSettings.ButtonX + 20, v.ButtonTop(0) + 10));
+            Check.Equal("reset", rp, "the reset under the beam");
+            w.Act(new VrPick("bar", BarTool: "vrsetpanel", Data: new WindowPickData(Part: rp)));
+            Check.True(offset == 0 && FloorControl.Label(0) == "0 cm", "reset to 0");
             w.ApplyHover(new VrPick("bar", BarTool: "vrfloor", ScrollBar: true, Data: new WindowPickData(Volume: 0)));
             Check.Equal("slider", v.HoverPart, "the slider lit");
-            w.ApplyHover(new VrPick("bar", BarTool: "vrsetpanel", Data: new WindowPickData(Part: "seated")));
-            Check.Equal("seated", v.HoverPart, "a button lit");
             w.ApplyHover(null);
             Check.True(v.HoverPart == null, "nothing lit");
         }

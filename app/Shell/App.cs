@@ -51,13 +51,11 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     public ControllerModels? Controllers { get; private set; }
     public Foveation Foveation { get; private set; } = null!;
 
-    // ---- the view's height (native, the VR window): the viewpoint raised or lowered against the
-    // floor, which stays the headset's own - seated, the view comes down so the virtual floor stays
-    // where the real one is (the headset reports a standing player's height in a chair). Seated is
-    // the default; Standing is the system's own viewpoint (0); Reset goes back to the default.
+    // ---- the height offset (native, the VR window): the viewpoint raised or lowered against the
+    // headset's own; the floor stays the play space's (it matches the real one on the Frame), and
+    // standing or seated is SteamVR's recentre. 0 by default and on Reset.
     public const string ViewHeightKey = "lemmix-frame-view-height";
-    public const float SeatedDrop = 0.45f;            // standing eyes (~1.65 m) to seated ones (~1.20 m)
-    public const float DefaultViewHeight = -SeatedDrop;
+    public const float DefaultViewHeight = 0;
     public float ViewHeight { get; private set; }
 
     /**
@@ -97,8 +95,6 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     {
         Get = () => ViewHeight,
         Set = v => SetViewHeight(v),
-        Seated = () => SetViewHeight(-SeatedDrop),
-        Standing = () => SetViewHeight(0),
         Reset = () => SetViewHeight(DefaultViewHeight),
     };
 

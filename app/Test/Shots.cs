@@ -77,10 +77,10 @@ public partial class Shots : Node
         }, "VR", "vrset", rowsShown: 2, floorSection: true)
         {
             FitPills = true,
-            Floor = new Lemmix.App.Ui.Windows.FloorControl { Get = () => -0.45f, Set = _ => { }, Seated = () => { }, Standing = () => { }, Reset = () => { } },
+            Floor = new Lemmix.App.Ui.Windows.FloorControl { Get = () => 0.25f, Set = _ => { }, Reset = () => { } },
         };
         root.AddChild(w.Root);
-        w.SetHoverPart("seated");
+        w.SetHoverPart("slider");
         return w.Panel.GetChild<SubViewport>(0);
     }
 

@@ -9,15 +9,15 @@ namespace Lemmix.App.Ui.Windows;
 // ON/OFF) or an action (no Get).
 public sealed record SettingRow(string Label, Func<bool>? Get, Action Act, Func<string>? Text = null);
 
-// The VR window's view height (native): the viewpoint raised or lowered against the floor, in
-// metres - lower (negative) for seated play, so the virtual floor stays on the real one - with its
-// slider's range (up: a higher view) and its three buttons.
+// The VR window's height offset (native): the viewpoint raised or lowered against the headset's
+// own, in metres (the floor stays the play space's; standing or seated is SteamVR's recentre) -
+// with its slider's range, as far up as down (up: a higher view), and its reset to 0.
 public sealed class FloorControl
 {
-    public const float Min = -1.0f, Max = 0.3f;
+    public const float Min = -1.0f, Max = 1.0f;
     public required Func<float> Get;
     public required Action<float> Set;
-    public required Action Seated, Standing, Reset;
+    public required Action Reset;
 
     public static string Label(float metres)
     {
@@ -85,14 +85,16 @@ public sealed class VrSettings
     public readonly string Title;
     public readonly int H;                          // canvas height: VR_SET_H for the web's window
     public bool FitPills;                           // a pill as wide as its text needs (the native VR window; the web's are 86)
-    public FloorControl? Floor;                     // the native VR window's view height, under the rows
+    public FloorControl? Floor;                     // the native VR window's height offset, under the rows
     public string? HoverPart;                       // the floor section's part under the beam: slider, seated, standing, reset
 
     // the floor section's geometry, in canvas pixels (under the rows)
     public const float FloorHead = 52, SliderLen = 260, FloorTail = 30;
     public const float SliderX = 92, SliderHalfW = 40, ButtonX = 200, ButtonW = 400, ButtonH = 64, ButtonGap = 34;
-    public static readonly string[] FloorButtons = { "seated", "standing", "reset" };
-    static readonly string[] FloorButtonLabels = { "Seated", "Standing", "Reset" };
+    public static readonly string[] FloorButtons = { "reset" };
+    static readonly string[] FloorButtonLabels = { "Reset" };
+    // a button's top: the buttons stacked, centred on the slider
+    public float ButtonTop(int i) => SliderTop + (SliderLen - (FloorButtons.Length * ButtonH + (FloorButtons.Length - 1) * ButtonGap)) / 2 + i * (ButtonH + ButtonGap);
     public float FloorTop => VR_SET_TOP + RowList.Count * VR_SET_ROW + 4;
     public float SliderTop => FloorTop + FloorHead + 16;
     public static int FloorSectionHeight => (int)(FloorHead + 16 + SliderLen + FloorTail);
@@ -174,7 +176,7 @@ public sealed class VrSettings
         cx.textAlign = "left";
         cx.fillStyle = "#f0f3f8";
         cx.font = "26px monospace";
-        cx.fillText("view height", 44, top + 34);
+        cx.fillText("height offset", 44, top + 34);
         cx.fillStyle = "#7fd6e8";
         cx.font = "bold 22px monospace";
         cx.textAlign = "right";
@@ -206,7 +208,7 @@ public sealed class VrSettings
         // the buttons
         for (int i = 0; i < FloorButtons.Length; i++)
         {
-            float by = sTop + i * (ButtonH + ButtonGap);
+            float by = ButtonTop(i);
             bool bh = HoverPart == FloorButtons[i];
             cx.fillStyle = bh ? "#2b3548" : "#19202c";
             cx.beginPath();
@@ -227,7 +229,7 @@ public sealed class VrSettings
     public float YOf(float metres) => SliderTop + (FloorControl.Max - Math.Clamp(metres, FloorControl.Min, FloorControl.Max)) / (FloorControl.Max - FloorControl.Min) * SliderLen;
     public float ValueAt(float y) => FloorControl.Max - Math.Clamp((y - SliderTop) / SliderLen, 0, 1) * (FloorControl.Max - FloorControl.Min);
 
-    /** The floor section's part at a canvas pixel: "slider" (with its value), a button's name, or null. */
+    /** The height section's part at a canvas pixel: "slider" (with its value), "reset", or null. */
     public (string? Part, float Value) FloorPartAt(Vector2? px)
     {
         if (Floor == null || px is not Vector2 p) return (null, 0);
@@ -236,7 +238,7 @@ public sealed class VrSettings
             return ("slider", ValueAt(p.Y));
         for (int i = 0; i < FloorButtons.Length; i++)
         {
-            float by = sTop + i * (ButtonH + ButtonGap);
+            float by = ButtonTop(i);
             if (p.X >= ButtonX && p.X <= ButtonX + ButtonW && p.Y >= by && p.Y <= by + ButtonH) return (FloorButtons[i], 0);
         }
         return (null, 0);
@@ -256,8 +258,6 @@ public sealed class VrSettings
         switch (part)
         {
             case "slider": Floor.Set(value); break;
-            case "seated": Floor.Seated(); break;
-            case "standing": Floor.Standing(); break;
             case "reset": Floor.Reset(); break;
         }
         Paint();
