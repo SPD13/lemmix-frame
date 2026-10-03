@@ -200,13 +200,25 @@ public sealed partial class App
 
     // A level's load leaves its garbage (the old board, the build's scratch) for the collector:
     // collected in full, the large object heap compacted, at the level's start rather than as a
-    // full collection somewhere in play.
+    // full collection somewhere in play. Then play starts in a no-GC region: the collector waits
+    // until that much has been allocated (more than a few minutes of the default look's play), so
+    // play has no collections - the region ends with one when it is used up, and the next level
+    // starts a new one. (Starting a region collects in full: only ever here, in the load.)
+    public static readonly long[] NoGcRegionSizes = { 192L << 20, 128L << 20, 64L << 20 };
     int _collectIn;
     void CollectAfterLoad()
     {
         if (_collectIn == 0 || --_collectIn > 0) return;
+        if (System.Runtime.GCSettings.LatencyMode == System.Runtime.GCLatencyMode.NoGCRegion)
+            try { GC.EndNoGCRegion(); } catch (InvalidOperationException) { }
         System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
         GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
+        foreach (long size in NoGcRegionSizes)
+        {
+            try { if (GC.TryStartNoGCRegion(size)) break; }
+            catch (ArgumentOutOfRangeException) { }   // more than this runtime allows: a smaller one
+            catch (InvalidOperationException) { break; }
+        }
     }
 
     // ------------------------------------------------------------ the end of a level

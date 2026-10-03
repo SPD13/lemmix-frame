@@ -54,6 +54,7 @@ public partial class Benchmark : Node
     double _gc0, _gcLoad0, _gcLast;
     int _gen2, _gen2Load0, _gen0, _gen1;
     long _alloc0;
+    string _gcModeAtPlay = "";
     readonly JsonArray _runs = new();
     readonly Stopwatch _clock = Stopwatch.StartNew();
     readonly Random _rnd = new(1);
@@ -148,6 +149,7 @@ public partial class Benchmark : Node
         _gc0 = _gcLast = GC.GetTotalPauseDuration().TotalMilliseconds;
         _gen2 = GC.CollectionCount(2); _gen1 = GC.CollectionCount(1); _gen0 = GC.CollectionCount(0);
         _alloc0 = GC.GetTotalAllocatedBytes();
+        _gcModeAtPlay = System.Runtime.GCSettings.LatencyMode.ToString();
         _lastGcIndex = GC.GetGCMemoryInfo(GCKind.Any).Index;
     }
 
@@ -306,6 +308,11 @@ public partial class Benchmark : Node
                 ["pauseMs"] = Round(g.Sum(x => x.PauseMs), 1), ["maxPauseMs"] = Round(g.Max(x => x.PauseMs), 2),
                 ["promotedMB"] = Round(g.Sum(x => x.Promoted) / 1048576.0),
             };
+        string gcMode = _gcModeAtPlay + " -> " + System.Runtime.GCSettings.LatencyMode;
+        // the play's collections, read before the full collection below
+        double gcPauseMs = Round(GC.GetTotalPauseDuration().TotalMilliseconds - _gc0);
+        int gen0 = GC.CollectionCount(0) - _gen0, gen1 = GC.CollectionCount(1) - _gen1, gen2 = GC.CollectionCount(2) - _gen2;
+        double allocMB = Round((GC.GetTotalAllocatedBytes() - _alloc0) / 1048576.0, 1);
         double memoryMB = Round(GC.GetTotalMemory(false) / 1048576.0, 1);
         double liveMB = Round(GC.GetTotalMemory(true) / 1048576.0, 1); // after a full collection (the run is over)
         _runs.Add(new JsonObject
@@ -325,18 +332,18 @@ public partial class Benchmark : Node
             ["rewindFrameMs"] = _rewindFrameMs.Count == 0 ? 0 : Round(_rewindFrameMs.Max(), 1),
             ["drawCalls"] = _samples == 0 ? 0 : _draws / _samples,
             ["primitives"] = _samples == 0 ? 0 : _prims / _samples,
-            ["gcPauseMs"] = Round(GC.GetTotalPauseDuration().TotalMilliseconds - _gc0),
-            ["gen0"] = GC.CollectionCount(0) - _gen0, ["gen1"] = GC.CollectionCount(1) - _gen1,
-            ["gen2"] = GC.CollectionCount(2) - _gen2,
-            ["allocMB"] = Round((GC.GetTotalAllocatedBytes() - _alloc0) / 1048576.0, 1),
+            ["gcPauseMs"] = gcPauseMs,
+            ["gen0"] = gen0, ["gen1"] = gen1, ["gen2"] = gen2,
+            ["allocMB"] = allocMB,
             ["memoryMB"] = memoryMB,
             ["liveMB"] = liveMB,
             ["processMB"] = Round(System.Environment.WorkingSet / 1048576.0, 1),
             ["collections"] = gcs,
+            ["gcMode"] = gcMode,
             ["worstFrames"] = worst,
             ["sections"] = sections,
         });
-        GD.Print($"[lemmix] benchmark {_index + 1}/{_plan.Count} {look} {level}: load {_loadMs:F0} ms, p99 {Round(Pct(sorted, 0.99))} ms, {slow} slow, rewind {(_rewindFrameMs.Count == 0 ? 0 : _rewindFrameMs.Max()):F1} ms, gc {GC.GetTotalPauseDuration().TotalMilliseconds - _gc0:F0} ms");
+        GD.Print($"[lemmix] benchmark {_index + 1}/{_plan.Count} {look} {level}: load {_loadMs:F0} ms, p99 {Round(Pct(sorted, 0.99))} ms, {slow} slow, rewind {(_rewindFrameMs.Count == 0 ? 0 : _rewindFrameMs.Max()):F1} ms, gc {gcPauseMs:F0} ms");
     }
 
     void Finish()

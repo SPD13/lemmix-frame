@@ -86,7 +86,9 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         _built = true;
         // play is frame-paced: the collector's full collections run in the background rather than
         // blocking a frame (concurrent GC is on; a level's load collects in full, CollectAfterLoad)
-        System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
+        // (a level's no-GC region may be under way - an earlier shell in this process: it ends itself)
+        if (System.Runtime.GCSettings.LatencyMode != System.Runtime.GCLatencyMode.NoGCRegion)
+            System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
         Now = Options.Clock ?? (() => Time.GetTicksUsec() / 1000.0);
         var args = Options.Args;
 
