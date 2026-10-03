@@ -43,13 +43,28 @@ public sealed class VrModal
         cx.lineWidth = 4;
         cx.stroke();
         cx.fillStyle = "#f0f3f8";
-        cx.font = "bold 38px monospace";
+        FitFont(cx, title, "bold ", 38);
         cx.textAlign = "center";
         cx.fillText(title, 256, 76);
         cx.fillStyle = "#8fa1bb";
-        cx.font = "24px monospace";
-        cx.fillText(string.IsNullOrEmpty(body) ? "progress on this level is lost" : body, 256, 114);
+        string line = string.IsNullOrEmpty(body) ? "progress on this level is lost" : body;
+        FitFont(cx, line, "", 24);
+        cx.fillText(line, 256, 114);
         Panel.Commit();
+    }
+
+    // the text's width inside the frame (its border and a margin on each side)
+    public const float TextWidth = W - 2 * 22;
+
+    // The web's size for a line, made smaller only when the line would run past the frame (a
+    // native departure: "Open the world catalog?" at 38 px is wider than the panel).
+    // The font is set once at the web's size (as its paint calls do) and again only when it must shrink.
+    public static void FitFont(Canvas2D cx, string text, string weight, float px)
+    {
+        cx.font = weight + px + "px monospace";
+        float w = cx.measureText(text).width;
+        if (w <= TextWidth) return;
+        cx.font = weight + System.MathF.Max(14, System.MathF.Floor(px * TextWidth / w)) + "px monospace";
     }
 
     public readonly record struct Placement(Vector3 Pos, float ScaleX, float ScaleY);

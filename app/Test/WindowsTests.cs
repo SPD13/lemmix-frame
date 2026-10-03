@@ -29,7 +29,21 @@ public static class WindowsTests
                 if (web.Count == 0) continue; // painted once at creation (the REPLAY plate): picture only
                 compared++;
                 var ok = new List<string>();
-                var diffs = WindowFixture.Compare(web, made.Trace, fontSlack: name.StartsWith("tip-"), accepted: ok);
+                var trace = made.Trace;
+                // a native departure: a question too wide for its frame is set smaller (VrModal.FitFont) -
+                // a second font call straight after the web's own
+                if (name.StartsWith("modal-", StringComparison.Ordinal))
+                {
+                    var kept = new List<string>();
+                    foreach (var t in trace)
+                    {
+                        if (t.StartsWith("font=", StringComparison.Ordinal) && kept.Count > 0 && kept[^1].StartsWith("font=", StringComparison.Ordinal))
+                        { ok.Add("native: " + t + " (fitted to the frame)"); continue; }
+                        kept.Add(t);
+                    }
+                    trace = kept;
+                }
+                var diffs = WindowFixture.Compare(web, trace, fontSlack: name.StartsWith("tip-"), accepted: ok);
                 if (ok.Count > 0) accepted.Add(name + ": " + string.Join(" ; ", ok));
                 if (diffs.Count > 0) failures.Add(name + " (" + diffs.Count + " differ) " + string.Join(" ; ", diffs.Take(3)));
             }
@@ -456,6 +470,26 @@ public static class WindowsTests
     }
 
     // ---- the flows: the question, the notice, the hover, the tooltip, the sound column
+    [AppTest]
+    public static void LongQuestionsFitTheirFrame()
+    {
+        var m = new VrModal();
+        try
+        {
+            foreach (var q in new[] { "Open the world catalog?", "Skip to the next level?", "Go back a level?", "Restart level?", "Quit Lemmix?" })
+            {
+                m.Ask(q);
+                var cx = m.Panel.Canvas;
+                VrModal.FitFont(cx, q, "bold ", 38);
+                Check.True(cx.measureText(q).width <= VrModal.TextWidth, q + " inside the frame (" + cx.font + ")");
+            }
+            // one that fits keeps the web's size
+            VrModal.FitFont(m.Panel.Canvas, "Restart level?", "bold ", 38);
+            Check.Equal("bold 38px monospace", m.Panel.Canvas.font, "a short question at the web's size");
+        }
+        finally { m.Root.Free(); }
+    }
+
     [AppTest]
     public static void QuitAsksThenEndsTheGame()
     {
