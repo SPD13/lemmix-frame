@@ -304,9 +304,12 @@ public static class ShellTests
         var board = app.DioramaRoot.GlobalTransform;
         Check.Near(Vector3.Back, board.Basis.Z.Normalized(), "the board faces the default forward too", 1e-4f);
         Check.Near(root.Basis.Z.Normalized(), board.Basis.Z.Normalized(), "board and windows parallel", 1e-4f);
-        // the level's middle (App.FocusX), half the slab deep
-        var focus = board * new Vector3(rig.Session.Level.Width / 2f, rig.Session.Level.Height / 2f, (float)Lemmix.App.Board.BoardZ.TERRAIN_DEPTH / 2);
-        Check.True(Mathf.Abs(focus.X - headPos.X) < 1e-3f, "the board's focus straight ahead (" + focus + ")");
+        // the first lemming's hatch (App.FocusX), half the slab deep
+        var level = rig.Session.Level;
+        float spawnX = ShellApp.SpawnFocusX(level);
+        Check.True(level.Entrances.Count == 0 || level.Entrances.Exists(h => h.TriggerRect.X0 == spawnX), "the focus is a hatch's spawn point (" + spawnX + ")");
+        var focus = board * new Vector3(spawnX, level.Height / 2f, (float)Lemmix.App.Board.BoardZ.TERRAIN_DEPTH / 2);
+        Check.True(Mathf.Abs(focus.X - headPos.X) < 1e-3f, "the board's spawn point straight ahead (" + focus + ")");
         Check.True(focus.Z < headPos.Z - 0.5f, "in front, not to the side (" + focus + ")");
         app.Windows.Act(new VrPick("bar", BarTool: "no"));
     }

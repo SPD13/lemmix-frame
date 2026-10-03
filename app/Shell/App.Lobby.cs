@@ -39,7 +39,7 @@ public sealed partial class App
             _lobbyRoom = true;
             if (LobbyRoomContext() is not { } ctx) { GD.PushWarning("[app] lobby room: no " + LobbyStyle + " style"); return; }
             // where a level's board would stand: the room is laid out round it (the diorama's root is free without a level)
-            DioramaRoot.Transform = BoardPlacement(head.Origin, LobbyBoardW, LobbyBoardH);
+            DioramaRoot.Transform = BoardPlacement(head.Origin, LobbyBoardW / 2f, LobbyBoardH);
             Env.SetMode(Fx.Environment);
             _ = Env.SetLevel(ctx, Io, Options.EnvironmentInBackground);
             Env.PlaceForXR(DioramaRoot.Transform, head.Origin);

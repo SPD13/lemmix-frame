@@ -35,6 +35,7 @@ public sealed class VrSetupPage : VrPage
     {
         "https://www.neolemmix.com - NeoLemmix, whose engine the Lemmix code follows, and whose styles, level packs and music the game plays",
         "Eric Langedijk (for Lemmix), Stephan Neupert and Namida Verasche - the authors of NeoLemmix, whose source is licensed CC BY-NC 4.0 and asks that the three of them be credited; its graphics, music and sounds remain their creators' copyright and are not distributed here",
+        "https://godotengine.org - Godot Engine, the engine this app runs on, MIT licensed: Copyright (c) 2014-present Godot Engine contributors, Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur",
         "This project was developed with the help of Claude Code - https://claude.com/claude-code",
     };
 

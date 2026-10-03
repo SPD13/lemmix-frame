@@ -447,7 +447,20 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     }
 
     // ------------------------------------------------------------ the bar's place
-    float FocusX => Session != null ? Session.Level.Width / 2f : 0; // levelFocusX
+    float FocusX => Session != null ? SpawnFocusX(Session.Level) : 0; // levelFocusX
+
+    /**
+     * The level x the board is turned to: where the first lemming comes out (the first hatch in
+     * the spawn order, else the first hatch), so the player starts facing the entrance; the level's
+     * middle when it has none (a native departure: the web focuses the middle).
+     */
+    internal static float SpawnFocusX(Lemmix.Engine.Level level)
+    {
+        int ix = level.SpawnOrder.Count > 0 ? level.SpawnOrder[0] : -1;
+        var hatch = ix >= 0 && ix < level.Gadgets.Count ? level.Gadgets[ix]
+            : level.Entrances.Count > 0 ? level.Entrances[0] : null;
+        return hatch != null ? hatch.TriggerRect.X0 : level.Width / 2f;
+    }
     float PanelWidthScale() => Bar?.Mesh != null ? Bar.CanvasWidth / 320f : 1;
 
     /** layoutGuiPanel, the headset's branch: the bar 0.6 m (x the panel's width) on its root, the
@@ -503,7 +516,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         if (Session == null) return false;
         var head = headPose ?? HeadNow();
         var headPos = head.Origin;
-        DioramaRoot.Transform = BoardPlacement(headPos, Session.Level.Width, Session.Level.Height);
+        DioramaRoot.Transform = BoardPlacement(headPos, FocusX, Session.Level.Height);
         Windows.Bar.OnDioramaPlaced();
         Env.PlaceForXR(DioramaRoot.Transform, headPos);
         return true;
@@ -513,14 +526,15 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
      * Where a board of w x h pixels goes: along the play space's default forward, as the windows
      * are (DefaultForward), so the board and the windows face the same way and stand in front of
      * the player whatever way the head was turned when the level loaded (a native departure: the
-     * web places it on the gaze); its focus BoardAhead off and just below eye level.
+     * web places it on the gaze); its focus (focusX, half the height) BoardAhead off and just below
+     * eye level.
      */
-    Transform3D BoardPlacement(Vector3 headPos, float w, float h)
+    Transform3D BoardPlacement(Vector3 headPos, float focusX, float h)
     {
         var fwd = DefaultForward();
         float yaw = MathF.Atan2(-fwd.X, -fwd.Z);
         var basis = new Basis(Vector3.Up, yaw) * Basis.FromScale(Vector3.One * VR_PIXEL_SCALE);
-        var focusLocal = new Vector3(w / 2f, h / 2f, (float)BoardZ.TERRAIN_DEPTH / 2);
+        var focusLocal = new Vector3(focusX, h / 2f, (float)BoardZ.TERRAIN_DEPTH / 2);
         var target = headPos + fwd * BoardAhead;
         target.Y = Math.Max(0.7f, headPos.Y - BoardBelowEye); // just below eye level
         return new Transform3D(basis, target - basis * focusLocal);
