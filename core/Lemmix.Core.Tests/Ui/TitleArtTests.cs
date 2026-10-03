@@ -19,6 +19,44 @@ public class TitleArtTests
 
     static bool HasMenu => OracleData.HasAssets && OracleData.Io.Image(TitleArt.Dir + "sign_play.png") != null;
 
+    // NeoLemmix's releases draw their signs differently (flat boards, or glossy ones with a
+    // gradient and two-line lettering): the assets' own, and TITLE_ALT_MENU=<a gfx/menu folder>
+    // from another release when it is set
+    sealed class MenuFolder : IFileSource
+    {
+        readonly string _dir;
+        public MenuFolder(string dir) { _dir = dir; }
+        string? P(string path) => path.StartsWith(TitleArt.Dir) && File.Exists(Path.Combine(_dir, path[TitleArt.Dir.Length..])) ? Path.Combine(_dir, path[TitleArt.Dir.Length..]) : null;
+        public string? Text(string path) => P(path) is { } f ? File.ReadAllText(f) : null;
+        public byte[]? Bytes(string path) => P(path) is { } f ? File.ReadAllBytes(f) : null;
+        public Bitmap? Image(string path) => Bytes(path) is { } b ? Png.Decode(b) : null;
+    }
+
+    static IEnumerable<(string Name, IFileSource Io)> Variants()
+    {
+        yield return ("assets", OracleData.Io);
+        if (Environment.GetEnvironmentVariable("TITLE_ALT_MENU") is { Length: > 0 } alt && Directory.Exists(alt)) yield return ("alt", new MenuFolder(alt));
+    }
+
+    // light or grey pixels with no colour (lettering, the plate, the gears) on the board's inside,
+    // outside the given boxes and away from the lemming
+    static int Lettering(Bitmap b, params (int X, int Y, int W, int H)[] boxes)
+    {
+        var (x0, y0, x1, y1) = TitleArt.Inside(b);
+        int n = 0;
+        for (int y = y0; y < y1; y++)
+            for (int x = x0; x < x1; x++)
+            {
+                if (boxes.Any(r => x >= r.X - 1 && x <= r.X + r.W && y >= r.Y - 1 && y <= r.Y + r.H)) continue;
+                // (the inside's corners: a glossy board's corner glint, the board's own)
+                if ((x < x0 + 3 || x >= x1 - 3) && (y < y0 + 3 || y >= y1 - 3)) continue;
+                int i = (y * b.Width + x) * 4;
+                int mx = Math.Max(b.Data[i], Math.Max(b.Data[i + 1], b.Data[i + 2])), mn = Math.Min(b.Data[i], Math.Min(b.Data[i + 1], b.Data[i + 2]));
+                if (mx - mn < 30 && mx >= 120) n++;
+            }
+        return n;
+    }
+
     // the plate's greys (35..107, r = g = b) anywhere in the top-left third
     static int PlatePixels(Bitmap b)
     {
@@ -55,67 +93,58 @@ public class TitleArtTests
     public void TheKeyCapsAreTakenOffTheSigns()
     {
         Assert.SkipWhen(!HasMenu, "no NeoLemmix menu graphics");
-        foreach (var name in new[] { "sign_play.png", "sign_config.png", "sign_quit.png" })
+        foreach (var (variant, io) in Variants())
+            foreach (var name in new[] { "sign_play.png", "sign_config.png", "sign_quit.png", "sign_level_select.png" })
+            {
+                var sign = io.Image(TitleArt.Dir + name)!;
+                Assert.True(PlatePixels(sign) > 50, variant + " " + name + " has its key cap");
+                var bare = TitleArt.RemoveKeyCap(sign);
+                Assert.True(PlatePixels(bare) == 0, variant + " " + name + ": plate left " + PlatePixels(bare));
+                Assert.Equal(sign.Width, bare.Width);
+                Dump(variant + "-bare-" + name, bare);
+            }
+    }
+
+    [Fact]
+    public void TheVrSignIsClearedForAGearAndAHeadset()
+    {
+        Assert.SkipWhen(!HasMenu, "no NeoLemmix menu graphics");
+        foreach (var (variant, io) in Variants())
         {
-            var sign = OracleData.Io.Image(TitleArt.Dir + name)!;
-            Assert.True(PlatePixels(sign) > 50, name + " has its key cap");
-            var bare = TitleArt.RemoveKeyCap(sign);
-            Assert.Equal(0, PlatePixels(bare));
-            Assert.Equal(sign.Width, bare.Width);
-            // the board's colour fills the corner where the plate was
-            uint board = TitleArt.BoardColor(sign);
-            int i = (36 * bare.Width + 20) * 4;
-            Assert.Equal(board, (uint)(bare.Data[i] << 16 | bare.Data[i + 1] << 8 | bare.Data[i + 2]));
+            var config = io.Image(TitleArt.Dir + "sign_config.png")!;
+            var vr = TitleArt.VrSign(TitleArt.RemoveKeyCap(config));
+            Dump(variant + "-vr.png", vr);
+            // the headset's visor, which the sign's own art has nowhere
+            int visor = 0;
+            for (int i = 0; i < vr.Data.Length; i += 4)
+                if (vr.Data[i] == 0x30 && vr.Data[i + 1] == 0x30 && vr.Data[i + 2] == 0x30) visor++;
+            Assert.True(visor > 50, variant + ": the headset's visor " + visor);
+            // the sign's own gears and note gone: no grey or light left on the board but the drawn pictures
+            var (gear, headset) = TitleArt.VrPictures(vr);
+            Assert.True(Lettering(config) > 100, variant + ": the art has its pictures");
+            Assert.True(Lettering(vr, gear, headset) == 0, variant + ": left of the old pictures " + Lettering(vr, gear, headset));
         }
     }
 
     [Fact]
-    public void TheVrSignHasAHeadsetWhereTheNoteWas()
+    public void TheSetupSignIsClearedForADownload()
     {
         Assert.SkipWhen(!HasMenu, "no NeoLemmix menu graphics");
-        var config = OracleData.Io.Image(TitleArt.Dir + "sign_config.png")!;
-        var vr = TitleArt.VrSign(TitleArt.RemoveKeyCap(config));
-        // the visor's dark grey, which neither the gear nor the note has
-        int visor = 0;
-        for (int i = 0; i < vr.Data.Length; i += 4)
-            if (vr.Data[i] == 0x30 && vr.Data[i + 1] == 0x30 && vr.Data[i + 2] == 0x30) visor++;
-        Assert.True(visor > 50, "the headset's visor: " + visor);
-        // the staff's darker yellow is gone from the right half
-        uint staff = 0xC6B925;
-        for (int y = vr.Height * 36 / 87; y < vr.Height * 73 / 87; y++)
-            for (int x = vr.Width / 2 + 5; x < vr.Width * 7 / 8; x++)
-            {
-                int i = (y * vr.Width + x) * 4;
-                Assert.NotEqual(staff, (uint)(vr.Data[i] << 16 | vr.Data[i + 1] << 8 | vr.Data[i + 2]));
-            }
-        // the gear is still there: its light grey on the left half
-        bool gear = false;
-        for (int y = 40; y < 65 && !gear; y++)
-            for (int x = 35; x < 60; x++)
-                if (vr.Data[(y * vr.Width + x) * 4] == 192 && vr.Data[(y * vr.Width + x) * 4 + 1] == 192) gear = true;
-        Assert.True(gear);
-    }
-
-    [Fact]
-    public void TheSetupSignHasADownloadWhereTheLetteringWas()
-    {
-        Assert.SkipWhen(!HasMenu, "no NeoLemmix menu graphics");
-        var levels = OracleData.Io.Image(TitleArt.Dir + "sign_level_select.png")!;
-        var sign = TitleArt.SetupSign(TitleArt.RemoveKeyCap(levels));
-        Assert.Equal(0, PlatePixels(sign));
-        // the lettering's anti-aliased blue-whites are gone: only the board's blue, the download's
-        // white, its shade and black are left in the lettering's box
-        var allowed = new HashSet<uint> { TitleArt.BoardColor(levels), 0xFFFFFF, 0xCFD3EB, 0 };
-        int white = 0;
-        for (int y = sign.Height * 42 / 87; y < sign.Height * 70 / 87; y++)
-            for (int x = sign.Width * 12 / 120; x < sign.Width * 107 / 120; x++)
-            {
-                int i = (y * sign.Width + x) * 4;
-                uint c = (uint)(sign.Data[i] << 16 | sign.Data[i + 1] << 8 | sign.Data[i + 2]);
-                Assert.Contains(c, allowed);
-                if (c == 0xFFFFFF) white++;
-            }
-        Assert.True(white > 150, "the download's white: " + white);
+        foreach (var (variant, io) in Variants())
+        {
+            var levels = io.Image(TitleArt.Dir + "sign_level_select.png")!;
+            var sign = TitleArt.SetupSign(TitleArt.RemoveKeyCap(levels));
+            Dump(variant + "-setup.png", sign);
+            Assert.True(Lettering(levels) > 100, variant + ": the art has its lettering");
+            Assert.True(Lettering(sign, TitleArt.SetupPicture(sign)) == 0, variant + ": lettering left " + Lettering(sign, TitleArt.SetupPicture(sign)));
+            // the download's white
+            var at = TitleArt.SetupPicture(sign);
+            int white = 0;
+            for (int y = at.Y; y < at.Y + at.H; y++)
+                for (int x = at.X; x < at.X + at.W; x++)
+                    if (sign.Data[(y * sign.Width + x) * 4] == 255 && sign.Data[(y * sign.Width + x) * 4 + 2] == 255) white++;
+            Assert.True(white > 150, variant + ": the download's white " + white);
+        }
     }
 
     [Fact]

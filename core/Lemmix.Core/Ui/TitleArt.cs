@@ -40,8 +40,8 @@ public sealed class MenuFont
 // NeoLemmix's title screen (GameMenuScreen.pas, GameBaseMenuScreen.pas, data/title.nxmi), as the
 // headset's lobby shows it: the 864 x 500 screen with background.png tiled over it and logo.png
 // centred at the top, and the signs held up by lemmings - their key caps taken off (a headset
-// has no F1 or Esc), the config sign's music note swapped for a headset, the levels sign's
-// lettering for a download (the setup: downloads and installs), each with the glow
+// has no F1 or Esc), the config and levels signs' boards cleared and drawn on again - a gear and
+// a headset (the VR settings), a download (the setup: downloads and installs) - each with the glow
 // MakeClickableImageAuto draws round a sign under the mouse. The art is NeoLemmix's own
 // (gfx/menu, installed with NeoLemmix); Ok is false when it is not there.
 public sealed class TitleArt
@@ -146,11 +146,141 @@ public sealed class TitleArt
         return count.Count == 0 ? 0 : count.MaxBy(kv => kv.Value).Key;
     }
 
+    // ---- the board under the art
+    // the board's inside (clear of its frame), as a share of the 120 x 87 sign: the lettering and
+    // the pictures are within it, in every NeoLemmix release's signs (flat or glossy)
+    public static (int X0, int Y0, int X1, int Y1) Inside(Bitmap s) => (s.Width * 9 / 120, s.Height * 30 / 87, s.Width * 111 / 120, s.Height * 75 / 87);
+
+    static int Sat(byte[] d, int i) => Math.Max(d[i], Math.Max(d[i + 1], d[i + 2])) - Math.Min(d[i], Math.Min(d[i + 1], d[i + 2]));
+    // a lemming (its skin, light or shaded): reddish, never a board's red, yellow or green
+    static bool Lemming(byte[] d, int i) => Opaque(d, i) && d[i] >= 120 && d[i + 1] >= 60 && d[i] - d[i + 1] >= 45 && d[i] - d[i + 2] >= 25;
+    static int Dist(byte[] d, int i, (int R, int G, int B) c) => Math.Abs(d[i] - c.R) + Math.Abs(d[i + 1] - c.G) + Math.Abs(d[i + 2] - c.B);
+
+    // the lemming's pixels and two round them (its outline, its shading's edge): never the board's
+    static bool[] Protected(Bitmap s)
+    {
+        int w = s.Width, h = s.Height;
+        var p = new bool[w * h];
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                if (!Lemming(s.Data, (y * w + x) * 4)) continue;
+                for (int dy = -2; dy <= 2; dy++)
+                    for (int dx = -2; dx <= 2; dx++)
+                    {
+                        int nx = x + dx, ny = y + dy;
+                        if (nx >= 0 && ny >= 0 && nx < w && ny < h) p[ny * w + nx] = true;
+                    }
+            }
+        return p;
+    }
+
+    // a row's board colour inside the board: the median of its board-like pixels (saturated, not the lemming)
+    static (int R, int G, int B)? RowModel(Bitmap s, int y, bool[] prot, bool[]? skip = null)
+    {
+        var (x0, _, x1, _) = Inside(s);
+        var r = new List<int>(); var g = new List<int>(); var b = new List<int>();
+        for (int x = x0; x < x1; x++)
+        {
+            int k = y * s.Width + x, i = k * 4;
+            if (!Opaque(s.Data, i) || prot[k] || (skip != null && skip[k]) || Sat(s.Data, i) < 40) continue;
+            r.Add(s.Data[i]); g.Add(s.Data[i + 1]); b.Add(s.Data[i + 2]);
+        }
+        if (r.Count == 0) return null;
+        r.Sort(); g.Sort(); b.Sort();
+        return (r[r.Count / 2], g[g.Count / 2], b[b.Count / 2]);
+    }
+
+    // the rows' board colours down the inside, each the median of its own and its six nearest
+    // rows' (a row under a lettering's shadow band reads darker than the board is; the board's own
+    // gradient changes slowly down it)
+    static (int R, int G, int B)?[] RowModels(Bitmap s, bool[] prot, bool[]? skip = null)
+    {
+        var (_, y0, _, y1) = Inside(s);
+        var raw = new (int R, int G, int B)?[s.Height];
+        for (int y = y0; y < y1; y++) raw[y] = RowModel(s, y, prot, skip);
+        var smooth = new (int R, int G, int B)?[s.Height];
+        for (int y = y0; y < y1; y++)
+        {
+            var near = new List<(int R, int G, int B)>();
+            for (int n = Math.Max(y0, y - 3); n <= Math.Min(y1 - 1, y + 3); n++) if (raw[n] is { } m) near.Add(m);
+            if (near.Count == 0) continue;
+            int Med(Func<(int R, int G, int B), int> f) { var v = near.Select(f).OrderBy(c => c).ToList(); return v[v.Count / 2]; }
+            smooth[y] = (Med(c => c.R), Med(c => c.G), Med(c => c.B));
+        }
+        return smooth;
+    }
+
     /**
-     * The sign without its key cap (the grey plate with F1, F3, Esc in the board's top-left
-     * corner): the plate's greys found in the top-left, and the box round them painted as the
-     * board under it would be - nothing above the board's top edge, its black edge, the board's
-     * colour - with a black outline kept where a hand meets what was the plate.
+     * The board with nothing on it: whatever stands on its inside that is not the board (the
+     * lettering, the pictures, their shadows and soft edges) found row by row against the row's
+     * own colour, the lemming left alone, and painted again as the board round it - each pixel
+     * the row's colour (a glossy board's gradient runs down it, not across), with the board's own
+     * grain taken from the row's clean pixels.
+     */
+    public static Bitmap ClearBoard(Bitmap sign)
+    {
+        var s = sign.Clone();
+        var d = s.Data;
+        int w = s.Width;
+        var (x0, y0, x1, y1) = Inside(s);
+        var prot = Protected(s);
+        var gone = new bool[w * s.Height];
+        var models = RowModels(s, prot);
+        for (int y = y0; y < y1; y++)
+        {
+            if (models[y] is not { } m) continue;
+            for (int x = x0; x < x1; x++)
+            {
+                int k = y * w + x;
+                if (!prot[k] && Opaque(d, k * 4) && Dist(d, k * 4, m) > 60) gone[k] = true;
+            }
+        }
+        // and two pixels round what goes: the soft edges and shadows the lettering leaves on the board
+        for (int pass = 0; pass < 2; pass++)
+        {
+            var grown = (bool[])gone.Clone();
+            for (int y = y0; y < y1; y++)
+                for (int x = x0; x < x1; x++)
+                {
+                    int k = y * w + x;
+                    if (!gone[k]) continue;
+                    foreach (var (nx, ny) in new[] { (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1) })
+                        if (nx >= x0 && ny >= y0 && nx < x1 && ny < y1 && !prot[ny * w + nx]) grown[ny * w + nx] = true;
+                }
+            gone = grown;
+        }
+        models = RowModels(s, prot, gone);
+        for (int y = y0; y < y1; y++)
+        {
+            if (models[y] is not { } m) continue;
+            var clean = new List<int>();
+            for (int x = x0; x < x1; x++)
+            {
+                int k = y * w + x;
+                if (!gone[k] && !prot[k] && Opaque(d, k * 4) && Dist(d, k * 4, m) <= 60) clean.Add(x);
+            }
+            for (int x = x0; x < x1; x++)
+            {
+                int k = y * w + x;
+                if (!gone[k]) continue;
+                // the grain: a clean pixel's difference from the row's colour, picked by place
+                var g = m;
+                if (clean.Count > 0) { int i = (y * w + clean[(int)((uint)(x * 73856093 ^ y * 19349663) % (uint)clean.Count)]) * 4; g = (d[i], d[i + 1], d[i + 2]); }
+                int C(int cm, int cg) => Math.Clamp((int)MathF.Round(cm + (cg - cm) * 0.6f), 0, 255);
+                Set(d, k * 4, (uint)(C(m.R, g.R) << 16 | C(m.G, g.G) << 8 | C(m.B, g.B)));
+            }
+        }
+        return s;
+    }
+
+    /**
+     * The sign without its key cap (the grey plate with F1, F3, Esc on the board's top-left
+     * corner): the plate's greys found in the top-left, and what they cover painted as the
+     * board's other corner is - its top-right, mirrored (the board, its rounded corner and
+     * frame, the air round it) - or, where a lemming stands there, as the row goes on just right
+     * of the plate (the board's top edge, the board), else the air; a black outline kept where a
+     * hand meets what was the plate.
      */
     public static Bitmap RemoveKeyCap(Bitmap sign)
     {
@@ -168,24 +298,24 @@ public sealed class TitleArt
         if (x1 < 0) return s;
         // the plate's own black outline (two rows thick along its top)
         x0 = Math.Max(0, x0 - 1); y0 = Math.Max(0, y0 - 3); x1 = Math.Min(w - 1, x1 + 1); y1 = Math.Min(h - 1, y1 + 1);
-        uint board = BoardColor(s);
-        // the board's top edge: just right of the plate, the black row with the board under it
-        int edge = -1, cx = Math.Min(w - 1, x1 + 2);
-        for (int y = 0; y + 1 < h && edge < 0; y++)
-        {
-            int i = (y * w + cx) * 4, below = ((y + 1) * w + cx) * 4;
-            if (Opaque(d, i) && Rgb(d, i) == 0 && Opaque(d, below) && Rgb(d, below) == board) edge = y;
-        }
-        if (edge < 0) edge = y0;
-
+        var src = sign.Data;
+        var prot = Protected(sign);
         var replaced = new List<(int X, int Y)>();
         for (int y = y0; y <= y1; y++)
             for (int x = x0; x <= x1; x++)
             {
                 int i = (y * w + x) * 4;
-                if (!Opaque(d, i) || !Neutral(d, i)) continue;
-                if (y < edge) Set(d, i, 0, 0);
-                else Set(d, i, y == edge ? 0u : board);
+                // the plate: its greys, its label, its outline, its soft edge on the board
+                if (!Opaque(d, i) || Sat(d, i) > 40 || Lemming(d, i)) continue;
+                int mi = (y * w + (w - 1 - x)) * 4;
+                if (!prot[y * w + (w - 1 - x)]) { d[i] = src[mi]; d[i + 1] = src[mi + 1]; d[i + 2] = src[mi + 2]; d[i + 3] = src[mi + 3]; }
+                else
+                {
+                    // the row just right of the plate, if it is the board (or its edge) rather than a lemming
+                    int ri = (y * w + Math.Min(w - 1, x1 + 2)) * 4;
+                    if (Opaque(src, ri) && !prot[y * w + Math.Min(w - 1, x1 + 2)]) { d[i] = src[ri]; d[i + 1] = src[ri + 1]; d[i + 2] = src[ri + 2]; d[i + 3] = 255; }
+                    else Set(d, i, 0, 0);
+                }
                 replaced.Add((x, y));
             }
         // where a hand now meets the board (or the air), its outline
@@ -199,41 +329,50 @@ public sealed class TitleArt
         return s;
     }
 
+    // where the pictures stand: the board's middle, a little below its centre (as the words do)
+    static int PictureCentreY(Bitmap s) => s.Height * 54 / 87;
+
     /**
-     * The config sign made the VR settings' one: the gear stays, the music note and its staff
-     * (the board's right half) go, and a headset takes their place, in the gear's greys.
+     * The config sign made the VR settings' one: the board cleared (the gears, the music note, its
+     * staff), and a gear and a headset drawn on it, in greys with a black outline, side by side.
      */
     public static Bitmap VrSign(Bitmap config)
     {
-        var s = config.Clone();
-        int w = s.Width, h = s.Height;
-        uint board = BoardColor(s);
-        // the note's box, as a share of the 120 x 87 sign
-        int nx0 = w * 63 / 120, nx1 = w * 105 / 120, ny0 = h * 36 / 87, ny1 = h * 73 / 87; // (the head's chin is above)
-        for (int y = ny0; y < ny1; y++)
-            for (int x = nx0; x < nx1; x++) Set(s.Data, (y * w + x) * 4, board);
-        int k = Math.Max(1, w / 120);
-        DrawHeadset(s, nx0 + (nx1 - nx0 - HeadsetW * k) / 2, h * 51 / 87 - HeadsetH * k / 2, k);
+        var s = ClearBoard(config);
+        int k = Math.Max(1, s.Width / 120);
+        var (gear, headset) = VrPictures(s);
+        DrawPicture(s, gear.X, gear.Y, k, InGear, GearColor);
+        DrawPicture(s, headset.X, headset.Y, k, InHeadset, HeadsetColor);
         return s;
     }
 
+    // where the VR sign's gear and headset go: side by side, centred on the board
+    public static ((int X, int Y, int W, int H) Gear, (int X, int Y, int W, int H) Headset) VrPictures(Bitmap s)
+    {
+        int k = Math.Max(1, s.Width / 120), gap = 6 * k;
+        int total = GearSize * k + gap + HeadsetW * k, left = (s.Width - total) / 2, cy = PictureCentreY(s);
+        return ((left, cy - GearSize * k / 2, GearSize * k, GearSize * k),
+                (left + GearSize * k + gap, cy - HeadsetH * k / 2, HeadsetW * k, HeadsetH * k));
+    }
+
     /**
-     * The levels sign made the setup's one: its lettering (LEVELS, under the head's chin) gone to
-     * the board's blue, and a download in its place - an arrow down into a tray, white with a
-     * black outline, as the signs' words are drawn.
+     * The levels sign made the setup's one: the board cleared of its lettering, and a download
+     * drawn on it - an arrow down into a tray, white with a black outline, as the signs' words are.
      */
     public static Bitmap SetupSign(Bitmap levels)
     {
-        var s = levels.Clone();
-        int w = s.Width, h = s.Height;
-        uint board = BoardColor(s);
-        // the lettering's box, as a share of the 120 x 87 sign
-        int x0 = w * 12 / 120, x1 = w * 107 / 120, y0 = h * 42 / 87, y1 = h * 70 / 87;
-        for (int y = y0; y < y1; y++)
-            for (int x = x0; x < x1; x++) Set(s.Data, (y * w + x) * 4, board);
-        int k = Math.Max(1, w / 120);
-        DrawPicture(s, (w - DownloadW * k) / 2, h * 56 / 87 - DownloadH * k / 2, k, InDownload, (x, y) => y >= DownloadH - 3 ? 0xCFD3EBu : 0xFFFFFFu);
+        var s = ClearBoard(levels);
+        int k = Math.Max(1, s.Width / 120);
+        var at = SetupPicture(s);
+        DrawPicture(s, at.X, at.Y, k, InDownload, (x, y) => y >= DownloadH - 3 ? 0xCFD3EBu : 0xFFFFFFu);
         return s;
+    }
+
+    // where the setup sign's download goes: centred on the board
+    public static (int X, int Y, int W, int H) SetupPicture(Bitmap s)
+    {
+        int k = Math.Max(1, s.Width / 120);
+        return ((s.Width - DownloadW * k) / 2, PictureCentreY(s) - DownloadH * k / 2, DownloadW * k, DownloadH * k);
     }
 
     // ---- a download, 34 x 28: the arrow's shaft and head, the tray it points into
@@ -248,6 +387,20 @@ public sealed class TitleArt
         if (y >= 16 && (x <= 3 || x >= DownloadW - 4)) return true;  // the tray's sides
         return y >= 24;                                               // its bottom
     }
+
+    // ---- a gear, 24 x 24: eight teeth round a ring with a hole; lit from above
+    public const int GearSize = 24;
+
+    static bool InGear(int x, int y)
+    {
+        if (x < 0 || y < 0 || x >= GearSize || y >= GearSize) return false;
+        float dx = x - 11.5f, dy = y - 11.5f, r = MathF.Sqrt(dx * dx + dy * dy);
+        float a = MathF.Atan2(dy, dx);
+        float outer = MathF.Cos(8 * a + 0.39f) > 0.15f ? 11.6f : 8.6f;
+        return r <= outer && r > 3.6f;
+    }
+
+    static uint GearColor(int x, int y) => y <= 6 ? 0xE5E5E5u : y >= 17 ? 0x969696u : 0xC0C0C0u;
 
     // a picture given as its shape and its colours: outlined in black where it meets the outside
     static void DrawPicture(Bitmap b, int ox, int oy, int k, Func<int, int, bool> inside, Func<int, int, uint> color)
@@ -299,23 +452,6 @@ public sealed class TitleArt
         }
         if (x < 4 || x > 31) return y == 6 ? 0xC0C0C0u : 0x969696u; // the straps
         return y <= 1 ? 0xE5E5E5u : y == 2 ? 0xCECECEu : y >= 12 ? 0x969696u : 0xC0C0C0u;
-    }
-
-    static void DrawHeadset(Bitmap b, int ox, int oy, int k)
-    {
-        for (int y = 0; y < HeadsetH; y++)
-            for (int x = 0; x < HeadsetW; x++)
-            {
-                if (!InHeadset(x, y)) continue;
-                bool edge = !InHeadset(x - 1, y) || !InHeadset(x + 1, y) || !InHeadset(x, y - 1) || !InHeadset(x, y + 1);
-                uint c = edge ? 0 : HeadsetColor(x, y);
-                for (int sy = 0; sy < k; sy++)
-                    for (int sx = 0; sx < k; sx++)
-                    {
-                        int px = ox + x * k + sx, py = oy + y * k + sy;
-                        if (px >= 0 && py >= 0 && px < b.Width && py < b.Height) Set(b.Data, (py * b.Width + px) * 4, c);
-                    }
-            }
     }
 
     // ------------------------------------------------------------ the glow

@@ -283,12 +283,19 @@ windows open along, upright (square to the floor) as the windows are - built fro
 in `menu_font.png` (what the sign under the beam does; the app's version), and the scroller (the
 reel turned by the two worker lemmings, `TitleScroller`, 12 px taller than NeoLemmix's so the text clears its dashed edges; lines in `VrLobby.ScrollerLines`). Four
 signs float 12 cm in front, in one row, the headset's own: **PLAY** (`sign_play.png`) opens the world
-catalog (setup when nothing is installed), **SETTINGS** (`sign_level_select.png`, its lettering
-swapped for a drawn download) opens the setup page (downloads, installs, the upload server; its
+catalog (setup when nothing is installed), **SETTINGS** (`sign_level_select.png`, its board
+cleared and a download drawn on it) opens the setup page (downloads, installs, the upload server; its
 close comes back to the lobby), **VR SETTINGS** (`sign_config.png`, its music note
 swapped for a drawn headset) opens the VR window as the bar's VR button does, **QUIT**
 (`sign_quit.png`) ends the app at once. Their key caps (F1, F3, Esc) are taken off
-(`TitleArt.RemoveKeyCap`); under the beam a sign glows as NeoLemmix's does under the mouse
+(`TitleArt.RemoveKeyCap`: the corner rebuilt from the board's top-right one, mirrored). NeoLemmix
+releases draw these signs differently (flat boards in the player's repository; glossy gradient
+boards with two-line lettering in the release the setup installs), so nothing is placed by
+colour or box: `TitleArt.ClearBoard` finds what stands on the board row by row against the row's
+own colour (the rows' estimates smoothed down the board), leaves the lemming alone, and paints
+the board again with its gradient and grain; the pictures (download, gear, headset) are then drawn
+on it with a black outline and nothing round them. The art tests take another release's
+`gfx/menu` folder through `TITLE_ALT_MENU`; under the beam a sign glows as NeoLemmix's does under the mouse
 (`MakeClickableImageAuto`'s glow) and steps forward. While a window or a page is up the screen is
 veiled and the signs put away. The catalog is never locked any more: its close (and Escape) go
 back to the lobby. The toolbar's exit (the door) also comes back here, after asking. The room round the lobby is the Dirt gallery's
