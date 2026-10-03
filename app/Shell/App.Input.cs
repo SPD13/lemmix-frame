@@ -164,12 +164,13 @@ public sealed partial class App
         Session.SetPointer(p != null && p.Kind == "board" && p.Data is Vector2I sim ? sim : null);
     }
 
-    /** The lobby's signs: the world catalog (nothing installed: the setup), the VR window, the end. */
+    /** The lobby's signs: the world catalog (nothing installed: the setup), the setup, the VR window, the end. */
     bool ActOnLobby(string? tool)
     {
         switch (tool)
         {
             case "lobbyplay": if (FirstRun) OpenSetup(); else Windows.SetCatalog(true); return true;
+            case "lobbysetup": OpenSetup(); return true;
             case "lobbyvr": Windows.SetVrOptions(true); return true;
             case "lobbyquit": QuitGame(); return true;
         }

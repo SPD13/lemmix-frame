@@ -136,19 +136,21 @@ public sealed partial class App
 
     public void RefreshKeyHints() { if (HintsPage.Root.Visible) HintsPage.Paint(); }
 
-    // the setup page's PLAY (and its close): the indexes read again; something to play, the catalog
+    // the setup page's PLAY (and its close): the indexes read again; its PLAY, with no level yet,
+    // the catalog; its close, back to what it was opened over (the lobby, the catalog)
     bool _setupPlayed;
     void SetupPlay()
     {
         Pages.Show(null);
         _setupPlayed = true;
-        AfterSetup();
+        AfterSetup(play: true);
     }
 
-    void AfterSetup()
+    void AfterSetup(bool play)
     {
         ReloadLibrary();
         if (FirstRun) { Pages.Show(SetupPage); return; } // nothing to play yet: setup is all there is
+        if (!play) return;
         _catalogBehindPage = false;
         if (LevelId == null) Windows.SetCatalog(true);
     }
@@ -159,7 +161,7 @@ public sealed partial class App
     void PagesFrame()
     {
         // the setup page gone (its close, Escape): what it installed read in
-        if (_lastPage == SetupPage && Pages.Current != SetupPage && !_setupPlayed) AfterSetup();
+        if (_lastPage == SetupPage && Pages.Current != SetupPage && !_setupPlayed) AfterSetup(play: false);
         _setupPlayed = false;
         _lastPage = Pages.Current;
         if (!Pages.AnyUp)

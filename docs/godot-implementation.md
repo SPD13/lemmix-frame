@@ -281,9 +281,11 @@ level is on the board: NeoLemmix's main menu (`GameMenuScreen.pas`, numbers from
 windows open along, upright (square to the floor) as the windows are - built from the installed
 `neolemmix/gfx/menu/` by `core/.../Ui/TitleArt.cs`: `background.png` tiled, `logo.png`, a footer
 in `menu_font.png` (what the sign under the beam does; the app's version), and the scroller (the
-reel turned by the two worker lemmings, `TitleScroller`, 12 px taller than NeoLemmix's so the text clears its dashed edges; lines in `VrLobby.ScrollerLines`). Three
-signs float 12 cm in front, the headset's own: **PLAY** (`sign_play.png`) opens the world
-catalog (setup when nothing is installed), **VR SETTINGS** (`sign_config.png`, its music note
+reel turned by the two worker lemmings, `TitleScroller`, 12 px taller than NeoLemmix's so the text clears its dashed edges; lines in `VrLobby.ScrollerLines`). Four
+signs float 12 cm in front, in one row, the headset's own: **PLAY** (`sign_play.png`) opens the world
+catalog (setup when nothing is installed), **SETTINGS** (`sign_level_select.png`, its lettering
+swapped for a drawn download) opens the setup page (downloads, installs, the upload server; its
+close comes back to the lobby), **VR SETTINGS** (`sign_config.png`, its music note
 swapped for a drawn headset) opens the VR window as the bar's VR button does, **QUIT**
 (`sign_quit.png`) ends the app at once. Their key caps (F1, F3, Esc) are taken off
 (`TitleArt.RemoveKeyCap`); under the beam a sign glows as NeoLemmix's does under the mouse
@@ -293,7 +295,7 @@ back to the lobby. The toolbar's exit (the door) also comes back here, after ask
 (`orig_dirt`: its scenery, or envgen's rings and haze, as the environment switch says), laid out
 for a 1600 x 160 board standing where a level's would (`App.Lobby.cs`); a level's room replaces
 it, and leaving the level brings it back. Without the menu art the screen and signs are drawn plainly. Picks are
-`lobbyplay`, `lobbyvr`, `lobbyquit` (`App.ActOnLobby`); shots `vr-lobby`, `vr-lobby-vr`.
+`lobbyplay`, `lobbysetup`, `lobbyvr`, `lobbyquit` (`App.ActOnLobby`); shots `vr-lobby`, `vr-lobby-vr`.
 
 **Placement (native).** Windows and pages open from the head's position **facing the play
 space's default forward** (its −Z, turned by the yaw correction as the board is), not along the
@@ -444,7 +446,7 @@ run with `--scenery=off`, or revert the commits on branch `scenery`.
 | Level upload server + browser page (files, folders, zips, settings backup) | levels cannot ship |
 | `CommandSelectSkill(0)` selects the first skill; a release-rate click changes the rate once | web bugs, fixed in both (web `a5b7b4f`) |
 | Preferences imported from a computer apply at the next start | effects are read at start, as the web's reload |
-| A lobby (NeoLemmix's title screen: PLAY, VR SETTINGS, QUIT) at start instead of a locked catalog; the catalog closes back to it | a title screen for the native app (6.4) |
+| A lobby (NeoLemmix's title screen: PLAY, SETTINGS, VR SETTINGS, QUIT) at start instead of a locked catalog; the catalog closes back to it | a title screen for the native app (6.4) |
 | A gallery with a scenery (`3d/env/<style>/scenery/`) shows it instead of envgen's rings; `--scenery=off` restores the rings | a room going to a far, hazy horizon (6.11) |
 
 ---

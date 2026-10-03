@@ -97,6 +97,28 @@ public class TitleArtTests
     }
 
     [Fact]
+    public void TheSetupSignHasADownloadWhereTheLetteringWas()
+    {
+        Assert.SkipWhen(!HasMenu, "no NeoLemmix menu graphics");
+        var levels = OracleData.Io.Image(TitleArt.Dir + "sign_level_select.png")!;
+        var sign = TitleArt.SetupSign(TitleArt.RemoveKeyCap(levels));
+        Assert.Equal(0, PlatePixels(sign));
+        // the lettering's anti-aliased blue-whites are gone: only the board's blue, the download's
+        // white, its shade and black are left in the lettering's box
+        var allowed = new HashSet<uint> { TitleArt.BoardColor(levels), 0xFFFFFF, 0xCFD3EB, 0 };
+        int white = 0;
+        for (int y = sign.Height * 42 / 87; y < sign.Height * 70 / 87; y++)
+            for (int x = sign.Width * 12 / 120; x < sign.Width * 107 / 120; x++)
+            {
+                int i = (y * sign.Width + x) * 4;
+                uint c = (uint)(sign.Data[i] << 16 | sign.Data[i + 1] << 8 | sign.Data[i + 2]);
+                Assert.Contains(c, allowed);
+                if (c == 0xFFFFFF) white++;
+            }
+        Assert.True(white > 150, "the download's white: " + white);
+    }
+
+    [Fact]
     public void AHoveredSignGlowsRoundItsEdge()
     {
         Assert.SkipWhen(!HasMenu, "no NeoLemmix menu graphics");
@@ -177,6 +199,7 @@ public class TitleArtTests
         Dump("vr.png", art.VrSettings!.Normal);
         Dump("vr-hover.png", art.VrSettings.Hover);
         Dump("quit.png", art.Quit!.Normal);
+        Dump("setup.png", art.Setup!.Normal);
     }
 
     static void Dump(string name, Bitmap b)

@@ -40,7 +40,8 @@ public sealed class MenuFont
 // NeoLemmix's title screen (GameMenuScreen.pas, GameBaseMenuScreen.pas, data/title.nxmi), as the
 // headset's lobby shows it: the 864 x 500 screen with background.png tiled over it and logo.png
 // centred at the top, and the signs held up by lemmings - their key caps taken off (a headset
-// has no F1 or Esc), the config sign's music note swapped for a headset, each with the glow
+// has no F1 or Esc), the config sign's music note swapped for a headset, the levels sign's
+// lettering for a download (the setup: downloads and installs), each with the glow
 // MakeClickableImageAuto draws round a sign under the mouse. The art is NeoLemmix's own
 // (gfx/menu, installed with NeoLemmix); Ok is false when it is not there.
 public sealed class TitleArt
@@ -65,7 +66,7 @@ public sealed class TitleArt
     public Bitmap? Screen;              // the background tiled, the logo on it
     public MenuFont? Font;
     public Bitmap? ScrollerLemmings, ScrollerSegment;
-    public Sign? Play, VrSettings, Quit;
+    public Sign? Play, Setup, VrSettings, Quit;
 
     public static TitleArt Load(IFileSource io)
     {
@@ -77,10 +78,11 @@ public sealed class TitleArt
         var play = Get("sign_play.png");
         var config = Get("sign_config.png");
         var quit = Get("sign_quit.png");
+        var levels = Get("sign_level_select.png");
         art.ScrollerLemmings = Get("scroller_lemmings.png");
         art.ScrollerSegment = Get("scroller_segment.png");
         if (font != null) art.Font = new MenuFont(font);
-        if (bg == null || logo == null || play == null || config == null || quit == null) return art;
+        if (bg == null || logo == null || play == null || config == null || quit == null || levels == null) return art;
 
         art.Screen = new Bitmap(ScreenW, ScreenH);
         // DrawBackground: the picture tiled from the top-left
@@ -91,6 +93,7 @@ public sealed class TitleArt
         Blend(logo, art.Screen, (ScreenW - logo.Width) / 2, LogoCenterY - logo.Height / 2, 0, 0, logo.Width, logo.Height);
 
         art.Play = MakeSign(RemoveKeyCap(play));
+        art.Setup = MakeSign(SetupSign(RemoveKeyCap(levels)));
         art.VrSettings = MakeSign(VrSign(RemoveKeyCap(config)));
         art.Quit = MakeSign(RemoveKeyCap(quit));
         art.Ok = true;
@@ -163,8 +166,8 @@ public sealed class TitleArt
                 x0 = Math.Min(x0, x); y0 = Math.Min(y0, y); x1 = Math.Max(x1, x); y1 = Math.Max(y1, y);
             }
         if (x1 < 0) return s;
-        // the plate's own black outline
-        x0 = Math.Max(0, x0 - 1); y0 = Math.Max(0, y0 - 1); x1 = Math.Min(w - 1, x1 + 1); y1 = Math.Min(h - 1, y1 + 1);
+        // the plate's own black outline (two rows thick along its top)
+        x0 = Math.Max(0, x0 - 1); y0 = Math.Max(0, y0 - 3); x1 = Math.Min(w - 1, x1 + 1); y1 = Math.Min(h - 1, y1 + 1);
         uint board = BoardColor(s);
         // the board's top edge: just right of the plate, the black row with the board under it
         int edge = -1, cx = Math.Min(w - 1, x1 + 2);
@@ -212,6 +215,56 @@ public sealed class TitleArt
         int k = Math.Max(1, w / 120);
         DrawHeadset(s, nx0 + (nx1 - nx0 - HeadsetW * k) / 2, h * 51 / 87 - HeadsetH * k / 2, k);
         return s;
+    }
+
+    /**
+     * The levels sign made the setup's one: its lettering (LEVELS, under the head's chin) gone to
+     * the board's blue, and a download in its place - an arrow down into a tray, white with a
+     * black outline, as the signs' words are drawn.
+     */
+    public static Bitmap SetupSign(Bitmap levels)
+    {
+        var s = levels.Clone();
+        int w = s.Width, h = s.Height;
+        uint board = BoardColor(s);
+        // the lettering's box, as a share of the 120 x 87 sign
+        int x0 = w * 12 / 120, x1 = w * 107 / 120, y0 = h * 42 / 87, y1 = h * 70 / 87;
+        for (int y = y0; y < y1; y++)
+            for (int x = x0; x < x1; x++) Set(s.Data, (y * w + x) * 4, board);
+        int k = Math.Max(1, w / 120);
+        DrawPicture(s, (w - DownloadW * k) / 2, h * 56 / 87 - DownloadH * k / 2, k, InDownload, (x, y) => y >= DownloadH - 3 ? 0xCFD3EBu : 0xFFFFFFu);
+        return s;
+    }
+
+    // ---- a download, 34 x 28: the arrow's shaft and head, the tray it points into
+    public const int DownloadW = 34, DownloadH = 28;
+
+    static bool InDownload(int x, int y)
+    {
+        if (x < 0 || y < 0 || x >= DownloadW || y >= DownloadH) return false;
+        float dx = MathF.Abs(x - 16.5f);
+        if (y <= 12 && dx <= 4) return true;                          // the shaft
+        if (y >= 13 && y <= 22 && dx <= 22 - y + 1.5f) return true;   // the head
+        if (y >= 16 && (x <= 3 || x >= DownloadW - 4)) return true;  // the tray's sides
+        return y >= 24;                                               // its bottom
+    }
+
+    // a picture given as its shape and its colours: outlined in black where it meets the outside
+    static void DrawPicture(Bitmap b, int ox, int oy, int k, Func<int, int, bool> inside, Func<int, int, uint> color)
+    {
+        for (int y = -1; y <= 64; y++)
+            for (int x = -1; x <= 64; x++)
+            {
+                if (!inside(x, y)) continue;
+                bool edge = !inside(x - 1, y) || !inside(x + 1, y) || !inside(x, y - 1) || !inside(x, y + 1);
+                uint c = edge ? 0 : color(x, y);
+                for (int sy = 0; sy < k; sy++)
+                    for (int sx = 0; sx < k; sx++)
+                    {
+                        int px = ox + x * k + sx, py = oy + y * k + sy;
+                        if (px >= 0 && py >= 0 && px < b.Width && py < b.Height) Set(b.Data, (py * b.Width + px) * 4, c);
+                    }
+            }
     }
 
     // ---- a headset, front on, as a 36 x 18 picture: the body with its visor, the straps off its

@@ -163,6 +163,14 @@ public static class ShellTests
         rig.Click(Sign(app, "lobbyplay"));
         app.KeyDown("Escape");
         Check.True(!w.Catalog.Root.Visible, "Escape closes it too");
+        // SETTINGS: the setup page (downloads, installs), which closes back to the lobby
+        rig.Frame();
+        rig.Click(Sign(app, "lobbysetup"));
+        Check.True(app.Pages.Current == app.SetupPage, "SETTINGS opens the setup page");
+        Check.True(!w.VrOptions.Root.Visible, "not the VR window");
+        rig.Click(app.SetupPage.Close);
+        rig.Frame();
+        Check.True(app.Pages.Current == null && !w.Catalog.Root.Visible && app.Lobby.Root.Visible, "closed: the lobby again, no catalog");
         // VR SETTINGS: the VR window the bar's VR button opens
         rig.Frame();
         rig.Click(Sign(app, "lobbyvr"));

@@ -12,8 +12,9 @@ namespace Lemmix.App.Ui.Windows;
 // The lobby (native, the app's title screen): NeoLemmix's main menu (GameMenuScreen.pas) as a
 // screen standing in the room before the player - its background tiled, its logo, its footer and
 // its scroller with the two worker lemmings - with three signs held up by lemmings floating in
-// front of it, each the headset's own: PLAY (the world catalog), VR SETTINGS (the VR window, as
-// the bar's VR button opens it), QUIT (the app ends). A sign under the beam glows as NeoLemmix's
+// front of it, each the headset's own: PLAY (the world catalog), SETTINGS (the setup page: the
+// downloads, installs and the upload server), VR SETTINGS (the VR window, as the bar's VR button
+// opens it), QUIT (the app ends). A sign under the beam glows as NeoLemmix's
 // does under the mouse and steps toward the player. Up while no level is on the board. It hangs in
 // the windows' frame, further off than the windows, so they open in front of it, upright (square
 // to the floor) as they are. The art is the
@@ -26,11 +27,12 @@ public sealed class VrLobby
     public const float PX = WIDTH / TitleArt.ScreenW;     // metres a screen pixel
     const int ScreenK = 2, SignK = 4, ScrollerK = 2;      // canvas pixels a NeoLemmix pixel
 
-    public static readonly string[] Tools = { "lobbyplay", "lobbyvr", "lobbyquit" };
-    static readonly string[] Labels = { "PLAY", "VR SETTINGS", "QUIT" };
+    public static readonly string[] Tools = { "lobbyplay", "lobbysetup", "lobbyvr", "lobbyquit" };
+    static readonly string[] Labels = { "PLAY", "SETTINGS", "VR SETTINGS", "QUIT" };
     static readonly string[] Captions =
     {
         "Play: choose a world and a level",
+        "Settings: download NeoLemmix and levels",
         "VR settings: view height, foveation",
         "Quit: leave Lemmix",
     };
@@ -51,7 +53,7 @@ public sealed class VrLobby
 
     public readonly Node3D Root = new() { Name = "vr-lobby", Visible = false };
     public readonly Panel3D Screen, Scroller;
-    public readonly Panel3D[] Signs = new Panel3D[3];
+    public readonly Panel3D[] Signs = new Panel3D[4];
     // a veil over the screen and its signs while a window or a page stands in front of them
     public readonly MeshInstance3D Shade;
     public string? Hover;
@@ -62,7 +64,7 @@ public sealed class VrLobby
     TitleScroller? _scroller;
     Image? _scrollerImage;
     ImageTexture? _screenTex, _scrollerTex;
-    readonly ImageTexture?[] _signTex = new ImageTexture?[3], _signHotTex = new ImageTexture?[3];
+    readonly ImageTexture?[] _signTex = new ImageTexture?[4], _signHotTex = new ImageTexture?[4];
     readonly Dictionary<string, ImageTexture> _footer = new();
 
     public VrLobby()
@@ -117,8 +119,8 @@ public sealed class VrLobby
         if (_art is { Ok: true } a)
         {
             _screenTex = Texture(a.Screen!);
-            var signs = new[] { a.Play!, a.VrSettings!, a.Quit! };
-            for (int i = 0; i < 3; i++) { _signTex[i] = Texture(signs[i].Normal); _signHotTex[i] = Texture(signs[i].Hover); }
+            var signs = ArtSigns(a);
+            for (int i = 0; i < signs.Length; i++) { _signTex[i] = Texture(signs[i].Normal); _signHotTex[i] = Texture(signs[i].Hover); }
             if (a.Font != null && a.ScrollerLemmings != null && a.ScrollerSegment != null)
             {
                 _scroller = new TitleScroller(a.Font, a.ScrollerLemmings, a.ScrollerSegment, ScrollerLines);
@@ -136,6 +138,9 @@ public sealed class VrLobby
     }
 
     public bool HasArt => _art is { Ok: true };
+
+    // the art's signs in the order of Tools
+    static TitleArt.Sign[] ArtSigns(TitleArt a) => new[] { a.Play!, a.Setup!, a.VrSettings!, a.Quit! };
 
     // ---- painting
     // the footer's two lines (MakeFooterText's places): what the hovered sign does, or how to choose;
@@ -202,7 +207,7 @@ public sealed class VrLobby
         if ((hot ? _signHotTex[i] : _signTex[i]) is { } tex && HasArt) cx.drawImage(tex, 0, 0, w, h);
         else
         {
-            string[] fills = { "#134f1d", "#e8d020", "#a30000" };
+            string[] fills = { "#134f1d", "#4050b0", "#e8d020", "#a30000" };
             cx.fillStyle = fills[i];
             cx.beginPath();
             cx.roundRect(24, 60, w - 48, h - 120, 18);
@@ -210,7 +215,7 @@ public sealed class VrLobby
             cx.strokeStyle = hot ? "#ffffff" : "#000000";
             cx.lineWidth = hot ? 10 : 6;
             cx.stroke();
-            cx.fillStyle = i == 1 ? "#202020" : "#ffffff";
+            cx.fillStyle = i == 2 ? "#202020" : "#ffffff";
             cx.font = "bold 56px monospace";
             cx.textAlign = "center";
             cx.fillText(Labels[i], w / 2f, h / 2f + 20);
@@ -247,7 +252,8 @@ public sealed class VrLobby
         for (int i = 0; i < Signs.Length; i++)
         {
             bool hot = Hover == Tools[i];
-            var (cx, cy) = TitleArt.CardCentre(i - 1);
+            // one row, NeoLemmix's card spacing, centred
+            var (cx, cy) = TitleArt.CardCentre(i - (Signs.Length - 1) / 2f);
             Signs[i].Position = At(cx, cy, SIGN_FRONT + (hot ? SIGN_HOVER_FRONT : 0));
             Signs[i].Scale = Vector3.One * (hot ? SIGN_HOVER_SCALE : 1);
         }
@@ -276,8 +282,7 @@ public sealed class VrLobby
     bool SignAt(int i, Vector2 canvasPx)
     {
         if (!HasArt) return true;
-        var sign = i switch { 0 => _art!.Play!, 1 => _art!.VrSettings!, _ => _art!.Quit! };
-        var bmp = sign.Normal;
+        var bmp = ArtSigns(_art!)[i].Normal;
         int x = (int)(canvasPx.X / SignK), y = (int)(canvasPx.Y / SignK);
         // a little slack round the art: the hand-drawn edge is ragged
         for (int dy = -2; dy <= 2; dy++)
