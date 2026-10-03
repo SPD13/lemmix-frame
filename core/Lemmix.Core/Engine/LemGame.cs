@@ -173,7 +173,11 @@ public sealed partial class LemGame
     public bool Replaying => CurrentIteration <= LastActionFrame;
 
     // Is there a recorded entry of this kind on this frame?
-    public bool HasRecorded(string type, int frame) => Recorded.Any(r => r.Type == type && r.Frame == frame);
+    public bool HasRecorded(string type, int frame)
+    {
+        foreach (var r in Recorded) if (r.Type == type && r.Frame == frame) return true;
+        return false;
+    }
 
     // TReplay.Cut: the replay's future goes - assignments and nukes from `frame` on,
     // spawn-interval changes from the frame after (from `frame` too when the one on it
@@ -199,16 +203,20 @@ public sealed partial class LemGame
     public void CheckForReplayAction(bool spawnIntervalOnly = false)
     {
         int f = CurrentIteration;
-        foreach (var r in Recorded.ToList()) if (r.Type == "spawn_interval" && r.Frame == f) ApplySpawnInterval(r.Interval);
+        // each walk over the replay as it stood when it began (a copy kept for it, refilled)
+        var now = _recordedNow;
+        now.Clear(); now.AddRange(Recorded);
+        foreach (var r in now) if (r.Type == "spawn_interval" && r.Frame == f) ApplySpawnInterval(r.Interval);
         if (spawnIntervalOnly) return;
-        foreach (var a in Recorded.ToList())
+        now.Clear(); now.AddRange(Recorded);
+        foreach (var a in now)
         {
             if (a.Frame != f) continue;
             if (a.Type == "nuke") { UserSetNuking = true; ExploderAssignInProgress = true; continue; }
             if (a.Type != "assignment") continue;
             Lemming? L = null;
             string id = JsString.Upper(a.LemId ?? "");
-            if (id != "") L = Lemmings.FirstOrDefault(x => JsString.Upper(x.Identifier) == id);
+            if (id != "") L = LemmingWithIdentifier(id);
             if (L == null && a.LemIndex >= 0 && a.LemIndex < Lemmings.Count) L = Lemmings[a.LemIndex];
             if (L == null || a.Skill == null || !Lem.SkillToAction.TryGetValue(a.Skill, out int action) || !Lem.Assignable.Contains(action)) continue;
             if (L.Removed || L.Teleporting || L.PortalWarpFrame > 0) continue;
@@ -217,6 +225,15 @@ public sealed partial class LemGame
                 if (DoSkillAssignment(L, action)) CueSoundEffect(SFX.ASSIGN_SKILL, L);
             }
         }
+    }
+
+    readonly List<ReplayEntry> _recordedNow = new();
+
+    // the first lemming whose identifier is `id` (upper case), or null
+    Lemming? LemmingWithIdentifier(string id)
+    {
+        foreach (var x in Lemmings) if (JsString.Upper(x.Identifier) == id) return x;
+        return null;
     }
 
     // ---- saved states (TLemmingGameSavedState)
@@ -304,7 +321,7 @@ public sealed partial class LemGame
         s.Physics.CopyTo(Level.Physics, 0);
         s.GroundImage?.CopyTo(Level.GroundImage, 0);
         s.GroundMask?.CopyTo(Level.GroundMask.GroundMask, 0);
-        Array.Clear(ZombieMap);
+        ClearZombieMap(all: true);
         SetBlockerMap();
         SpawnIntervalModifier = 0;
         Sounds = new List<SoundCue>();

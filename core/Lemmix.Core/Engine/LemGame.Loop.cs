@@ -243,7 +243,7 @@ public sealed partial class LemGame
 
     public void CheckLemmings()
     {
-        Array.Clear(ZombieMap);
+        ClearZombieMap();
         // for..of: visits lemmings pushed during the loop (cloners), keeps the old list if it is replaced
         var list = Lemmings;
         for (int n = 0; n < list.Count; n++)

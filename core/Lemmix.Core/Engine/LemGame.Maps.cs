@@ -61,7 +61,7 @@ public sealed partial class LemGame
     {
         Array.Clear(TriggerMap);
         Array.Clear(BlockerMap);
-        Array.Clear(ZombieMap);
+        ClearZombieMap(all: true);
     }
 
     public void WriteTriggerMap(int bit, TriggerArea r)
@@ -144,7 +144,19 @@ public sealed partial class LemGame
         {
             int i = x + y * Width;
             ZombieMap[i] = unchecked((byte)(ZombieMap[i] | v));
+            if (i < _zombieLo) _zombieLo = i;
+            if (i > _zombieHi) _zombieHi = i;
         }
+    }
+
+    // The zombie map back to zeros: only the span written since it last was (WriteZombieMap is the
+    // only writer; every frame clears it, and a level-sized clear per frame was most of a frame's time)
+    int _zombieLo = int.MaxValue, _zombieHi = -1;
+    public void ClearZombieMap(bool all = false)
+    {
+        if (all) Array.Clear(ZombieMap);
+        else if (_zombieHi >= _zombieLo) Array.Clear(ZombieMap, _zombieLo, _zombieHi - _zombieLo + 1);
+        _zombieLo = int.MaxValue; _zombieHi = -1;
     }
 
     public void SetZombieField(Lemming L)
