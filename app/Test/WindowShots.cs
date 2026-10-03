@@ -16,6 +16,7 @@ public partial class Shots
 {
     static Shots()
     {
+        RegisterPageShots();
         foreach (var name in WindowFixture.Names.ToList())
             All["win-" + name] = root => One(root, name);
         All["windows"] = WindowShots.Batch;

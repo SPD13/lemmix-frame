@@ -9,7 +9,6 @@ case "$target" in
   *) echo "unknown target $target" >&2; exit 2 ;;
 esac
 rm -rf "$out"; mkdir -p "$out"
-(cd "$ROOT/app" && dotnet build --nologo -v q -c ExportRelease >/dev/null)
 log="$ROOT/build/export-$target.log"
 "$ROOT/tools/godot.sh" --headless --path "$ROOT/app" --export-release "$preset" "$out/$bin" >"$log" 2>&1 &
 pid=$!

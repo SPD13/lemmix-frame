@@ -14,8 +14,9 @@ namespace Lemmix.App.Test;
 // `--shot pages <dir>/pages.png` every state at once into <dir>/page-<state>.png.
 public partial class Shots
 {
-    // registered at load (Shots' static constructor is WindowShots'; this adds to its table)
-    [ModuleInitializer]
+    // added to the table by Shots' static constructor (WindowShots.cs). Not a [ModuleInitializer]:
+    // that runs as the assembly loads, before Godot's interop is up, and Shots is a Node - an
+    // exported build crashed on it (the editor's Debug run happened to survive)
     internal static void RegisterPageShots()
     {
         foreach (var name in PageShots.States.Keys)

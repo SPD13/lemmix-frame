@@ -3,9 +3,9 @@ SHELL := /bin/bash
 WEB_ASSETS ?= $(abspath ../LemmingsJS)
 export WEB_ASSETS
 
-.PHONY: verify core core-linux app-smoke app-test export-linux probe-virtual matrix libopenmpt
+.PHONY: verify core core-linux app-smoke app-test linux-smoke export-linux probe-virtual matrix libopenmpt
 
-verify: core core-linux app-smoke app-test
+verify: core core-linux app-smoke app-test linux-smoke
 
 core:                      ## Lemmix.Core tests on the Mac
 	cd core/Lemmix.Core.Tests && dotnet run -c Release
@@ -21,6 +21,9 @@ app-test:                  ## the app's own tests (scripted VR input, scenes), h
 	cd app && dotnet build -v q
 	tools/godot-run.sh 180 "tests done" --headless --xr-mode off --path app -- --test | grep -E "^\[test\] FAIL|tests done" ; \
 	tools/godot-run.sh 180 "tests done" --headless --xr-mode off --path app -- --test | grep -q "tests done: [0-9]* run, 0 failed"
+
+linux-smoke: export-linux  ## the exported build starts in the Frame's runtime (sniper arm64)
+	tools/run-linux.sh build/linux-smoke --smoke | grep -q "smoke ok"
 
 export-linux:              ## build/app/linux-arm64: what goes to the Frame
 	tools/export.sh linux-arm64
