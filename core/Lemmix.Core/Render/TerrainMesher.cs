@@ -108,7 +108,21 @@ public sealed class TerrainMesh : IDisposable
     /// <summary>A chunk (id = cy * ChunksX + cx) was re-meshed: ChunkMeshes[id] and DecalMeshes[id] are new.</summary>
     public event Action<int>? ChunkRebuilt;
 
-    readonly TerrainGeometryBuilder _b = new();
+    // The scratch a chunk is meshed with, one per thread: chunks are meshed side by side on the
+    // thread pool when many are dirty at once (Rebuild), each from the maps alone, so the
+    // geometry is the same whichever thread builds it.
+    sealed class MeshScratch
+    {
+        public readonly TerrainGeometryBuilder B = new();
+        public readonly List<Stop> Stops = new();
+        public readonly double[] FrSoft = new double[4];
+    }
+    [ThreadStatic] static MeshScratch? t_scratch;
+    static MeshScratch Scratch => t_scratch ??= new MeshScratch();
+    static TerrainGeometryBuilder _b => Scratch.B;
+
+    /// <summary>Mesh this many dirty chunks or more on the thread pool (int.MaxValue: never).</summary>
+    public static int ParallelMin = 4;
 
     public TerrainMesh(Level level, byte[] depthMap, byte[]? reliefMap, BlendMap? blendMap, byte[]? colorMap, double? colorSoftness)
     {
@@ -136,8 +150,7 @@ public sealed class TerrainMesh : IDisposable
         DirtyChunks = new DirtyChunkSet(ChunksX * ChunksY);
         DecalMeshes = new ChunkGeometry?[ChunksX * ChunksY];
 
-        for (int cy = 0; cy < ChunksY; cy++)
-            for (int cx = 0; cx < ChunksX; cx++) RebuildChunk(cx, cy);
+        RebuildAllChunks();
 
         HookLevelMutations();
     }
@@ -267,7 +280,7 @@ public sealed class TerrainMesh : IDisposable
         public TerrainRgb[] C;
     }
 
-    readonly List<Stop> _stops = new();
+    static List<Stop> _stops => Scratch.Stops;
 
     // the corners across a wall: cA, the plateau ends (null), cB
     TerrainRgb[] Across(int nPts, int ax, int ay, int bx, int by, int c, TerrainRgb mid, bool diffuse)
@@ -429,11 +442,9 @@ public sealed class TerrainMesh : IDisposable
         else RebuildAll();
     }
 
-    void RebuildDecalChunk(int cx, int cy)
+    ChunkGeometry? BuildDecalChunk(int cx, int cy)
     {
-        int id = cy * ChunksX + cx;
-        DecalMeshes[id] = null;
-        if (Decals == null) return;
+        if (Decals == null) return null;
         var coverage = Decals.Coverage;
         int x0 = cx * TERRAIN_CHUNK, y0 = cy * TERRAIN_CHUNK;
         int cw = Math.Min(TERRAIN_CHUNK, W - x0), ch = Math.Min(TERRAIN_CHUNK, H - y0);
@@ -462,8 +473,8 @@ public sealed class TerrainMesh : IDisposable
                 b.Quad(b.Indices, bse);
             }
         }
-        if (b.Indices.Count == 0) return;
-        DecalMeshes[id] = b.ToGeometry(withColors: false, groups: false);
+        if (b.Indices.Count == 0) return null;
+        return b.ToGeometry(withColors: false, groups: false);
     }
 
     // ------------------------------------------------------------------ switches
@@ -518,8 +529,14 @@ public sealed class TerrainMesh : IDisposable
     void RebuildAll()
     {
         if (Flat) return;
-        for (int cy = 0; cy < ChunksY; cy++)
-            for (int cx = 0; cx < ChunksX; cx++) RebuildChunk(cx, cy);
+        RebuildAllChunks();
+    }
+
+    void RebuildAllChunks()
+    {
+        _ids.Clear();
+        for (int id = 0; id < ChunksX * ChunksY; id++) _ids.Add(id);
+        Rebuild(_ids);
     }
 
     /// <summary>The 2D view's state (setFlat): the chunks wait while it is up and are re-meshed when it comes down.</summary>
@@ -681,11 +698,39 @@ public sealed class TerrainMesh : IDisposable
     public void FlushDirty(int budget = 24)
     {
         if (Flat) return;
-        int n = 0;
-        while (DirtyChunks.TryTakeFirst(out int id))
+        _ids.Clear();
+        while (_ids.Count < budget && DirtyChunks.TryTakeFirst(out int id)) _ids.Add(id);
+        Rebuild(_ids);
+    }
+
+    readonly List<int> _ids = new();
+    ChunkGeometry?[] _builtChunks = Array.Empty<ChunkGeometry?>(), _builtDecals = Array.Empty<ChunkGeometry?>();
+
+    // these chunks re-meshed, in this order: built (side by side when there are many), then put
+    // in and announced one after the other, as one at a time would
+    void Rebuild(List<int> ids)
+    {
+        int n = ids.Count;
+        if (n < ParallelMin)
         {
-            RebuildChunk(id % ChunksX, id / ChunksX);
-            if (++n >= budget) break;
+            foreach (int id in ids) RebuildChunk(id % ChunksX, id / ChunksX);
+            return;
+        }
+        if (_builtChunks.Length < n) { _builtChunks = new ChunkGeometry?[n]; _builtDecals = new ChunkGeometry?[n]; }
+        var chunks = _builtChunks; var decals = _builtDecals;
+        System.Threading.Tasks.Parallel.For(0, n, k =>
+        {
+            int id = ids[k], cx = id % ChunksX, cy = id / ChunksX;
+            decals[k] = BuildDecalChunk(cx, cy);
+            chunks[k] = BuildChunkGeometry(cx, cy);
+        });
+        for (int k = 0; k < n; k++)
+        {
+            int id = ids[k];
+            DecalMeshes[id] = decals[k];
+            ChunkMeshes[id] = chunks[k];
+            chunks[k] = decals[k] = null;
+            ChunkRebuilt?.Invoke(id);
         }
     }
 
@@ -693,7 +738,7 @@ public sealed class TerrainMesh : IDisposable
     {
         int id = cy * ChunksX + cx;
         ChunkMeshes[id] = null;
-        RebuildDecalChunk(cx, cy);
+        DecalMeshes[id] = BuildDecalChunk(cx, cy);
         ChunkMeshes[id] = BuildChunkGeometry(cx, cy);
         ChunkRebuilt?.Invoke(id);
     }
@@ -701,7 +746,7 @@ public sealed class TerrainMesh : IDisposable
     // ------------------------------------------------------------------ the smooth path
 
     static readonly double[] FrTwo = { 0, 1 };
-    readonly double[] _frSoft = new double[4];
+    static double[] _frSoft => Scratch.FrSoft;
 
     // the windings the walls use: side keeps (aLo, aHi, bHi, bLo), cap is (bLo, aLo, aHi, bHi)
     static void Place<T>(bool cap, ref T a, ref T b, ref T c, ref T d)
