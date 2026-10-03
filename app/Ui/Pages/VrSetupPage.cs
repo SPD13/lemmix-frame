@@ -273,7 +273,9 @@ public sealed class VrSetupPage : VrPage
         switch (id)
         {
             case "play": Backend.Play(); return;
-            case "upload-server": Backend.SetUpload(!Upload.On); Refresh(); return;
+            case "upload:off": Backend.SetUpload(UploadMode.Off); Refresh(); return;
+            case "upload:session": Backend.SetUpload(UploadMode.Session); Refresh(); return;
+            case "upload:always": Backend.SetUpload(UploadMode.Always); Refresh(); return;
             case "get-engine": Download(Downloads.Engine, "engine"); return;
             case "get-styles": Download(Downloads.Styles, "styles"); return;
             case "get-packs": Download(Downloads.Packs, "levels"); return;
@@ -555,7 +557,14 @@ public sealed class VrSetupPage : VrPage
     }
 
     // The level upload server: levels do not ship with the app, so a browser on another computer
-    // of the network can put them in (LevelServer). Its switch, and the address to type.
+    // of the network can put them in (LevelServer). Its three-way switch, and the address to type.
+    public static readonly (UploadMode Mode, string Id, string Label)[] UploadModes =
+    {
+        (UploadMode.Off, "upload:off", "Off"),
+        (UploadMode.Session, "upload:session", "On for this session"),
+        (UploadMode.Always, "upload:always", "On always"),
+    };
+
     float UploadCard(float x, float y, float w, bool paint)
     {
         float y0 = y;
@@ -566,9 +575,24 @@ public sealed class VrSetupPage : VrPage
             Dim("Turn on the web server to manage the levels folder from a web browser on a computer connected to the same network as this headset: browse it, upload level files or whole folders, delete folders, and install a level pack's zip."),
         }, x, y, w, 17.6f, paint);
         y += U(8);
-        float rowH = U(26);
-        if (paint) Checkbox("upload-server", "web server for level uploads", u.On, x, y, rowH, enabled: !Busy, labelColor: Css.Text);
-        y += rowH + U(6);
+        if (paint)
+        {
+            cx.font = F(12);
+            cx.fillStyle = Css.Text;
+            cx.fillText("web server for level uploads", x, y + U(9));
+        }
+        y += U(20);
+        // the three choices side by side, the chosen one lit
+        float bh = U(34), bx = x;
+        if (paint)
+            foreach (var (mode, id, label) in UploadModes)
+                bx += Button(id, label, bx, y, !Busy, u.Mode == mode ? "on" : "", 13, height: bh) + U(8);
+        y += bh + U(6);
+        if (u.Mode == UploadMode.Session)
+            y += Para(new[] { Dim("Off again the next time Lemmix starts.") }, x, y, w, 17.6f, paint);
+        else if (u.Mode == UploadMode.Always)
+            y += Para(new[] { Dim("On again every time Lemmix starts.") }, x, y, w, 17.6f, paint);
+        if (u.Mode != UploadMode.Off) y += U(6);
         if (u.On && u.Urls.Count > 0)
         {
             y += Para(new[] { Dim("In the computer's browser, type:") }, x, y, w, 17.6f, paint);

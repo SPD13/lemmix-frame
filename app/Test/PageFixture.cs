@@ -108,10 +108,10 @@ public static class PageFixture
         public void DeleteDir(string dir) { Log.Add("delete " + dir); DirList.RemoveAll(d => d.Dir == dir); }
         public UploadServerState UploadValue = UploadServerState.Off;
         public UploadServerState Upload => UploadValue;
-        public void SetUpload(bool on)
+        public void SetUpload(UploadMode mode)
         {
-            Log.Add("upload " + (on ? "on" : "off"));
-            UploadValue = on ? new UploadServerState(true, new[] { "http://192.168.1.42:8642/" }, null, "") : UploadServerState.Off;
+            Log.Add("upload " + mode.ToString().ToLowerInvariant());
+            UploadValue = mode != UploadMode.Off ? new UploadServerState(mode, true, new[] { "http://192.168.1.42:8642/" }, null, "") : UploadServerState.Off;
         }
         public ConfigDownload Export(string kind) => kind switch
         {
@@ -144,38 +144,17 @@ public static class PageFixture
         return s;
     }
 
-    // ---- the solutions backend: the web's rows
-    public sealed class Sols : ISolutionsBackend
+    // ---- the web's level rows (pages.json's solutions list: id, title, where, pack, its number there) and which are solved
+    public sealed record FixtureLevel(string Id, string Title, IReadOnlyList<string> Where, string Pack, int Ordinal);
+
+    public static List<FixtureLevel> FixtureLevels() => F["solutions"]!["levels"]!.AsArray().Select(n =>
     {
-        readonly List<SolutionLevel> _levels = new();
-        readonly Dictionary<string, JsonArray> _index = new();
-        public readonly List<string> Log = new();
-        public Sols()
-        {
-            var s = F["solutions"]!;
-            int order = 0;
-            foreach (var n in s["levels"]!.AsArray())
-            {
-                var a = n!.AsArray();
-                var where = a[2]!.AsArray().Select(x => x!.GetValue<string>()).ToList();
-                string Num(JsonNode? v) => v == null ? "" : v.ToJsonString();
-                _levels.Add(new SolutionLevel(a[0]!.GetValue<string>(), a[1]!.GetValue<string>(), where, where.Count > 0 ? where[0] : "",
-                    a[3]!.GetValue<string>(), a[4]!.GetValue<int>(), order++, Num(a[5]), Num(a[6])));
-            }
-            foreach (var (id, v) in s["index"]!.AsObject()) _index[id] = v!.AsArray();
-        }
-        public IReadOnlyList<SolutionLevel> Levels() => _levels;
-        static int I(JsonNode? n) => n == null ? 0 : (int)n.GetValue<double>();
-        public SolutionInfo? Info(string id)
-        {
-            if (!_index.TryGetValue(id, out var r) || r[0]!.GetValue<string>() != "solved") return null;
-            return new SolutionInfo(I(r[2]), I(r[3]), I(r[4]), I(r[5]), I(r[6]), I(r[1]), r[7] == null ? 0 : r[7]!.GetValue<double>());
-        }
-        public int TriedTier(string id) => _index.TryGetValue(id, out var r) ? I(r[1]) : 0;
-        public bool NotFound(string id) => _index.TryGetValue(id, out var r) && r[0]!.GetValue<string>() != "solved" && I(r[1]) >= 3;
-        public void Play(string id, bool solution) => Log.Add((solution ? "solution " : "play ") + id);
-        public void Back() => Log.Add("back");
-    }
+        var a = n!.AsArray();
+        return new FixtureLevel(a[0]!.GetValue<string>(), a[1]!.GetValue<string>(), a[2]!.AsArray().Select(x => x!.GetValue<string>()).ToList(), a[3]!.GetValue<string>(), a[4]!.GetValue<int>());
+    }).ToList();
+
+    public static bool FixtureSolved(string id) =>
+        F["solutions"]!["index"]![id] is JsonArray r && r[0]!.GetValue<string>() == "solved";
 
     // ---- the replays
     public sealed class Replays : IReplayFilesBackend
@@ -195,11 +174,11 @@ public static class PageFixture
         public CatalogNode Root { get; } = new() { Name = "levels", Path = "" };
         readonly Dictionary<string, CatalogNode> _byPath = new() , _byLevel = new();
         readonly Dictionary<string, (string Title, string Pack)> _info = new();
-        public readonly List<SolutionLevel> Levels;
+        public readonly List<FixtureLevel> Levels;
         public Lib()
         {
             _byPath[""] = Root;
-            Levels = new Sols().Levels().ToList();
+            Levels = FixtureLevels();
             foreach (var l in Levels)
             {
                 var node = Root;
@@ -231,7 +210,7 @@ public static class PageFixture
         public string WorldOf(string id) => "";
         public double? Best(string id) => null;
         public int ClearedUnder(CatalogNode n) => 0;
-        public bool HasSolution(string id) => new Sols().Info(id) != null;
+        public bool HasSolution(string id) => FixtureSolved(id);
         public bool IsFavorite(string id) => false;
         public IReadOnlyList<string> Recent() => Array.Empty<string>();
         public IReadOnlyList<string> Favorites() => Array.Empty<string>();
