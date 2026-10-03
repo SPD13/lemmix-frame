@@ -53,9 +53,11 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
 
     // ---- the view's height (native, the VR window): the viewpoint raised or lowered against the
     // floor, which stays the headset's own - seated, the view comes down so the virtual floor stays
-    // where the real one is (the headset reports a standing player's height in a chair)
+    // where the real one is (the headset reports a standing player's height in a chair). Seated is
+    // the default; Standing is the system's own viewpoint (0); Reset goes back to the default.
     public const string ViewHeightKey = "lemmix-frame-view-height";
     public const float SeatedDrop = 0.45f;            // standing eyes (~1.65 m) to seated ones (~1.20 m)
+    public const float DefaultViewHeight = -SeatedDrop;
     public float ViewHeight { get; private set; }
 
     /**
@@ -85,7 +87,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         Set = v => SetViewHeight(v),
         Seated = () => SetViewHeight(-SeatedDrop),
         Standing = () => SetViewHeight(0),
-        Reset = () => SetViewHeight(0),
+        Reset = () => SetViewHeight(DefaultViewHeight),
     };
 
     // the VR window's rows (native): foveated rendering on or off, and its strength
@@ -213,7 +215,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         ConnectOpenXr();
         StartUploadServerIfOn();
         Foveation.Apply();
-        SetViewHeight(float.TryParse(Store.GetItem(ViewHeightKey), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float view) ? view : 0, save: false);
+        SetViewHeight(float.TryParse(Store.GetItem(ViewHeightKey), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float view) ? view : DefaultViewHeight, save: false);
 
         // the level asked for (?level=), else the library, locked, until one is chosen
         Speed = args.Speed;
