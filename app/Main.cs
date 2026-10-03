@@ -27,7 +27,12 @@ public partial class Main : Node3D
         var args = OS.GetCmdlineUserArgs();
         bool tool = args.Contains("--probe") || args.Contains("--test") || args.Contains("--shot");
         GetNode<Camera3D>("DesktopCamera").Current = tool && !XrActive;
-        if (!tool) AddChild(new Shell.App(Shell.AppOptions.FromCommandLine(args)));
+        if (!tool)
+        {
+            var app = new Shell.App(Shell.AppOptions.FromCommandLine(args));
+            AddChild(app);
+            if (args.Contains("--benchmark")) AddChild(new Shell.Benchmark(app));
+        }
         if (args.Contains("--probe")) AddChild(new Test.Probe());
         if (args.Contains("--test")) AddChild(new Test.TestRunner());
         if (args.Contains("--shot")) AddChild(new Test.Shots());
