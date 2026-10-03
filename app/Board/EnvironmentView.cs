@@ -59,6 +59,7 @@ public sealed partial class EnvironmentView : Node3D
         public Task? Build;
     }
     static readonly List<Gallery> Galleries = new(); // the last few, oldest first
+    static readonly Bitmap Released = new(0, 0);       // a picture's place once its texture is made
 
     readonly Dictionary<string, Plane> _planes = new(StringComparer.Ordinal);
     readonly List<MeshInstance3D> _props = new();
@@ -265,6 +266,7 @@ public sealed partial class EnvironmentView : Node3D
     {
         var g = _gallery;
         if (g == null || _applied || !g.Done) return;
+        List<string>? made = null;
         foreach (var (name, pic) in g.Pictures)
         {
             if (!g.Textures.TryGetValue(name, out var tex))
@@ -272,9 +274,13 @@ public sealed partial class EnvironmentView : Node3D
                 // _textureFor: flipY, repeat round, nearest (the haze linear), mipmapped
                 tex = BoardMaterials.TextureOf(pic.Bitmap.Data, pic.Bitmap.Width, pic.Bitmap.Height, flipY: true, mipmaps: true);
                 g.Textures[name] = tex;
+                (made ??= new()).Add(name);
             }
             ApplyTexture(name, tex, pic.Fog);
         }
+        // a picture made into a texture is the texture from then on (the gallery is kept for the
+        // style's next level): its pixels let go, megabytes each
+        if (made != null) foreach (string name in made) g.Pictures[name] = (Released, g.Pictures[name].Fog);
         if (g.PropMeshes == null)
         {
             g.PropMeshes = new();
