@@ -44,6 +44,7 @@ public sealed class VrWindows
     public readonly VrModal Modal = new();
     public readonly VrCatalog Catalog = new();
     public readonly VrSettings Settings;
+    public readonly VrSettings VrOptions;      // native: the VR window (foveated rendering)
     public readonly VrLevelText LevelText = new();
     public readonly VrStatusStrip Status = new();
     public readonly VrTooltip Tooltip;
@@ -62,25 +63,28 @@ public sealed class VrWindows
     // the bar's widgets the ray can hit, in the web's order (vrWidgets)
     public IEnumerable<IconButton> Widgets => Toolbar.Buttons.Concat(new[] { Toolbar.Mute, Status.Detail });
 
-    public VrWindows(IVrWindowsHost host, List<SettingRow> settingRows, Node3D head, Node3D scene, string? barPrefs = null)
+    public VrWindows(IVrWindowsHost host, List<SettingRow> settingRows, Node3D head, Node3D scene, string? barPrefs = null, List<SettingRow>? vrRows = null)
     {
         Host = host;
         Settings = new VrSettings(settingRows);
+        VrOptions = new VrSettings(vrRows ?? new List<SettingRow>(), "VR", "vrset", rowsShown: 2) { FitPills = true };
         Tooltip = new VrTooltip(TipText);
         Bar = new VrBar(Toolbar.GuiRoot, head, scene, barPrefs) { LockChanged = on => Toolbar.Lock.SetState(on: on) };
         WindowRoot.AddChild(Modal.Root);
         WindowRoot.AddChild(Catalog.Root);
         WindowRoot.AddChild(Settings.Root);
+        WindowRoot.AddChild(VrOptions.Root);
         WindowRoot.AddChild(LevelText.Root);
         var t = Toolbar;
         // every icon button: the bar's row as the toolbar lists it (a new one cannot be left out of
         // the hover, the tooltip and the beam's length), then the others
         IconButtons = t.Buttons.Concat(new[] { t.Mute,
-            Status.Detail, Modal.Yes, Modal.No, Catalog.Close, Catalog.Recent, Catalog.Fav, Settings.Close }).ToList();
+            Status.Detail, Modal.Yes, Modal.No, Catalog.Close, Catalog.Recent, Catalog.Fav, Settings.Close, VrOptions.Close }).ToList();
         // laid out now: until then they would be metre-wide planes on the camera
         Modal.Layout();
         Catalog.Layout();
         Settings.Layout();
+        VrOptions.Layout();
         LevelText.Layout();
     }
 
@@ -102,12 +106,14 @@ public sealed class VrWindows
         "catrecent" => Catalog.Filter == "recent" ? "back to the directories" : "the last levels played",
         "catfav" => Catalog.Filter == "favorites" ? "back to the directories" : "your favorite levels",
         "setclose" => "close the settings",
+        "vr" => "VR: foveated rendering",
+        "vrsetclose" => "close the VR settings",
         "detail" => "the level's text",
         _ => null,
     };
 
     /** anyVrWindowUp */
-    public bool AnyWindowUp => Modal.Root.Visible || Catalog.Root.Visible || Settings.Root.Visible || LevelText.Root.Visible;
+    public bool AnyWindowUp => Modal.Root.Visible || Catalog.Root.Visible || Settings.Root.Visible || VrOptions.Root.Visible || LevelText.Root.Visible;
 
     void SyncBar() => Bar.SyncForWindows(AnyWindowUp, Host.HasSession);
 
@@ -191,6 +197,21 @@ public sealed class VrWindows
         SyncBar();
     }
 
+    // ---- the VR settings (native: foveated rendering), as the settings window
+    public void SetVrOptions(bool open)
+    {
+        bool show = open && Host.Presenting;
+        if (show == VrOptions.Root.Visible) return;
+        if (show && !AnyWindowUp) PlaceWindows();
+        VrOptions.Root.Visible = show;
+        VrOptions.Close.Visible = show;
+        VrOptions.Close.SetState(hovered: false);
+        VrOptions.SetHover(-1);
+        if (show) { Host.HoldSim("vr-vroptions"); VrOptions.Paint(); }
+        else Host.ReleaseSim("vr-vroptions");
+        SyncBar();
+    }
+
     // ---- the catalog
     public void SetCatalog(bool open)
     {
@@ -233,6 +254,12 @@ public sealed class VrWindows
         {
             var px = LevelText.Panel.Hit(origin, dir, out _);
             return (true, px == null ? null : P(LevelText.OkAt(px) ? "detailok" : "detailpanel"));
+        }
+        if (VrOptions.Root.Visible)
+        {
+            if (VrOptions.Close.Hit(origin, dir, out _) != null) return (true, P("vrsetclose"));
+            var vpx = VrOptions.Panel.Hit(origin, dir, out _);
+            return (true, vpx == null ? null : P("vrsetpanel", new WindowPickData(Row: VrOptions.RowAt(vpx))));
         }
         if (Settings.Root.Visible)
         {
@@ -287,6 +314,7 @@ public sealed class VrWindows
         SetBarToolHover(p?.BarTool);
         Catalog.SetHover(p?.BarTool == "worldpanel" ? (p.ScrollBar ? -2 : d?.Tile ?? -1) : -1);
         Settings.SetHover(p?.BarTool == "setpanel" ? d?.Row ?? -1 : -1);
+        VrOptions.SetHover(p?.BarTool == "vrsetpanel" ? d?.Row ?? -1 : -1);
         LevelText.SetHover(p?.BarTool == "detailok", LevelTextLines);
     }
 
@@ -319,6 +347,9 @@ public sealed class VrWindows
             case "quit": AskConfirm("Quit Lemmix?", Host.QuitGame); return true;
             case "setclose": SetSettings(false); return true;
             case "setpanel": Settings.Press(d?.Row ?? -1); return true;
+            case "vr": SetVrOptions(true); return true;
+            case "vrsetclose": SetVrOptions(false); return true;
+            case "vrsetpanel": VrOptions.Press(d?.Row ?? -1); return true;
             case "detail": SetDetail(true); return true;
             case "detailok": SetDetail(false); return true;
             case "detailpanel": return true;

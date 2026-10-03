@@ -177,6 +177,17 @@ public static class ShellTests
         Check.Near(headPos + new Vector3(0, -d * MathF.Sin(pitch), -d * MathF.Cos(pitch)), centre, "ahead, at the board's eye level", 1e-4f);
         Check.True(centre.Y < headPos.Y - 0.1f, "below the eyes (" + (headPos.Y - centre.Y) + " m)");
         app.Windows.Act(new VrPick("bar", BarTool: "no"));
+        // the board, placed again with the head still turned: along the same forward, parallel to the windows
+        app.Recenter();
+        rig.Frame();
+        var board = app.DioramaRoot.GlobalTransform;
+        Check.Near(Vector3.Back, board.Basis.Z.Normalized(), "the board faces the default forward too", 1e-4f);
+        Check.Near(root.Basis.Z.Normalized(), board.Basis.Z.Normalized(), "board and windows parallel", 1e-4f);
+        // the level's middle (App.FocusX), half the slab deep
+        var focus = board * new Vector3(rig.Session.Level.Width / 2f, rig.Session.Level.Height / 2f, (float)Lemmix.App.Board.BoardZ.TERRAIN_DEPTH / 2);
+        Check.True(Mathf.Abs(focus.X - headPos.X) < 1e-3f, "the board's focus straight ahead (" + focus + ")");
+        Check.True(focus.Z < headPos.Z - 0.5f, "in front, not to the side (" + focus + ")");
+        app.Windows.Act(new VrPick("bar", BarTool: "no"));
     }
 
     [AppTest]

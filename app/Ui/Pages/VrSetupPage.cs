@@ -29,11 +29,10 @@ public sealed class VrSetupPage : VrPage
     // setup.js KINDS' labels
     static string Label(string kind) => Installer.Labels.GetValueOrDefault(kind) ?? kind;
 
-    // the README's Credits section, shipped with the app (setup.js loadCredits reads it live)
+    // the app's credits (the web reads its README's live, setup.js loadCredits); the LemmingsJS
+    // engine is not part of this app, so it is not credited here
     public static readonly string[] Credits =
     {
-        "https://github.com/oklemenz/LemmingsJS - the LemmingsJS engine this repository forks: the DOS games' reimplementation, the 2D page",
-        "https://github.com/tomsoftware - the original Lemmings.js the engine descends from",
         "https://www.neolemmix.com - NeoLemmix, whose engine the Lemmix code follows, and whose styles, level packs and music the game plays",
         "Eric Langedijk (for Lemmix), Stephan Neupert and Namida Verasche - the authors of NeoLemmix, whose source is licensed CC BY-NC 4.0 and asks that the three of them be credited; its graphics, music and sounds remain their creators' copyright and are not distributed here",
         "This project was developed with the help of Claude Code - https://claude.com/claude-code",
@@ -345,7 +344,7 @@ public sealed class VrSetupPage : VrPage
         Logo(x, padY + (inner - U(48)) / 2, U(48));
         cx.font = F(15, true);
         cx.fillStyle = Css.Green;
-        float tw = PageText.Spaced(cx, "LEMMIX JS+VR — SETUP", titleX, top + U(12), U(1.2f));
+        float tw = PageText.Spaced(cx, "LEMMIX VR Steam Frame — SETUP", titleX, top + U(12), U(1.2f));
         cx.font = F(11);
         cx.fillStyle = Css.Dim;
         cx.fillText("v" + Backend.Version, titleX + tw + U(10), top + U(12));

@@ -28,6 +28,8 @@ public partial class Shots : Node
         ["controllers-over-scene"] = r => ControllerShot.Make(r, true),
         ["icon-quit"] = r => QuitIcon(r, false),
         ["icon-quit-hover"] = r => QuitIcon(r, true),
+        ["icon-vr"] = r => Icon(r, "vr", Lemmix.App.Ui.Windows.BarIcons.Vr),
+        ["win-vrsettings"] = VrSettingsWindow,
     };
 
     // a check to run on the saved picture (a shot may set it)
@@ -55,6 +57,27 @@ public partial class Shots : Node
         After?.Invoke(img);
         _grab = null;
         GetTree().Quit(err == Error.Ok ? 0 : 1);
+    }
+
+    static Viewport Icon(Node root, string name, Action<Canvas2D, Lemmix.App.Ui.Windows.IconState> paint)
+    {
+        var b = new Lemmix.App.Ui.Windows.IconButton(name, paint) { Visible = true };
+        root.AddChild(b);
+        b.Repaint();
+        return b.GetChild<SubViewport>(0);
+    }
+
+    // the native VR window: foveated rendering on, at medium, the strength row hovered
+    static Viewport VrSettingsWindow(Node root)
+    {
+        var w = new Lemmix.App.Ui.Windows.VrSettings(new List<Lemmix.App.Ui.Windows.SettingRow>
+        {
+            new("foveated rendering", () => true, () => { }),
+            new("strength", () => true, () => { }, () => "MEDIUM"),
+        }, "VR", "vrset", rowsShown: 2) { FitPills = true };
+        root.AddChild(w.Root);
+        w.SetHover(1);
+        return w.Panel.GetChild<SubViewport>(0);
     }
 
     // the native toolbar's quit button (the web has none to compare with)

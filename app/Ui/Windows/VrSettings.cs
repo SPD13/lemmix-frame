@@ -33,7 +33,8 @@ public interface IVrEffects
 }
 
 // web/3d/js/app.js "settings (VR)": the render switches a monitor has as buttons, as rows on a
-// 640-wide canvas, with a close in the corner; the game holds while it is up.
+// 640-wide canvas, with a close in the corner; the game holds while it is up. The native app has
+// a second one (the VR window: foveated rendering), with its own title, close and height.
 public sealed class VrSettings
 {
     public const int VR_SET_W = 640;                // canvas pixels
@@ -59,20 +60,26 @@ public sealed class VrSettings
         new("recentre the board", null, fx.Recenter),
     };
 
-    public readonly Node3D Root = new() { Name = "vr-settings", Visible = false };
+    public readonly Node3D Root;
     public readonly Panel3D Panel;
     public readonly IconButton Close;
     public List<SettingRow> RowList;
     public int Hover = -1;
+    public readonly string Title;
+    public readonly int H;                          // canvas height: VR_SET_H for the web's window
+    public bool FitPills;                           // a pill as wide as its text needs (the native VR window; the web's are 86)
 
-    public VrSettings(List<SettingRow> rows)
+    public VrSettings(List<SettingRow> rows, string title = "3D EFFECTS", string name = "set", int? rowsShown = null)
     {
         RowList = rows;
-        Panel = new Panel3D(VR_SET_W, VR_SET_H, 1f) { Name = "vr-setpanel" };
+        Title = title;
+        H = rowsShown is int n ? (int)(VR_SET_TOP + n * VR_SET_ROW + 8) : VR_SET_H;
+        Root = new Node3D { Name = name == "set" ? "vr-settings" : "vr-" + name + "-settings", Visible = false };
+        Panel = new Panel3D(VR_SET_W, H, 1f) { Name = "vr-" + name + "panel" };
         Panel.NoDepthTest = true;
         Panel.RenderPriority = IconButton.GUI_ORDER_MODAL;
         Root.AddChild(Panel);
-        Close = new IconButton("setclose", BarIcons.Cross, IconButton.GUI_ORDER_MODAL_BTN);
+        Close = new IconButton(name + "close", BarIcons.Cross, IconButton.GUI_ORDER_MODAL_BTN);
         Root.AddChild(Close);
         Paint();
     }
@@ -80,10 +87,10 @@ public sealed class VrSettings
     public void Paint()
     {
         var cx = Panel.Canvas;
-        cx.clearRect(0, 0, VR_SET_W, VR_SET_H);
+        cx.clearRect(0, 0, VR_SET_W, H);
         cx.fillStyle = "rgba(10, 14, 22, 0.96)";
         cx.beginPath();
-        cx.roundRect(2, 2, VR_SET_W - 4, VR_SET_H - 4, 16);
+        cx.roundRect(2, 2, VR_SET_W - 4, H - 4, 16);
         cx.fill();
         cx.strokeStyle = "#ffd866";
         cx.lineWidth = 4;
@@ -91,7 +98,7 @@ public sealed class VrSettings
         cx.textAlign = "left";
         cx.fillStyle = "#f0f3f8";
         cx.font = "bold 34px monospace";
-        cx.fillText("3D EFFECTS", 28, 60);
+        cx.fillText(Title, 28, 60);
 
         for (int i = 0; i < RowList.Count; i++)
         {
@@ -113,7 +120,10 @@ public sealed class VrSettings
             cx.font = "26px monospace";
             cx.fillText(row.Label, 44, y + 38);
             if (on is not bool isOn) continue;          // an action, not a switch
-            float pw = 86, px = VR_SET_W - 48 - pw - 12;
+            string pill = row.Text != null ? row.Text() : (isOn ? "ON" : "OFF");
+            float pw = 86;
+            if (FitPills) { cx.font = "bold 22px monospace"; pw = Math.Max(86, cx.measureText(pill).width + 28); }
+            float px = VR_SET_W - 48 - pw - 12;
             cx.fillStyle = isOn ? "#1d5030" : "#3a2530";
             cx.beginPath();
             cx.roundRect(px, y + 12, pw, 32, 16);
@@ -121,7 +131,7 @@ public sealed class VrSettings
             cx.fillStyle = isOn ? "#6fce7e" : "#e07a6a";
             cx.font = "bold 22px monospace";
             cx.textAlign = "center";
-            cx.fillText(row.Text != null ? row.Text() : (isOn ? "ON" : "OFF"), px + pw / 2, y + 36);
+            cx.fillText(pill, px + pw / 2, y + 36);
             cx.textAlign = "left";
         }
         Panel.Commit();
@@ -158,16 +168,16 @@ public sealed class VrSettings
 
     public readonly record struct Placement(Vector3 Pos, float ScaleX, float ScaleY);
 
-    // layoutVrSettings
-    public static Placement PanelPlacement()
+    // layoutVrSettings (canvasH: a window's own height; the web's by default)
+    public static Placement PanelPlacement(int canvasH = VR_SET_H)
     {
-        float w = VR_SETTINGS_WIDTH, h = w * VR_SET_H / VR_SET_W;
+        float w = VR_SETTINGS_WIDTH, h = w * canvasH / VR_SET_W;
         return new Placement(new Vector3(0, VR_MODAL_Y, VR_MODAL_Z), w, h);
     }
 
-    public static Placement ClosePlacement(bool hot)
+    public static Placement ClosePlacement(bool hot, int canvasH = VR_SET_H)
     {
-        var (_, w, h) = PanelPlacement();
+        var (_, w, h) = PanelPlacement(canvasH);
         float size = VR_BAR_TOOL_SIZE;
         float s = size * (hot ? VR_BAR_TOOL_HOVER : 1);
         return new Placement(new Vector3(w / 2 - size * 0.6f, VR_MODAL_Y + h / 2 - size * 0.6f, VR_MODAL_Z + (hot ? size * 0.25f : 0.001f)), s, s);
@@ -175,9 +185,9 @@ public sealed class VrSettings
 
     public void Layout()
     {
-        var p = PanelPlacement();
+        var p = PanelPlacement(H);
         Planes.Set(Panel, p.Pos, p.ScaleX, p.ScaleY);
-        var c = ClosePlacement(Close.State.Hovered);
+        var c = ClosePlacement(Close.State.Hovered, H);
         Close.Size = c.ScaleX;
         Close.Position = c.Pos;
     }
