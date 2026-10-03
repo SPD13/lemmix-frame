@@ -19,45 +19,86 @@ public sealed class PieceSet
     public readonly List<string> Skipped = new();
     public int Darkest = 0x200008;   // the darkest common colour, for crevices
 
+    public int Solid => Mass.Count + Spire.Count + Rubble.Count;
+    public readonly List<string> Notes = new();
+
+    // The rules leave out made things, grey things and steel, and read green as greenery - unless
+    // that is what the style is made of: they are relaxed a step at a time until the style has
+    // enough solid pieces to build from (a brick wall style keeps its bricks, a metal one its
+    // steel, a green one its green), and a style of small tiles has its biggest blocks as masses.
     public static PieceSet Load(StyleManager styles, string style, IEnumerable<string> names)
     {
-        var set = new PieceSet();
-        var darks = new List<int>();
-        var measured = new List<Piece>();
+        var all = new List<(Piece P, bool Steel, bool Made)>();
+        var empty = new List<string>();
         foreach (string name in names)
         {
             var meta = styles.Terrain(style, name);
             var raw = meta?.Base?.Image;
             if (raw == null) continue;
-            if (meta!.Steel) { set.Skipped.Add(name + " (steel)"); continue; }
-            // made things, not ground: a name says so in most styles
-            if (System.Text.RegularExpressions.Regex.IsMatch(name, "bridge|sign|chain|rope|ladder|arrow|brick|plank", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
-            { set.Skipped.Add(name + " (made)"); continue; }
             var p = Measure(name, raw);
-            if (p == null) { set.Skipped.Add(name + " (empty)"); continue; }
+            if (p == null) { empty.Add(name + " (empty)"); continue; }
+            // made things, not ground: a name says so in most styles
+            bool made = System.Text.RegularExpressions.Regex.IsMatch(name, "bridge|sign|chain|rope|ladder|arrow|brick|plank", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            all.Add((p, meta!.Steel, made));
+        }
+        PieceSet set = null!;
+        string[] steps = { "", "made pieces kept", "grey pieces kept", "steel kept" };
+        for (int level = 0; level < steps.Length; level++)
+        {
+            set = Sort(all, level >= 1, level >= 2, level >= 3);
+            if (level > 0) set.Notes.Add(steps[level]);
+            if (set.Solid >= 8) break;
+        }
+        set.Skipped.AddRange(empty);
+        set.Promote();
+        return set;
+    }
+
+    static PieceSet Sort(List<(Piece P, bool Steel, bool Made)> all, bool allowMade, bool allowGrey, bool allowSteel)
+    {
+        var set = new PieceSet();
+        var darks = new List<int>();
+        var measured = new List<Piece>();
+        foreach (var (p, steel, made) in all)
+        {
+            if (steel && !allowSteel) { set.Skipped.Add(p.Name + " (steel)"); continue; }
+            if (made && !allowMade) { set.Skipped.Add(p.Name + " (made)"); continue; }
             measured.Add(p);
         }
         // pieces far greyer than the style's own colours are something else (bones, metal)
         var sats = measured.Select(p => Saturation(p.Mean)).OrderBy(v => v).ToList();
         double typical = sats.Count > 0 ? sats[sats.Count / 2] : 0;
+        // green is greenery only where it is the exception, not the style's material
+        bool greenery = measured.Count(p => p.Green) < measured.Count * 0.5;
+        if (!greenery) set.Notes.Add("green is the material");
         foreach (var p in measured)
         {
             string name = p.Name;
             double aspect = p.H / (double)p.W;
             int area = p.W * p.H;
-            if (typical > 0.25 && Saturation(p.Mean) < typical * 0.4) { set.Skipped.Add(name + " (grey)"); continue; }
+            if (!allowGrey && typical > 0.25 && Saturation(p.Mean) < typical * 0.4) { set.Skipped.Add(name + " (grey)"); continue; }
             if (aspect < 0.3) { set.Skipped.Add(name + " (flat)"); continue; }
-            if (p.Green && Math.Max(p.W, p.H) <= 40) (aspect > 1.4 ? set.Hang : set.Tuft).Add(p);
+            if (greenery && p.Green && Math.Max(p.W, p.H) <= 40) (aspect > 1.4 ? set.Hang : set.Tuft).Add(p);
             else if (p.Fill < 0.42 && aspect > 0.9 && Math.Max(p.W, p.H) <= 48) set.Hang.Add(p);
             else if (p.Fill < 0.42) set.Skipped.Add(name + " (open)");
             else if (aspect >= 1.45 && p.H >= 40) set.Spire.Add(p);
             else if (area >= 900) set.Mass.Add(p);
             else if (area >= 60) set.Rubble.Add(p);
             else set.Skipped.Add(name + " (tiny)");
-            if (!p.Green && p.Fill >= 0.42) darks.Add(DarkOf(p.Image));
+            if (p.Fill >= 0.42 && (!p.Green || !greenery)) darks.Add(DarkOf(p.Image));
         }
         if (darks.Count > 0) set.Darkest = darks.OrderBy(EnvGen.Luma).ElementAt(darks.Count / 4);
         return set;
+    }
+
+    // a style of small tiles: its biggest solid pieces stand in as masses (they stay rubble too)
+    void Promote()
+    {
+        if (Mass.Count >= 4) return;
+        var extra = Rubble.Concat(Spire).Where(p => !Mass.Contains(p)).OrderByDescending(p => p.W * p.H).Take(Math.Min(6, 4 - Mass.Count + 2)).ToList();
+        if (extra.Count == 0) return;
+        Mass.AddRange(extra);
+        Notes.Add("masses from the biggest blocks: " + string.Join(", ", extra.Select(p => p.Name)));
     }
 
     static double Saturation(int c)
@@ -105,5 +146,6 @@ public sealed class PieceSet
         L("mass", Mass); L("spire", Spire); L("tuft", Tuft); L("hang", Hang); L("rubble", Rubble);
         w.WriteLine($"  skipped {string.Join(", ", Skipped)}");
         w.WriteLine($"  crevice #{Darkest:x6}");
+        foreach (string n in Notes) w.WriteLine("  note    " + n);
     }
 }

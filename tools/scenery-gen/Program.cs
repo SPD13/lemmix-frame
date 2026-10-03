@@ -46,26 +46,33 @@ if (cmd == "gen" && args.Length >= 2)
     var set = PieceSet.Load(styles, style, PieceNames(style));
     Console.WriteLine($"[scenery] {style}: pieces");
     set.Print(Console.Out);
+    if (set.Mass.Count + set.Rubble.Count == 0)
+    {
+        Console.Error.WriteLine($"[scenery] {style}: no solid pieces to build from, no scenery (the room stays the rings)");
+        return 3;
+    }
 
     // the colours: the gallery's palette (envgen's, from every piece of the style) - the haze
     // warmed toward its brightest material, the sky over it darkening to the background's
     var gctx = EnvironmentLayout.GalleryContext(new EnvContext { ThemeName = style }, styles, EnvironmentLayout.ReadStylesIndex(io));
     var pal = EnvGen.DerivePalette(gctx);
     int bright = pal.Material.OrderByDescending(EnvGen.Luma).First();
-    int horizon = EnvGen.Mix(pal.Fog, bright, 0.36);
+    int horizon = Look.Calm(EnvGen.Mix(pal.Fog, bright, 0.36), Look.HorizonLuma);
     string Hex(int c) => "#" + c.ToString("x6");
     var m = new SceneryManifest
     {
         Style = style, Generator = "tools/scenery-gen", TexelsRound = Layers.Round,
         Sky = new ScenerySky
         {
-            Horizon = Hex(horizon), High = Hex(EnvGen.Mix(horizon, pal.Bg, 0.62)),
-            Zenith = Hex(EnvGen.Scale(pal.Bg, 0.45)), Below = Hex(EnvGen.Scale(horizon, 0.8)),
+            Horizon = Hex(horizon), High = Hex(Look.Calm(EnvGen.Mix(horizon, pal.Bg, 0.62), Look.HighLuma)),
+            Zenith = Hex(Look.Calm(EnvGen.Scale(pal.Bg, 0.45), Look.ZenithLuma)), Below = Hex(EnvGen.Scale(horizon, 0.8)),
         },
         Fog = new SceneryFog(),
         Ground = new SceneryGround { File = "ground.png", TileM = 512 * 0.0025, Grade = 0.4, Desat = 0.35 },
     };
-    PngWriter.Write(Path.Combine(outDir, "ground.png"), Layers.Ground(set, style, 512, 0.72));
+    var groundBmp = Layers.Ground(set, style, 512, 0.72);
+    m.Ground.Grade = Look.CapGrade(m.Ground.Grade, groundBmp, Look.GroundLuma * m.Ground.Grade);
+    PngWriter.Write(Path.Combine(outDir, "ground.png"), groundBmp);
     int n = 0;
     foreach (var spec in Layers.Recipe)
     {
@@ -76,9 +83,9 @@ if (cmd == "gen" && args.Length >= 2)
         m.Layers.Add(new SceneryLayer
         {
             Name = spec.Name, File = file, RadiusM = spec.RadiusM, BottomM = spec.BottomM,
-            HeightM = Math.Round(heightM, 3), Grade = spec.Grade, Desat = spec.Desat, FadeTop = spec.FadeTop,
+            HeightM = Math.Round(heightM, 3), Grade = Look.CapGrade(spec.Grade, bmp, Look.StripLuma * spec.Grade), Desat = spec.Desat, FadeTop = spec.FadeTop,
         });
-        Console.WriteLine($"[scenery] {file} {bmp.Width}x{bmp.Height} r={spec.RadiusM} m");
+        Console.WriteLine($"[scenery] {file} {bmp.Width}x{bmp.Height} r={spec.RadiusM} m luma {Look.MeanLuma(bmp):0.0}");
     }
     File.WriteAllText(Path.Combine(outDir, SceneryManifest.FileName), m.ToJson());
     var preview = Preview.Render(m, outDir);
@@ -87,5 +94,18 @@ if (cmd == "gen" && args.Length >= 2)
     return 0;
 }
 
-Console.Error.WriteLine("usage: scenery-gen gen <style> [--out <dir>] | sheet <style> <out.png>");
+// scenery-gen montage <out.png> <preview.png>...   previews at half size, two a row (for review)
+if (cmd == "montage" && args.Length >= 3)
+{
+    var pics = args.Skip(2).Select(f => Png.Decode(File.ReadAllBytes(f))).Select(b => EnvGen.Shrink(b, 2)).ToList();
+    int cw = pics.Max(b => b.Width) + 6, ch = pics.Max(b => b.Height) + 6, cols = 2, rows = (pics.Count + 1) / 2;
+    var sheet = new Bitmap(cols * cw, rows * ch);
+    sheet.Words().Fill(0xffffffff);
+    for (int i = 0; i < pics.Count; i++)
+        Pixels.Blit(sheet, (i % cols) * cw + 3, (i / cols) * ch + 3, pics[i], 0, 0, pics[i].Width, pics[i].Height, Pixels.CombineGadget);
+    PngWriter.Write(args[1], sheet);
+    return 0;
+}
+
+Console.Error.WriteLine("usage: scenery-gen gen <style> [--out <dir>] | sheet <style> <out.png> | montage <out.png> <png>...");
 return 1;

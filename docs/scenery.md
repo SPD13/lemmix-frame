@@ -125,6 +125,20 @@ size, fill (opaque / box), aspect (h / w), mean colour, green or not, and satura
 The crevice colour (the gaps inside masses, the ground's background) is the darker quarter of
 the solid pieces' shadows.
 
+**When the rules leave too little** (added when making all the device's galleries):
+- **Relaxing.** The left-out rules are relaxed one step at a time until the style has at least
+  8 solid pieces (mass + spire + rubble): first made pieces are kept, then grey ones, then
+  steel. A brick wall style (`sqron_turrican2wall`) keeps its bricks; a metal style its steel.
+- **Green.** Green counts as greenery (tuft / hang) only when green pieces are fewer than half
+  the style. Otherwise green is the material (`l3_biolab`, `l2_outdoor`, `flopsy_starlight`…).
+- **Promotion.** A style of small tiles has no piece of 900 px² or more. Its biggest solid
+  pieces are promoted to masses until there are 4–6 (they stay rubble too), so the ridges have
+  something to pack (`namida_space`, `namida_lab`, `ohno_brick`, `dex_lr2_industry`…).
+- **Nothing at all.** If no solid piece is left, `gen` exits 3 and writes nothing; the gallery
+  keeps the rings.
+
+The printout ends with `note` lines saying which of these applied.
+
 For orig_dirt:
 - **mass:** clump_01/04/05/07/08/09, rocks_01.
 - **spire:** clump_03, clump_06.
@@ -195,6 +209,21 @@ crevice colour; 72 % pulled to the mean colour (quiet); a few tufts.
 
 Fog defaults: `distance_m` 24, `max` 0.94, `mist` 0.5, `mist_m` 2.5.
 
+**Kept as calm as orig_dirt** (`tools/scenery-gen/Look.cs`). orig_dirt is the reference, and
+the caps sit just above its own levels, so it is unchanged:
+
+| What | Cap |
+|---|---|
+| horizon | luma ≤ 85; chroma (max - min channel) ≤ 112, pulled toward its grey |
+| high | luma ≤ 50, same chroma cap |
+| zenith | luma ≤ 30, same chroma cap |
+| each strip's grade | lowered so its mean luma before grading counts as at most 62 |
+| ground's grade | lowered so its mean luma before grading counts as at most 75 |
+
+Without the caps, bright or vivid styles glared (namida_purple, namida_honeycomb, l2_egyptian,
+namida_desert), and white ones (marble, bubble, snow, clouds) were far brighter than the board
+allows. The run prints each strip's mean luma.
+
 The recipe is the same for every style today. A gallery with a different character (an open
 sky style, a city, a crystal cave) may want its own recipe. In that case:
 - make `Recipe` selectable (a `--recipe <file.json>` read into `LayerSpec`s, or a per-style
@@ -227,6 +256,11 @@ the generator** (Recipe / Program.cs), so that a rerun doesn't undo it.
 `preview.png` shows straight ahead ±108°, from -35° to +55° of elevation, one texel per angular
 texel. It uses the same sky, haze and grades as the app (`Preview.cs`, `SceneryLook`). It is
 fast and good for composition. It is about 2.5× smaller than in the headset.
+
+For many galleries at once, `tools/scenery-all.sh [pack...]` makes the scenery of every
+gallery the installed levels use. With `REVIEW=<dir>` it also writes review sheets: 8 previews
+a sheet at half size, two a row, in the order of `sheets.txt` (`scenery-gen montage` makes
+them).
 
 ### 3.2 The headset view in the render box
 
@@ -290,6 +324,10 @@ Known failures on the Mac **not** caused by sceneries:
 | Grass blades look huge near | tufts are 1:1 like everything; stereo makes near size readable | sparse tufts on near layers (`TuftEvery` 55–70) |
 | Uniform stick-like pillars | one tall piece stacked | shafts mixing spire and tall masses, lean, caps |
 | Everything looks too big in the shot vs the preview | the preview is ~2.5× smaller | judge size in the render box |
+| `sqron_turrican2wall` crashed with no pieces | every piece was a "brick" or steel | relaxing the left-out rules (2.1) |
+| A green style had only "tufts" and empty ridges | green read as grass | green is greenery only in a minority |
+| Tile styles had empty or one-piece ridges | no piece reached mass size | promotion of the biggest blocks |
+| Lime, magenta or yellow glare at the horizon; white styles too bright | palette taken as is | the calm caps (2.2) |
 | `SHOT_LOOK` did nothing | hooked `app.Ready` after the app was already ready | hook `root.GetTree().ProcessFrame` |
 
 More things to know:
@@ -334,7 +372,19 @@ Committed:
 
 The pictures are never committed.
 
-## 7. Checklist for a new gallery
+## 7. The galleries made so far
+
+On 3 Oct 2026, every gallery the device's levels use (Lemmings Redux, LemmingsPlus All,
+NeoLemmix Introduction Pack) got a scenery: 69 galleries, about 82 MB with previews. The one
+used gallery not made is `xmas` (12 levels), whose style is not installed. orig_dirt was tuned
+by hand; the other 68 come from the general rules plus the caps. Each was judged on its
+preview in review sheets, and two (orig_marble, namida_space) in the render box. The ones most
+worth a closer look in the headset:
+- **Vivid by nature:** namida_purple, namida_psychedelic, namida_candy, l2_circus.
+- **Blocky tile styles:** namida_space, l2_shadow, gronkling_minimal.
+- **Most played:** orig_marble, orig_pillar, orig_fire, ohno_brick, orig_crystal.
+
+## 8. Checklist for a new gallery
 
 1. Find the style and a level of it. Make the contact sheet (`sheet`) and look at the pieces.
 2. `gen <style> --out <scratch>`. Read the sorting printout and fix misplaced pieces.
