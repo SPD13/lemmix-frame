@@ -536,7 +536,8 @@ public sealed class GamePanel : IGamePanel
             && _shownOut != null && output.Data.AsSpan().SequenceEqual(_shownOut)
             && _shownDigits != null && digits.AsSpan().SequenceEqual(_shownDigits))
             return;
-        Layout.ReliefMasks = new ReliefMasks(_artMask!, (byte[])digits.Clone());
+        var shownDigits = (byte[])digits.Clone(); // the masks' own copy, never written again
+        Layout.ReliefMasks = new ReliefMasks(_artMask!, shownDigits);
         // onto the display (Frame.FromBitmap with every pixel drawn), and tell the host it changed
         if (_frame == null || _frame.Width != output.Width || _frame.Height != output.Height)
         {
@@ -552,7 +553,7 @@ public sealed class GamePanel : IGamePanel
         _shownOut ??= new byte[output.Data.Length];
         if (_shownOut.Length != output.Data.Length) _shownOut = new byte[output.Data.Length];
         output.Data.CopyTo(_shownOut, 0);
-        _shownDigits = (byte[])digits.Clone();
+        _shownDigits = shownDigits;
     }
 
     // A release-rate button (or key) held down: one change on the press, then one per game tick

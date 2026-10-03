@@ -53,6 +53,9 @@ public sealed class SpriteSet
     public readonly Dictionary<string, SpriteAnim> Anims = new(StringComparer.Ordinal);
     public readonly Dictionary<string, List<(int From, int To)>> Recolor = new(StringComparer.Ordinal);
     readonly Dictionary<string, Frame> _variants = new(StringComparer.Ordinal);
+    // the same frames by (action, side, frame, variant): no key string built per draw; it leads
+    // to the Frame the string key does
+    readonly Dictionary<(int Action, bool Right, int F, string V), Frame> _variantsByParts = new();
 
     public SpriteSet(IFileSource io) { _io = io; }
 
@@ -116,8 +119,11 @@ public sealed class SpriteSet
         if (anim.FrameDiff > 0) while (f > max) f -= anim.FrameDiff;
         if (f > max || f < 0) f = ((f % anim.FrameCount) + anim.FrameCount) % anim.FrameCount;
         string v = string.IsNullOrEmpty(variant) ? "normal" : variant;
+        var parts = (action, dx > 0, f, v);
+        lock (_variants) if (_variantsByParts.TryGetValue(parts, out var known)) return known;
         string key = ActionSprites[action] + "/" + (dx > 0 ? "r" : "l") + "/" + f.ToString(System.Globalization.CultureInfo.InvariantCulture) + "/" + v;
-        lock (_variants) if (_variants.TryGetValue(key, out var cached)) return cached;
+        lock (_variants)
+            if (_variants.TryGetValue(key, out var cached)) { _variantsByParts[parts] = cached; return cached; }
         var side = dx > 0 ? anim.Right : anim.Left;
         var bmp = side.Frames[f];
         if (v.StartsWith("flat:", StringComparison.Ordinal))
@@ -133,7 +139,7 @@ public sealed class SpriteSet
             if (pairs.Count > 0) bmp = Recolored(bmp, pairs);
         }
         var frame = Engine.Frame.FromBitmap(bmp, -side.FootX, -side.FootY);
-        lock (_variants) _variants[key] = frame;
+        lock (_variants) { _variants[key] = frame; _variantsByParts[parts] = frame; }
         return frame;
     }
 
@@ -278,10 +284,16 @@ public sealed class SpriteSet
 
     // The variant a lemming is drawn in: its state, "+selected" when it is the cursor's, or one
     // flat colour per state under clear physics (TRecolorImage.SwapColors with ClearPhysics).
+    static string Selected(string variant) => variant switch
+    {
+        "zombie" => "zombie+selected", "neutral" => "neutral+selected", "athlete" => "athlete+selected", "normal" => "normal+selected",
+        _ => variant + "+selected",
+    };
+
     public static string VariantOf(Lemming L, bool selected, bool clearPhysics)
     {
         string variant = L.IsZombie ? "zombie" : L.IsNeutral ? "neutral" : L.HasPermanentSkills ? "athlete" : "normal";
-        if (selected) variant += "+selected"; // the one the skill would go to
+        if (selected) variant = Selected(variant); // the one the skill would go to
         if (clearPhysics)
         {
             int c = L.HasPermanentSkills ? 0x00FFFF : 0x0000FF;

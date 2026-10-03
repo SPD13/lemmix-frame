@@ -403,12 +403,19 @@ public static class SpriteBuild
     // buildBlendedFrameRgba: each pixel FRAME_BLEND_SCALE texels across, every sub-texel the
     // colour the terrain's grid would put there; transparent texels filled with the mean of the
     // opaque pixels beside them, alpha not blended.
+    // a colour as three doubles (the JS arrays), by value
+    readonly record struct Rgb3(double R, double G, double B)
+    {
+        public static Rgb3 Lerp(in Rgb3 a, in Rgb3 b, double t) =>
+            new(a.R + (b.R - a.R) * t, a.G + (b.G - a.G) * t, a.B + (b.B - a.B) * t);
+    }
+
     public static byte[] BuildBlendedFrameRgba(byte[] rgba, int w, int h, double softness)
     {
         const int S = FRAME_BLEND_SCALE;
         bool Opaque(int x, int y) => x >= 0 && x < w && y >= 0 && y < h && rgba[(y * w + x) * 4 + 3] != 0;
-        // the mean of whichever of these pixels are opaque, or null for none (`pts` as x, y pairs)
-        double[]? MeanOf(int[] pts)
+        // the mean of whichever of these pixels are opaque (`pts` as x, y pairs), false for none
+        bool MeanOf(ReadOnlySpan<int> pts, out Rgb3 mean)
         {
             double r = 0, g = 0, b = 0; int n = 0;
             for (int k = 0; k < pts.Length; k += 2)
@@ -418,20 +425,38 @@ public static class SpriteBuild
                 int o = (py * w + px) * 4;
                 r += rgba[o]; g += rgba[o + 1]; b += rgba[o + 2]; n++;
             }
-            return n != 0 ? new[] { r / n, g / n, b / n } : null;
+            mean = n != 0 ? new Rgb3(r / n, g / n, b / n) : default;
+            return n != 0;
         }
-        double[]? CornerMean(int x, int y) => MeanOf(new[] { x - 1, y - 1, x, y - 1, x - 1, y, x, y });
-        double[]? EdgeMean(int x, int y, int nx, int ny) => MeanOf(new[] { x, y, nx, ny });
-        double[] RgbAt(int x, int y) { int o = (y * w + x) * 4; return new double[] { rgba[o], rgba[o + 1], rgba[o + 2] }; }
-        static double[] Lerp3(double[] a, double[] b, double t) =>
-            new[] { a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t };
+        Rgb3 CornerMean(int x, int y, in Rgb3 own) =>
+            MeanOf(stackalloc int[] { x - 1, y - 1, x, y - 1, x - 1, y, x, y }, out var m) ? m : own;
+        Rgb3 EdgeMean(int x, int y, int nx, int ny, in Rgb3 own) =>
+            MeanOf(stackalloc int[] { x, y, nx, ny }, out var m) ? m : own;
+        Rgb3 AroundMean(int x, int y) =>
+            MeanOf(stackalloc int[] { x - 1, y, x + 1, y, x, y - 1, x, y + 1, x - 1, y - 1, x + 1, y - 1, x - 1, y + 1, x + 1, y + 1 }, out var m) ? m : default;
+        Rgb3 RgbAt(int x, int y) { int o = (y * w + x) * 4; return new Rgb3(rgba[o], rgba[o + 1], rgba[o + 2]); }
 
         var output = new byte[w * S * h * S * 4];
-        void Put(int x, int y, int i, int j, double[] c, int a)
+        void Put(int x, int y, int i, int j, in Rgb3 c, int a)
         {
             int o = (((y * S + j) * w * S) + x * S + i) * 4;
-            output[o] = U8(c[0]); output[o + 1] = U8(c[1]); output[o + 2] = U8(c[2]); output[o + 3] = (byte)a;
+            output[o] = U8(c.R); output[o + 1] = U8(c.G); output[o + 2] = U8(c.B); output[o + 3] = (byte)a;
         }
+
+        // the stops and the grid of colours between them (2 x 2 fully soft, else 4 x 4)
+        double[] stops = softness >= 1 ? new double[] { 0, 1 } : new[] { 0, softness / 2, 1 - softness / 2, 1 };
+        int gn = stops.Length;
+        var grid = new Rgb3[gn * gn];
+        (int, double) Cell(double t)
+        {
+            int k = 0;
+            while (k < stops.Length - 2 && t > stops[k + 1]) k++;
+            double a = stops[k], b = stops[k + 1];
+            return (k, b > a ? (t - a) / (b - a) : 0);
+        }
+        // each sub-texel's cell and fraction: the same for every pixel
+        var cells = new (int, double)[S];
+        for (int i = 0; i < S; i++) cells[i] = Cell((i + 0.5) / S);
 
         for (int y = 0; y < h; y++)
         {
@@ -439,49 +464,35 @@ public static class SpriteBuild
             {
                 if (!Opaque(x, y))
                 {
-                    var fill = MeanOf(new[] { x - 1, y, x + 1, y, x, y - 1, x, y + 1, x - 1, y - 1, x + 1, y - 1, x - 1, y + 1, x + 1, y + 1 })
-                        ?? new double[] { 0, 0, 0 };
+                    var fill = AroundMean(x, y);
                     for (int j = 0; j < S; j++) for (int i = 0; i < S; i++) Put(x, y, i, j, fill, 0);
                     continue;
                 }
                 var own = RgbAt(x, y);
-                var cc = new[] { CornerMean(x, y) ?? own, CornerMean(x + 1, y) ?? own, CornerMean(x + 1, y + 1) ?? own, CornerMean(x, y + 1) ?? own };
-                double[] stops;
-                double[][][] grid;
+                Rgb3 c0 = CornerMean(x, y, own), c1 = CornerMean(x + 1, y, own), c2 = CornerMean(x + 1, y + 1, own), c3 = CornerMean(x, y + 1, own);
                 if (softness >= 1)
                 {
-                    stops = new double[] { 0, 1 };
-                    grid = new[] { new[] { cc[0], cc[1] }, new[] { cc[3], cc[2] } };
+                    grid[0] = c0; grid[1] = c1;
+                    grid[2] = c3; grid[3] = c2;
                 }
                 else
                 {
-                    var em = new[] { EdgeMean(x, y, x, y - 1) ?? own, EdgeMean(x, y, x + 1, y) ?? own,
-                                     EdgeMean(x, y, x, y + 1) ?? own, EdgeMean(x, y, x - 1, y) ?? own };
-                    stops = new[] { 0, softness / 2, 1 - softness / 2, 1 };
-                    grid = new[]
-                    {
-                        new[] { cc[0], em[0], em[0], cc[1] },
-                        new[] { em[3], own, own, em[1] },
-                        new[] { em[3], own, own, em[1] },
-                        new[] { cc[3], em[2], em[2], cc[2] },
-                    };
-                }
-                (int, double) Cell(double t)
-                {
-                    int k = 0;
-                    while (k < stops.Length - 2 && t > stops[k + 1]) k++;
-                    double a = stops[k], b = stops[k + 1];
-                    return (k, b > a ? (t - a) / (b - a) : 0);
+                    Rgb3 e0 = EdgeMean(x, y, x, y - 1, own), e1 = EdgeMean(x, y, x + 1, y, own),
+                         e2 = EdgeMean(x, y, x, y + 1, own), e3 = EdgeMean(x, y, x - 1, y, own);
+                    grid[0] = c0; grid[1] = e0; grid[2] = e0; grid[3] = c1;
+                    grid[4] = e3; grid[5] = own; grid[6] = own; grid[7] = e1;
+                    grid[8] = e3; grid[9] = own; grid[10] = own; grid[11] = e1;
+                    grid[12] = c3; grid[13] = e2; grid[14] = e2; grid[15] = c2;
                 }
                 for (int j = 0; j < S; j++)
                 {
-                    var (jv, fv) = Cell((j + 0.5) / S);
+                    var (jv, fv) = cells[j];
                     for (int i = 0; i < S; i++)
                     {
-                        var (iu, fu) = Cell((i + 0.5) / S);
-                        Put(x, y, i, j, Lerp3(
-                            Lerp3(grid[jv][iu], grid[jv][iu + 1], fu),
-                            Lerp3(grid[jv + 1][iu], grid[jv + 1][iu + 1], fu), fv), 255);
+                        var (iu, fu) = cells[i];
+                        Put(x, y, i, j, Rgb3.Lerp(
+                            Rgb3.Lerp(grid[jv * gn + iu], grid[jv * gn + iu + 1], fu),
+                            Rgb3.Lerp(grid[(jv + 1) * gn + iu], grid[(jv + 1) * gn + iu + 1], fu), fv), 255);
                     }
                 }
             }
@@ -492,21 +503,22 @@ public static class SpriteBuild
     // clipFrameToBounds: the part of a frame inside the level's rectangle, as a frame of its own
     // with its offsets moved so it is drawn at the same place; the frame itself when it lies
     // entirely inside, null when entirely outside; memoised on the frame and the cut.
-    static readonly ConditionalWeakTable<object, Dictionary<string, object>> ClippedFrames = new();
+    // a frame's cuts by (sx, sy, cw, ch): the "sx,sy,cw,ch" key as numbers
+    static readonly ConditionalWeakTable<object, Dictionary<(int, int, int, int), object>> ClippedFrames = new();
 
     static bool Cut(int w, int h, int offX, int offY, int x, int y, bool flipY, int boundsW, int boundsH,
-        out bool inside, out int sx, out int sy, out int cw, out int ch, out int offsetX, out int offsetY, out string key)
+        out bool inside, out int sx, out int sy, out int cw, out int ch, out int offsetX, out int offsetY, out (int, int, int, int) key)
     {
         int left = x + offX, top = y + offY;
         int x0 = Math.Max(0, left), y0 = Math.Max(0, top);
         int x1 = Math.Min(boundsW, left + w), y1 = Math.Min(boundsH, top + h);
         inside = x0 <= left && y0 <= top && x1 >= left + w && y1 >= top + h;
-        sx = sy = cw = ch = offsetX = offsetY = 0; key = "";
+        sx = sy = cw = ch = offsetX = offsetY = 0; key = default;
         if (inside) return true;
         if (x1 <= x0 || y1 <= y0) return false;
         sx = x0 - left; cw = x1 - x0; ch = y1 - y0;
         sy = flipY ? h - (y1 - top) : y0 - top;
-        key = sx + "," + sy + "," + cw + "," + ch;
+        key = (sx, sy, cw, ch);
         offsetX = offX + sx;
         offsetY = offY + (y0 - top);
         return true;
@@ -516,9 +528,9 @@ public static class SpriteBuild
     {
         int w = frame.Width, h = frame.Height;
         if (!Cut(w, h, frame.OffsetX, frame.OffsetY, x, y, flipY, boundsW, boundsH,
-            out bool inside, out int sx, out int sy, out int cw, out int ch, out int offsetX, out int offsetY, out string key)) return null;
+            out bool inside, out int sx, out int sy, out int cw, out int ch, out int offsetX, out int offsetY, out var key)) return null;
         if (inside) return frame;
-        var cuts = ClippedFrames.GetValue(frame, _ => new Dictionary<string, object>(StringComparer.Ordinal));
+        var cuts = ClippedFrames.GetValue(frame, _ => new Dictionary<(int, int, int, int), object>());
         if (cuts.TryGetValue(key, out var hit)) return (Frame)hit;
         var cut = new Frame(cw, ch, offsetX, offsetY);
         for (int r = 0; r < ch; r++)
@@ -535,9 +547,9 @@ public static class SpriteBuild
     {
         int w = mask.Width, h = mask.Height;
         if (!Cut(w, h, mask.OffsetX, mask.OffsetY, x, y, flipY, boundsW, boundsH,
-            out bool inside, out int sx, out int sy, out int cw, out int ch, out int offsetX, out int offsetY, out string key)) return null;
+            out bool inside, out int sx, out int sy, out int cw, out int ch, out int offsetX, out int offsetY, out var key)) return null;
         if (inside) return mask;
-        var cuts = ClippedFrames.GetValue(mask, _ => new Dictionary<string, object>(StringComparer.Ordinal));
+        var cuts = ClippedFrames.GetValue(mask, _ => new Dictionary<(int, int, int, int), object>());
         if (cuts.TryGetValue(key, out var hit)) return (SpriteMask)hit;
         var bits = new sbyte[cw * ch];
         for (int r = 0; r < ch; r++) Array.Copy(mask.Bits, (sy + r) * w + sx, bits, r * cw, cw);
@@ -638,11 +650,17 @@ public sealed class SpriteGeometryCache
     public SpriteEntry ForFrame(Frame frame)
     {
         if (_byFrame.TryGetValue(frame, out var entry)) return entry;
-        int w = frame.Width;
-        var mask = frame.Mask;
-        entry = MakeEntry(RgbaOf(frame), (x, y) => mask[y * w + x] != 0, w, frame.Height);
+        entry = MakeFrameEntry(frame);
         _byFrame[frame] = entry;
         return entry;
+    }
+
+    // (its own method: the lambda's captures would otherwise be allocated on every call, hits too)
+    static SpriteEntry MakeFrameEntry(Frame frame)
+    {
+        int w = frame.Width;
+        var mask = frame.Mask;
+        return MakeEntry(RgbaOf(frame), (x, y) => mask[y * w + x] != 0, w, frame.Height);
     }
 
     // blendedMaterialFor: the frame's material with the colour blend baked in at the strength
@@ -750,6 +768,10 @@ public sealed class SpriteCapture
     public readonly List<double> Particles = new();
     public object? Tag;
     readonly Dictionary<object, int> _ordinals = new();
+    // the draws of the last capture, reused by the next (Begin): the items are the capture's own
+    // until the next Begin; and the "tag:n" keys, built once each
+    readonly List<CapturedDraw> _spare = new();
+    readonly Dictionary<(object, int), string> _keys = new();
     public int BoundsW, BoundsH, BoundsBottom;
 
     public void SetBounds(int w, int h, int? bottom = null)
@@ -778,6 +800,7 @@ public sealed class SpriteCapture
 
     public void Begin()
     {
+        _spare.AddRange(Items);
         Items.Clear();
         Particles.Clear();
         Tag = null;
@@ -790,27 +813,33 @@ public sealed class SpriteCapture
         _ordinals.TryGetValue(Tag, out int n);
         n++;
         _ordinals[Tag] = n;
-        return Tag + ":" + n;
+        if (!_keys.TryGetValue((Tag, n), out var key)) _keys[(Tag, n)] = key = Tag + ":" + n;
+        return key;
+    }
+
+    CapturedDraw Draw(Frame? frame, SpriteMask? mask, int x, int y, bool flipY, int layer, bool oneWay)
+    {
+        CapturedDraw d;
+        if (_spare.Count > 0) { d = _spare[^1]; _spare.RemoveAt(_spare.Count - 1); }
+        else d = new CapturedDraw();
+        d.Frame = frame; d.Mask = mask; d.X = x; d.Y = y; d.FlipY = flipY; d.Layer = layer; d.OneWay = oneWay;
+        d.Key = NextKey(); d.Off = false;
+        return d;
     }
 
     public void DrawFrame(Frame frame, int x, int y) =>
-        Items.Add(Cut(new CapturedDraw { Frame = frame, X = x, Y = y, FlipY = false, Layer = 0, Key = NextKey() }));
+        Items.Add(Cut(Draw(frame, null, x, y, false, 0, false)));
 
     // drawFrameFlags with a gadget's drawProperties (gadgetAsObject): noOverwrite -> -2,
     // onlyOverwrite -> 1, low -> -1, else 0
     public void DrawFrameFlags(Frame frame, int x, int y, bool isUpsideDown, bool noOverwrite, bool onlyOverwrite, bool low, bool oneWay) =>
-        Items.Add(Cut(new CapturedDraw
-        {
-            Frame = frame, X = x, Y = y, FlipY = isUpsideDown,
-            Layer = noOverwrite ? -2 : onlyOverwrite ? 1 : low ? -1 : 0,
-            OneWay = oneWay, Key = NextKey(),
-        }));
+        Items.Add(Cut(Draw(frame, null, x, y, isUpsideDown, noOverwrite ? -2 : onlyOverwrite ? 1 : low ? -1 : 0, oneWay)));
 
     public void DrawFrameFlags(Frame frame, GadgetObject obj) =>
         DrawFrameFlags(frame, obj.X, obj.Y, false, obj.Behind, obj.Decal, obj.Low, obj.OneWay);
 
     public void DrawMask(SpriteMask mask, int x, int y) =>
-        Items.Add(Cut(new CapturedDraw { Mask = mask, X = x, Y = y, FlipY = false, Layer = 0, Key = NextKey() }));
+        Items.Add(Cut(Draw(null, mask, x, y, false, 0, false)));
 
     public void SetPixel(double x, double y, int r, int g, int b)
     {
