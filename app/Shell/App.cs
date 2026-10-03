@@ -81,6 +81,18 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         if (Session != null) Env.PlaceForXR(DioramaRoot.Transform, HeadPose?.Origin);
     }
 
+    // every 5 s in a session: the head's height above the play space's floor (the Stage space's
+    // y = 0, what the headset reports) and above the virtual floor (that, plus the view's offset) -
+    // to tell whether the headset's floor is the real one, seated and standing
+    double _headLogNext;
+    void LogHeadHeight(double now)
+    {
+        if (now < _headLogNext || Origin == null || !Vr.Presenting || Head is not XRCamera3D cam) return;
+        _headLogNext = now + 5000;
+        float tracked = cam.Position.Y;                 // the camera in the origin's frame: the play space
+        GD.Print($"[xr] head {tracked:0.00} m above the play space floor; view offset {ViewHeight:+0.00;-0.00;0.00} m; {tracked + ViewHeight:0.00} m above the virtual floor");
+    }
+
     Lemmix.App.Ui.Windows.FloorControl FloorControl() => new()
     {
         Get = () => ViewHeight,
@@ -343,6 +355,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         double dt = double.IsNaN(_last) ? 0 : Math.Max(0, now - _last);
         _last = now;
         DrainUploadEvents();
+        LogHeadHeight(now);
         if (_reload) { _reload = false; if (LevelId != null) LoadLevel(); }
         CollectAfterLoad();
         if (_scriptedHead && Input.Head is Transform3D hp && Head.IsInsideTree()) Head.GlobalTransform = hp;
