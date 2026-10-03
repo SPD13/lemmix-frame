@@ -12,7 +12,7 @@ namespace Lemmix.App.Test;
 // board placed in front, the room around it, the skills bar below with its row of controls, the
 // status strip over the level, the right hand's beam on the board with NeoLemmix's cursor where it
 // lands; or, with no level chosen, the catalog the app starts on. SHOT_LEVEL picks the level;
-// SHOT_LOOK="yaw,pitch" (degrees, left and up positive) turns the head once the board is placed,
+// SHOT_ENV the room's mode (default full); SHOT_LOOK="yaw,pitch" (degrees, left and up positive) turns the head once the board is placed,
 // to look round the room.
 public static class ShellShots
 {
@@ -44,7 +44,8 @@ public static class ShellShots
         left.Aim = new Transform3D(Basis.LookingAt(new Vector3(0.1f, -0.3f, -1).Normalized(), Vector3.Up), new Vector3(-0.22f, 1.2f, -0.3f));
         left.Grip = left.Aim;
         string level = System.Environment.GetEnvironmentVariable("SHOT_LEVEL") ?? BoardShot.Builders;
-        var args = catalog ? new[] { "--environment=full" } : new[] { "--level=" + level, "--environment=full" };
+        string envMode = System.Environment.GetEnvironmentVariable("SHOT_ENV") ?? "full"; // none | fog | full
+        var args = catalog ? new[] { "--environment=" + envMode } : new[] { "--level=" + level, "--environment=" + envMode };
         var app = new ShellApp(new AppOptions
         {
             Args = ShellArgs.Parse(args), Input = input, Store = new LocalStore(),

@@ -31,7 +31,9 @@ public sealed partial class EnvironmentView : Node3D
 {
     public const int ENV_SCENE_COLOR = EnvironmentLayout.ENV_SCENE_COLOR;
     public const int ENV_BACKDROP_COLOR = EnvironmentLayout.ENV_BACKDROP_COLOR;
-    public static readonly string[] Modes = EnvironmentLayout.ENV_MODES;
+    // the web's none and full, and the native fog between them: the haze alone (envgen's fog
+    // pictures: sky, first floor, bowl, ceiling), no scenery, no rings of pieces
+    public static readonly string[] Modes = { "none", "fog", "full" };
 
     // the planes' materials: MeshBasicMaterial({color, side: DoubleSide}), alphaTest 0.5 on cut-outs;
     // the sky BackSide (seen from inside)
@@ -125,7 +127,7 @@ public sealed partial class EnvironmentView : Node3D
     public bool Ready => _ctx == null || Mode == "none" || (_gallery != null && _gallery.Done && _applied);
     public double YFloor => _yFloor;
 
-    // setMode: none or full; a level already up is rebuilt for it
+    // setMode: none, fog or full; a level already up is rebuilt for it
     public void SetMode(string mode)
     {
         if (!Modes.Contains(mode)) mode = "full";
@@ -212,10 +214,10 @@ public sealed partial class EnvironmentView : Node3D
                 return;
             }
             var wallpaper = EnvironmentLayout.GalleryWallpaper(gctx, styles);
-            var files = Files(io, gctx, room);
+            var files = mode == "fog" ? null : Files(io, gctx, room);
             if (files != null) g.Source = "file";
             var collected = EnvGen.CollectPieces(gctx);
-            g.FogOnly = files == null || !collected.Pieces.Any(p => !p.Excluded);
+            g.FogOnly = mode == "fog" || files == null || !collected.Pieces.Any(p => !p.Excluded);
             bool full = mode == "full" && !g.FogOnly;
             bool IsFog(string name) => name == "sky" || EnvGen.ParsePlane(name).Kind == "ceiling" || g.FogOnly;
             foreach (string name in EnvironmentLayout.FirstPlanes)

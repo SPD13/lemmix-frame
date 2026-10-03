@@ -239,6 +239,11 @@ public static class BoardTests
         s.SetEnvironment("full");
         Check.True(rig.Env.Visible && rig.Env.Ready, "the room is up");
         Check.True(rig.Env.SceneColor != EnvironmentView.ENV_SCENE_COLOR, "the background is the fog");
+        s.SetEnvironment("fog");
+        Check.True(rig.Env.Visible && rig.Env.Ready, "the fog room is up");
+        Check.True(rig.Env.CurrentGallery?.FogOnly == true && rig.Env.CurrentGallery.Scenery == null, "fog: the haze alone, no scenery");
+        Check.True(rig.Env.Scenery.Shown == null, "fog: no strips shown");
+        Check.True(rig.Env.SceneColor != EnvironmentView.ENV_SCENE_COLOR, "fog: the background is the fog");
         s.SetEnvironment("none");
         Check.True(!rig.Env.Visible, "the room is gone");
         Check.Equal(EnvironmentView.ENV_SCENE_COLOR, rig.Env.SceneColor, "the page's background again");

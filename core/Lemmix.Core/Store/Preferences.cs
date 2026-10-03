@@ -114,7 +114,8 @@ public sealed class Preferences
         set => Put("lem3d-color-blend", value);
     }
 
-    // the room around the board: "none" or "full" (older saved states named more)
+    // the room around the board: "none", "fog" (native: the haze alone) or "full" (older saved
+    // states named more)
     public string Environment
     {
         get
@@ -124,6 +125,7 @@ public sealed class Preferences
             return s switch
             {
                 "none" or "off" or "0" or "false" => "none",
+                "fog" => "fog",
                 "full" or "ambient" or "1" or "2" or "true" or "on" => "full",
                 _ => "full",
             };

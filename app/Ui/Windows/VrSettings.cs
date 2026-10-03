@@ -20,7 +20,7 @@ public interface IVrEffects
     string ColorBlend { get; }      // "off", "soft", "smooth"
     bool SkillBar { get; }
     bool FlatSkills { get; }
-    string Environment { get; }     // "none", "gradients", "full"
+    string Environment { get; }     // "none", "fog", "full"
     void ToggleEmboss();
     void ToggleDoors();
     void ToggleSmooth();

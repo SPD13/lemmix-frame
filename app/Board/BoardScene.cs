@@ -34,7 +34,7 @@ public sealed class BoardSwitches
 {
     public bool Emboss = true, Smooth = true, SmoothTerrain = true, Doors = true, Shadows = true, Music = true;
     public string ColorBlend = "soft";       // off | soft | smooth
-    public string Environment = "full";      // none | full
+    public string Environment = "full";      // none | fog | full
     public static double Softness(string level) => level switch { "off" => 0, "smooth" => 1, _ => 0.5 };
     public BoardSwitches Clone() => (BoardSwitches)MemberwiseClone();
 }

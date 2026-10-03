@@ -55,7 +55,7 @@ public static class BoardShot
                 case "shadows": s.Shadows = on; break;
                 case "music": s.Music = on; break;
                 case "colorblend": s.ColorBlend = v switch { "off" or "0" => "off", "smooth" => "smooth", _ => "soft" }; break;
-                case "environment": s.Environment = v is "none" or "off" or "0" or "false" ? "none" : "full"; break;
+                case "environment": s.Environment = v is "none" or "off" or "0" or "false" ? "none" : v == "fog" ? "fog" : "full"; break;
             }
         }
         return s;

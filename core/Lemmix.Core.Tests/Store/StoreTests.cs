@@ -207,4 +207,21 @@ public class StoreTests
         Assert.Equal("progress", ConfigFiles.KindOfKey("lem3d-talismans"));
         Assert.Null(ConfigFiles.KindOfKey("lem3d-recent"));
     }
+
+    // the room's modes: the web's none and full, the native fog kept as it is saved
+    [Fact]
+    public void EnvironmentModes()
+    {
+        var s = new LocalStore();
+        var p = new Preferences(s);
+        Assert.Equal("full", p.Environment);
+        p.Environment = "fog";
+        Assert.Equal("fog", p.Environment);
+        Assert.Equal("fog", s.GetItem("lem3d-environment"));
+        p.Environment = "none";
+        Assert.Equal("none", p.Environment);
+        Assert.Equal("fog", new Preferences(s, Preferences.ParseParams("?environment=fog")).Environment);
+        s.SetItem("lem3d-environment", "ambient");
+        Assert.Equal("full", p.Environment);
+    }
 }
