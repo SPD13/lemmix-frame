@@ -74,9 +74,13 @@ public partial class Shots : Node
         {
             new("foveated rendering", () => true, () => { }),
             new("strength", () => true, () => { }, () => "MEDIUM"),
-        }, "VR", "vrset", rowsShown: 2) { FitPills = true };
+        }, "VR", "vrset", rowsShown: 2, floorSection: true)
+        {
+            FitPills = true,
+            Floor = new Lemmix.App.Ui.Windows.FloorControl { Get = () => -0.45f, Set = _ => { }, Seated = () => { }, Standing = () => { }, Reset = () => { } },
+        };
         root.AddChild(w.Root);
-        w.SetHover(1);
+        w.SetHoverPart("seated");
         return w.Panel.GetChild<SubViewport>(0);
     }
 

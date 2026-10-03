@@ -9,6 +9,23 @@ namespace Lemmix.App.Ui.Windows;
 // ON/OFF) or an action (no Get).
 public sealed record SettingRow(string Label, Func<bool>? Get, Action Act, Func<string>? Text = null);
 
+// The VR window's floor height (native): where the virtual floor stands against the headset's own,
+// in metres - below it (negative) lifts the player, for seated play - with its slider's range and
+// its three buttons.
+public sealed class FloorControl
+{
+    public const float Min = -1.0f, Max = 0.3f;
+    public required Func<float> Get;
+    public required Action<float> Set;
+    public required Action Seated, Standing, Reset;
+
+    public static string Label(float metres)
+    {
+        int cm = (int)MathF.Round(metres * 100);
+        return cm == 0 ? "0 cm (the headset's floor)" : (cm > 0 ? "+" : "\u2212") + Math.Abs(cm) + " cm";
+    }
+}
+
 // The render switches the rows act on (web: state.* and the toggle* functions). Integration
 // answers it from the settings store and the renderer.
 public interface IVrEffects
@@ -68,12 +85,24 @@ public sealed class VrSettings
     public readonly string Title;
     public readonly int H;                          // canvas height: VR_SET_H for the web's window
     public bool FitPills;                           // a pill as wide as its text needs (the native VR window; the web's are 86)
+    public FloorControl? Floor;                     // the native VR window's floor height, under the rows
+    public string? HoverPart;                       // the floor section's part under the beam: slider, seated, standing, reset
 
-    public VrSettings(List<SettingRow> rows, string title = "3D EFFECTS", string name = "set", int? rowsShown = null)
+    // the floor section's geometry, in canvas pixels (under the rows)
+    public const float FloorHead = 52, SliderLen = 260, FloorTail = 30;
+    public const float SliderX = 92, SliderHalfW = 40, ButtonX = 200, ButtonW = 400, ButtonH = 64, ButtonGap = 34;
+    public static readonly string[] FloorButtons = { "seated", "standing", "reset" };
+    static readonly string[] FloorButtonLabels = { "Seated", "Standing", "Reset" };
+    public float FloorTop => VR_SET_TOP + RowList.Count * VR_SET_ROW + 4;
+    public float SliderTop => FloorTop + FloorHead + 16;
+    public static int FloorSectionHeight => (int)(FloorHead + 16 + SliderLen + FloorTail);
+
+    public VrSettings(List<SettingRow> rows, string title = "3D EFFECTS", string name = "set", int? rowsShown = null, bool floorSection = false)
     {
         RowList = rows;
         Title = title;
         H = rowsShown is int n ? (int)(VR_SET_TOP + n * VR_SET_ROW + 8) : VR_SET_H;
+        if (floorSection) H += FloorSectionHeight;
         Root = new Node3D { Name = name == "set" ? "vr-settings" : "vr-" + name + "-settings", Visible = false };
         Panel = new Panel3D(VR_SET_W, H, 1f) { Name = "vr-" + name + "panel" };
         Panel.NoDepthTest = true;
@@ -134,7 +163,104 @@ public sealed class VrSettings
             cx.fillText(pill, px + pw / 2, y + 36);
             cx.textAlign = "left";
         }
+        if (Floor != null) PaintFloor(cx, Floor);
         Panel.Commit();
+    }
+
+    // the floor section: its label and value, the vertical slider (up: the floor higher), the buttons
+    void PaintFloor(Canvas2D cx, FloorControl f)
+    {
+        float top = FloorTop, sTop = SliderTop, sBot = sTop + SliderLen;
+        cx.textAlign = "left";
+        cx.fillStyle = "#f0f3f8";
+        cx.font = "26px monospace";
+        cx.fillText("floor height", 44, top + 34);
+        cx.fillStyle = "#7fd6e8";
+        cx.font = "bold 22px monospace";
+        cx.textAlign = "right";
+        cx.fillText(FloorControl.Label(f.Get()), VR_SET_W - 44, top + 34);
+        cx.textAlign = "left";
+        // the track, the zero mark, the fill from zero to the value, the knob
+        bool hot = HoverPart == "slider";
+        cx.fillStyle = hot ? "#2b3548" : "#19202c";
+        cx.beginPath();
+        cx.roundRect(SliderX - SliderHalfW, sTop - 14, SliderHalfW * 2, SliderLen + 28, 12);
+        cx.fill();
+        if (hot) { cx.strokeStyle = "#ffffff"; cx.lineWidth = 3; cx.stroke(); }
+        cx.fillStyle = "#2a3446";
+        cx.beginPath();
+        cx.roundRect(SliderX - 6, sTop, 12, SliderLen, 6);
+        cx.fill();
+        float zeroY = YOf(0), valY = YOf(f.Get());
+        cx.fillStyle = "#6fce7e";
+        cx.fillRect(SliderX - 6, Math.Min(zeroY, valY), 12, Math.Abs(valY - zeroY));
+        cx.strokeStyle = "#8fa1bb";
+        cx.lineWidth = 2;
+        cx.beginPath();
+        cx.moveTo(SliderX - 22, zeroY); cx.lineTo(SliderX + 22, zeroY);
+        cx.stroke();
+        cx.fillStyle = "#f0f3f8";
+        cx.beginPath();
+        cx.arc(SliderX, valY, 15, 0, Mathf.Tau);
+        cx.fill();
+        // the buttons
+        for (int i = 0; i < FloorButtons.Length; i++)
+        {
+            float by = sTop + i * (ButtonH + ButtonGap);
+            bool bh = HoverPart == FloorButtons[i];
+            cx.fillStyle = bh ? "#2b3548" : "#19202c";
+            cx.beginPath();
+            cx.roundRect(ButtonX, by, ButtonW, ButtonH, 10);
+            cx.fill();
+            cx.strokeStyle = bh ? "#ffffff" : "#3a4558";
+            cx.lineWidth = bh ? 3 : 2;
+            cx.stroke();
+            cx.fillStyle = "#f0f3f8";
+            cx.font = "bold 26px monospace";
+            cx.textAlign = "center";
+            cx.fillText(FloorButtonLabels[i], ButtonX + ButtonW / 2, by + ButtonH / 2 + 9);
+            cx.textAlign = "left";
+        }
+    }
+
+    // the slider: the floor's height to a canvas y (the top is the highest floor) and back
+    public float YOf(float metres) => SliderTop + (FloorControl.Max - Math.Clamp(metres, FloorControl.Min, FloorControl.Max)) / (FloorControl.Max - FloorControl.Min) * SliderLen;
+    public float ValueAt(float y) => FloorControl.Max - Math.Clamp((y - SliderTop) / SliderLen, 0, 1) * (FloorControl.Max - FloorControl.Min);
+
+    /** The floor section's part at a canvas pixel: "slider" (with its value), a button's name, or null. */
+    public (string? Part, float Value) FloorPartAt(Vector2? px)
+    {
+        if (Floor == null || px is not Vector2 p) return (null, 0);
+        float sTop = SliderTop;
+        if (p.X >= SliderX - SliderHalfW && p.X <= SliderX + SliderHalfW && p.Y >= sTop - 14 && p.Y <= sTop + SliderLen + 14)
+            return ("slider", ValueAt(p.Y));
+        for (int i = 0; i < FloorButtons.Length; i++)
+        {
+            float by = sTop + i * (ButtonH + ButtonGap);
+            if (p.X >= ButtonX && p.X <= ButtonX + ButtonW && p.Y >= by && p.Y <= by + ButtonH) return (FloorButtons[i], 0);
+        }
+        return (null, 0);
+    }
+
+    public void SetHoverPart(string? part)
+    {
+        if (HoverPart == part) return;
+        HoverPart = part;
+        Paint();
+    }
+
+    /** A press on the floor section: the slider's value, or a button. */
+    public void PressFloor(string part, float value)
+    {
+        if (Floor == null) return;
+        switch (part)
+        {
+            case "slider": Floor.Set(value); break;
+            case "seated": Floor.Seated(); break;
+            case "standing": Floor.Standing(); break;
+            case "reset": Floor.Reset(); break;
+        }
+        Paint();
     }
 
     /** vrSettingsRowAt: which row the beam is on, from the panel's canvas pixel. */

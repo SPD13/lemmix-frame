@@ -191,6 +191,29 @@ public static class ShellTests
     }
 
     [AppTest]
+    public static void TheFloorHeightLiftsASeatedPlayer()
+    {
+        if (!HaveAssets()) return;
+        using var rig = new Rig(null, "--level=" + Builders);
+        LoadedRig(rig);
+        var app = rig.App;
+        // seated: the eyes 1.2 m above the headset's floor
+        rig.Input.HeadValue = new Transform3D(Basis.Identity, new Vector3(0, 1.2f, 0));
+        rig.Frame();
+        app.Windows.VrOptions.Floor!.Seated();
+        Check.True(Mathf.Abs(app.FloorHeight + 0.45f) < 1e-3f, "Seated: the floor 45 cm lower (" + app.FloorHeight + ")");
+        Check.Equal("-0.45", app.Store.GetItem(ShellApp.FloorKey), "remembered");
+        Check.True(Mathf.Abs(app.Pointers.Floor.Position.Y + 0.45f) < 1e-3f, "the floor grid follows");
+        Check.True(Mathf.Abs((float)app.Env.FloorY + 0.45f) < 1e-3f, "and the room's floor");
+        app.Windows.VrOptions.Floor!.Standing();
+        Check.True(app.FloorHeight == 0 && app.Pointers.Floor.Position.Y == 0, "Standing: the headset's floor");
+        app.Windows.VrOptions.Floor!.Set(-2);
+        Check.True(Mathf.Abs(app.FloorHeight - Lemmix.App.Ui.Windows.FloorControl.Min) < 1e-4f, "the slider's range holds");
+        app.Windows.VrOptions.Floor!.Reset();
+        Check.True(app.FloorHeight == 0, "Reset");
+    }
+
+    [AppTest]
     public static void TheTriggerOnALemmingAssignsTheSelectedSkill()
     {
         if (!HaveAssets()) return;

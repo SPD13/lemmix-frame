@@ -31,7 +31,7 @@ public interface IVrWindowsHost
 
 // The data a window pick carries beyond its bar tool (web: the pick object's tile, scrollBar,
 // scrollAt, row, volume).
-public sealed record WindowPickData(int Tile = -1, float ScrollAt = 0, int Row = -1, float Volume = 0);
+public sealed record WindowPickData(int Tile = -1, float ScrollAt = 0, int Row = -1, float Volume = 0, string? Part = null);
 
 // The headset's windows together, as app.js wires them: the bar's buttons, the question, the
 // catalog, the settings, the level's text, the status strip, the tooltip - who owns the ray while
@@ -63,11 +63,12 @@ public sealed class VrWindows
     // the bar's widgets the ray can hit, in the web's order (vrWidgets)
     public IEnumerable<IconButton> Widgets => Toolbar.Buttons.Concat(new[] { Toolbar.Mute, Status.Detail });
 
-    public VrWindows(IVrWindowsHost host, List<SettingRow> settingRows, Node3D head, Node3D scene, string? barPrefs = null, List<SettingRow>? vrRows = null)
+    public VrWindows(IVrWindowsHost host, List<SettingRow> settingRows, Node3D head, Node3D scene, string? barPrefs = null,
+        List<SettingRow>? vrRows = null, FloorControl? floor = null)
     {
         Host = host;
         Settings = new VrSettings(settingRows);
-        VrOptions = new VrSettings(vrRows ?? new List<SettingRow>(), "VR", "vrset", rowsShown: 2) { FitPills = true };
+        VrOptions = new VrSettings(vrRows ?? new List<SettingRow>(), "VR", "vrset", rowsShown: 2, floorSection: floor != null) { FitPills = true, Floor = floor };
         Tooltip = new VrTooltip(TipText);
         Bar = new VrBar(Toolbar.GuiRoot, head, scene, barPrefs) { LockChanged = on => Toolbar.Lock.SetState(on: on) };
         WindowRoot.AddChild(Modal.Root);
@@ -259,7 +260,12 @@ public sealed class VrWindows
         {
             if (VrOptions.Close.Hit(origin, dir, out _) != null) return (true, P("vrsetclose"));
             var vpx = VrOptions.Panel.Hit(origin, dir, out _);
-            return (true, vpx == null ? null : P("vrsetpanel", new WindowPickData(Row: VrOptions.RowAt(vpx))));
+            if (vpx == null) return (true, null);
+            // the floor's slider is held and dragged (a slider pick, as the volume's), its buttons pressed
+            var (part, value) = VrOptions.FloorPartAt(vpx);
+            if (part == "slider") return (true, P("vrfloor", new WindowPickData(Volume: value), scrollBar: true));
+            if (part != null) return (true, P("vrsetpanel", new WindowPickData(Part: part)));
+            return (true, P("vrsetpanel", new WindowPickData(Row: VrOptions.RowAt(vpx))));
         }
         if (Settings.Root.Visible)
         {
@@ -315,6 +321,7 @@ public sealed class VrWindows
         Catalog.SetHover(p?.BarTool == "worldpanel" ? (p.ScrollBar ? -2 : d?.Tile ?? -1) : -1);
         Settings.SetHover(p?.BarTool == "setpanel" ? d?.Row ?? -1 : -1);
         VrOptions.SetHover(p?.BarTool == "vrsetpanel" ? d?.Row ?? -1 : -1);
+        VrOptions.SetHoverPart(p?.BarTool == "vrfloor" ? "slider" : p?.BarTool == "vrsetpanel" ? d?.Part : null);
         LevelText.SetHover(p?.BarTool == "detailok", LevelTextLines);
     }
 
@@ -349,7 +356,11 @@ public sealed class VrWindows
             case "setpanel": Settings.Press(d?.Row ?? -1); return true;
             case "vr": SetVrOptions(true); return true;
             case "vrsetclose": SetVrOptions(false); return true;
-            case "vrsetpanel": VrOptions.Press(d?.Row ?? -1); return true;
+            case "vrsetpanel":
+                if (d?.Part is string part) VrOptions.PressFloor(part, 0);
+                else VrOptions.Press(d?.Row ?? -1);
+                return true;
+            case "vrfloor": VrOptions.PressFloor("slider", d?.Volume ?? 0); return true;
             case "detail": SetDetail(true); return true;
             case "detailok": SetDetail(false); return true;
             case "detailpanel": return true;

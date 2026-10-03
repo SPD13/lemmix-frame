@@ -51,6 +51,36 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     public ControllerModels? Controllers { get; private set; }
     public Foveation Foveation { get; private set; } = null!;
 
+    // ---- the floor's height (native, the VR window): the virtual floor against the headset's own
+    public const string FloorKey = "lemmix-frame-floor";
+    public const float StandingEyeHeight = 1.65f;     // what "Seated" lifts the eyes to
+    public float FloorHeight { get; private set; }
+
+    /** The floor at `metres` (negative: lower, the player lifted): the room and the grid follow. */
+    public void SetFloorHeight(float metres, bool save = true)
+    {
+        FloorHeight = MathF.Round(Math.Clamp(metres, Lemmix.App.Ui.Windows.FloorControl.Min, Lemmix.App.Ui.Windows.FloorControl.Max) * 100) / 100;
+        if (save) Store.SetItem(FloorKey, FloorHeight.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Env?.SetFloorY(FloorHeight);
+        if (Pointers != null) Pointers.Floor.Position = new Vector3(0, FloorHeight, 0);
+    }
+
+    /** "Seated": the floor lowered so the eyes stand as high above it as a standing player's. */
+    public float SeatedFloor()
+    {
+        float eye = HeadPose?.Origin.Y ?? StandingEyeHeight - 0.45f;
+        return Math.Clamp(eye - StandingEyeHeight, Lemmix.App.Ui.Windows.FloorControl.Min, 0);
+    }
+
+    Lemmix.App.Ui.Windows.FloorControl FloorControl() => new()
+    {
+        Get = () => FloorHeight,
+        Set = v => SetFloorHeight(v),
+        Seated = () => SetFloorHeight(SeatedFloor()),
+        Standing = () => SetFloorHeight(0),
+        Reset = () => SetFloorHeight(0),
+    };
+
     // the VR window's rows (native): foveated rendering on or off, and its strength
     List<SettingRow> VrRows() => new()
     {
@@ -152,7 +182,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         // the windows: the bar's root rides the head until a board is placed; the windows' root is
         // the scene's; the status strip stands over the board in its pixels
         Foveation = new Foveation(Store);
-        Windows = new VrWindows(this, VrSettings.Rows(Fx), Head, this, Store.GetItem("lem3d-bar"), VrRows());
+        Windows = new VrWindows(this, VrSettings.Rows(Fx), Head, this, Store.GetItem("lem3d-bar"), VrRows(), FloorControl());
         Head.AddChild(Windows.Toolbar.GuiRoot);
         AddChild(Windows.WindowRoot);
         AddChild(Windows.Tooltip.Panel);
@@ -176,6 +206,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         ConnectOpenXr();
         StartUploadServerIfOn();
         Foveation.Apply();
+        SetFloorHeight(float.TryParse(Store.GetItem(FloorKey), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float floor) ? floor : 0, save: false);
 
         // the level asked for (?level=), else the library, locked, until one is chosen
         Speed = args.Speed;
@@ -452,7 +483,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         var basis = new Basis(Vector3.Up, yaw) * Basis.FromScale(Vector3.One * VR_PIXEL_SCALE);
         var focusLocal = new Vector3(FocusX, Session.Level.Height / 2f, (float)BoardZ.TERRAIN_DEPTH / 2);
         var target = headPos + fwd * BoardAhead;
-        target.Y = Math.Max(0.7f, headPos.Y - BoardBelowEye); // just below eye level
+        target.Y = Math.Max(FloorHeight + 0.7f, headPos.Y - BoardBelowEye); // just below eye level, above the floor
         DioramaRoot.Transform = new Transform3D(basis, target - basis * focusLocal);
         Windows.Bar.OnDioramaPlaced();
         Env.PlaceForXR(DioramaRoot.Transform, headPos);
