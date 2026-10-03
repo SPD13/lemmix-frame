@@ -169,10 +169,13 @@ public static class ShellTests
         rig.Frame();
         Check.True(app.Windows.Act(new VrPick("bar", BarTool: "quit")), "a question opens");
         var root = app.Windows.WindowRoot.GlobalTransform;
-        Check.Near(Vector3.Back, root.Basis.Z.Normalized(), "the window faces the default forward (-Z), not the gaze", 1e-4f);
-        // the windows' root stands where the head is; the window VR_MODAL_Z ahead of it along -Z
-        Check.Near(headPos, root.Origin, "laid out from the head's place, at its height", 1e-4f);
-        Check.Near(headPos + new Vector3(0, 0, VrManager.VR_MODAL_Z), root * new Vector3(0, 0, VrManager.VR_MODAL_Z), "straight ahead along the default forward", 1e-4f);
+        Check.Near(Vector3.Back, root.Basis.Z.Normalized(), "the window faces the default forward (-Z), upright, not the gaze", 1e-4f);
+        // the window's centre: VR_MODAL_Z away along the default forward, looking down as far as the
+        // board's centre lies below the eyes
+        float d = -VrManager.VR_MODAL_Z, pitch = ShellApp.WindowPitch;
+        var centre = root * new Vector3(0, 0, VrManager.VR_MODAL_Z);
+        Check.Near(headPos + new Vector3(0, -d * MathF.Sin(pitch), -d * MathF.Cos(pitch)), centre, "ahead, at the board's eye level", 1e-4f);
+        Check.True(centre.Y < headPos.Y - 0.1f, "below the eyes (" + (headPos.Y - centre.Y) + " m)");
         app.Windows.Act(new VrPick("bar", BarTool: "no"));
     }
 

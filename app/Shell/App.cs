@@ -440,8 +440,8 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         float yaw = MathF.Atan2(-fwd.X, -fwd.Z);
         var basis = new Basis(Vector3.Up, yaw) * Basis.FromScale(Vector3.One * VR_PIXEL_SCALE);
         var focusLocal = new Vector3(FocusX, Session.Level.Height / 2f, (float)BoardZ.TERRAIN_DEPTH / 2);
-        var target = headPos + fwd * 0.9f;
-        target.Y = Math.Max(0.7f, headPos.Y - 0.15f); // just below eye level
+        var target = headPos + fwd * BoardAhead;
+        target.Y = Math.Max(0.7f, headPos.Y - BoardBelowEye); // just below eye level
         DioramaRoot.Transform = new Transform3D(basis, target - basis * focusLocal);
         Windows.Bar.OnDioramaPlaced();
         Env.PlaceForXR(DioramaRoot.Transform, headPos);
@@ -611,11 +611,17 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     public bool HasSession => Session != null;
     public Transform3D? HeadPose => Vr.LastHeadPose ?? Input.Head;
 
+    // the board's place at a session's start: this far ahead, this far below the eyes
+    public const float BoardAhead = 0.9f, BoardBelowEye = 0.15f;
+    // the windows open as far below the line of sight as the board's centre is (about 9.5 degrees)
+    public static readonly float WindowPitch = MathF.Atan2(BoardBelowEye, BoardAhead);
+
     /**
      * Where the windows and pages open (the questions, the world library, the settings, the
-     * setup...): at the head, but facing the play space's default forward - its -Z, turned by the
-     * yaw correction as the board is - rather than wherever the head looks. A native departure
-     * from the web, which opens them on the gaze (device session 1).
+     * setup...): at the head, facing the play space's default forward - its -Z, turned by the yaw
+     * correction as the board is - rather than wherever the head looks, and looking down by
+     * WindowPitch, so they stand at the board's eye level (upright still: the placement keeps the
+     * yaw only). A native departure from the web, which opens them on the gaze (device session 1).
      */
     public Transform3D? WindowPose => FrontOf(HeadPose);
 
@@ -626,7 +632,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         fwd.Y = 0;
         fwd = fwd.LengthSquared() < 1e-6f ? Vector3.Forward : fwd.Normalized();
         fwd = fwd.Rotated(Vector3.Up, (float)_yawCorrection);
-        return new Transform3D(new Basis(Vector3.Up, MathF.Atan2(-fwd.X, -fwd.Z)), h.Origin);
+        return new Transform3D(new Basis(Vector3.Up, MathF.Atan2(-fwd.X, -fwd.Z)) * new Basis(Vector3.Right, -WindowPitch), h.Origin);
     }
     public bool GameRunning => Session?.Running ?? false;
     public bool AudioEnabled => Audio.Enabled;
