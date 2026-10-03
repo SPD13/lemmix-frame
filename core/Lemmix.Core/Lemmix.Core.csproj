@@ -16,4 +16,9 @@
     <PackageReference Include="StbImageSharp" Version="2.30.16" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- the level upload page the headset serves (LevelServer) -->
+    <EmbeddedResource Include="Setup/upload.html" LogicalName="Lemmix.Setup.upload.html" />
+  </ItemGroup>
+
 </Project>

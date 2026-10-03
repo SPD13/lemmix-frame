@@ -106,6 +106,13 @@ public static class PageFixture
             return DownloadTo!;
         }
         public void DeleteDir(string dir) { Log.Add("delete " + dir); DirList.RemoveAll(d => d.Dir == dir); }
+        public UploadServerState UploadValue = UploadServerState.Off;
+        public UploadServerState Upload => UploadValue;
+        public void SetUpload(bool on)
+        {
+            Log.Add("upload " + (on ? "on" : "off"));
+            UploadValue = on ? new UploadServerState(true, new[] { "http://192.168.1.42:8642/" }, null, "") : UploadServerState.Off;
+        }
         public ConfigDownload Export(string kind) => kind switch
         {
             "controls" => ConfigFiles.ExportControls(Hotkeys),

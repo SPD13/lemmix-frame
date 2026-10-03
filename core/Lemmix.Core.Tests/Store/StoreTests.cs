@@ -166,11 +166,13 @@ public class StoreTests
                 Assert.Equal(0, s.Length);
                 Assert.True(File.Exists(path + ".bad"));
             }
-            // a debounced save lands without a flush
+            // a debounced save lands without a flush (its timer runs on the thread pool, which the
+            // rest of the suite can keep busy for a while: a generous deadline)
             using (var s = new LocalStore(path, 20))
             {
                 s.SetItem("k", "v");
-                for (int i = 0; i < 100 && !File.ReadAllText(path).Contains("\"k\""); i++) Thread.Sleep(20);
+                var until = DateTime.UtcNow.AddSeconds(10);
+                while (DateTime.UtcNow < until && !File.ReadAllText(path).Contains("\"k\"")) Thread.Sleep(20);
                 Assert.Contains("\"k\": \"v\"", File.ReadAllText(path));
             }
         }

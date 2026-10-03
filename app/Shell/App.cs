@@ -159,6 +159,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
 
         BuildPages();
         ConnectOpenXr();
+        StartUploadServerIfOn();
 
         // the level asked for (?level=), else the library, locked, until one is chosen
         Speed = args.Speed;
@@ -280,6 +281,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         using var _ = Perf.Time(Perf.S.Shell);
         double dt = double.IsNaN(_last) ? 0 : Math.Max(0, now - _last);
         _last = now;
+        DrainUploadEvents();
         if (_reload) { _reload = false; if (LevelId != null) LoadLevel(); }
         if (_scriptedHead && Input.Head is Transform3D hp && Head.IsInsideTree()) Head.GlobalTransform = hp;
         bool presenting = Vr.Presenting;
@@ -636,6 +638,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     {
         if (!_built) return;
         DisposeSession();
+        StopUploadServer();
         _localStore?.Flush();
     }
 }

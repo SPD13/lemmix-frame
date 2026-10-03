@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lemmix levels</title>
+<style>
+  :root {
+    --ground: #10141c; --card: #1a212c; --row: #212a37; --row-hover: #283343; --border: #2f3a4a;
+    --text: #e6edf3; --dim: #93a1b3; --green: #36e06c; --green-dim: #2e5f46; --red: #ff6b6b; --red-dim: #5f2e2e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--ground); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 20px; letter-spacing: .08em; color: var(--green); margin: 0 0 4px; }
+  .sub { color: var(--dim); margin: 0 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .crumbs { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 12px; font-size: 16px; }
+  .crumbs a { color: var(--green); text-decoration: none; cursor: pointer; }
+  .crumbs a:hover { text-decoration: underline; }
+  .crumbs span.sep { color: var(--dim); }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  button, .btn { font: inherit; color: var(--text); background: var(--green-dim); border: 1px solid #3f7a5c; border-radius: 6px; padding: 6px 14px; cursor: pointer; }
+  button:hover, .btn:hover { background: #377155; }
+  button.danger { background: transparent; border-color: var(--red-dim); color: var(--red); padding: 3px 10px; }
+  button.danger:hover { background: var(--red-dim); color: var(--text); }
+  button.small { padding: 3px 10px; }
+  button:disabled { opacity: .45; cursor: default; }
+  input[type=file] { display: none; }
+  .drop { border: 2px dashed var(--border); border-radius: 8px; padding: 18px; text-align: center; color: var(--dim); margin-bottom: 12px; transition: border-color .15s, background .15s; }
+  .drop.over { border-color: var(--green); background: #16261d; color: var(--text); }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 7px 8px; border-top: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: var(--row-hover); }
+  td.name { width: 100%; word-break: break-all; }
+  td.num { color: var(--dim); white-space: nowrap; text-align: right; }
+  td.act { white-space: nowrap; text-align: right; }
+  .dir { color: var(--green); cursor: pointer; }
+  .dir:hover { text-decoration: underline; }
+  .icon { display: inline-block; width: 1.4em; color: var(--dim); }
+  .empty { color: var(--dim); padding: 12px 8px; }
+  .status { min-height: 1.4em; margin-top: 10px; color: var(--dim); }
+  .status.bad { color: var(--red); }
+  .status.good { color: var(--green); }
+  .progress { height: 8px; background: var(--row); border-radius: 4px; overflow: hidden; margin-top: 10px; display: none; }
+  .progress > div { height: 100%; width: 0; background: var(--green); transition: width .1s; }
+  .foot { color: var(--dim); font-size: 13px; }
+  .foot p { margin: 4px 0; }
+  code { background: var(--row); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>LEMMIX — LEVELS ON THE HEADSET</h1>
+  <p class="sub">Browse the levels folder of the Lemmix app on your Steam Frame, upload level packs into it, delete what you no longer want.</p>
+
+  <div class="card">
+    <div class="crumbs" id="crumbs"></div>
+    <div class="bar">
+      <label class="btn" for="pick-files">Upload files…</label>
+      <input type="file" id="pick-files" multiple>
+      <label class="btn" for="pick-folder">Upload a folder…</label>
+      <input type="file" id="pick-folder" webkitdirectory directory multiple>
+      <button id="refresh" type="button">Refresh</button>
+    </div>
+    <div class="drop" id="drop">Drop files or folders here to upload them into this folder</div>
+    <div class="progress" id="progress"><div></div></div>
+    <div class="status" id="status"></div>
+    <table><tbody id="list"></tbody></table>
+  </div>
+
+  <div class="foot">
+    <p>A level pack is a folder: upload the whole folder, or its <code>.zip</code> and press <b>install</b> next to it (the zips of NeoLemmix and its styles install the same way).</p>
+    <p>The headset's library updates when an upload or a delete is done. This page only works while the web server is turned on in the app's setup page.</p>
+    <p id="free"></p>
+  </div>
+</main>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+let path = new URLSearchParams(location.hash.slice(1)).get("path") || "";
+let busy = false;
+
+const mb = (n) => n == null ? "" : n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(n < 10240 ? 1 : 0) + " KB"
+  : n < 1073741824 ? (n / 1048576).toFixed(n < 10485760 ? 1 : 0) + " MB" : (n / 1073741824).toFixed(1) + " GB";
+const join = (...parts) => parts.filter((p) => p !== "").join("/");
+const q = (p) => encodeURIComponent(p);
+
+function say(text, kind) {
+  const s = $("status");
+  s.textContent = text || "";
+  s.className = "status" + (kind ? " " + kind : "");
+}
+function progress(frac) {
+  const p = $("progress");
+  p.style.display = frac == null ? "none" : "block";
+  p.firstElementChild.style.width = Math.round((frac || 0) * 100) + "%";
+}
+function setBusy(b) {
+  busy = b;
+  for (const el of document.querySelectorAll("button, .btn")) el.toggleAttribute("disabled", b);
+}
+
+async function api(method, route, p, extra) {
+  const res = await fetch("/api/" + route + "?path=" + q(p) + (extra || ""), { method });
+  let body = null;
+  try { body = await res.json(); } catch (e) { /* no body */ }
+  if (!res.ok) throw new Error((body && body.error) || res.status + " " + res.statusText);
+  return body;
+}
+
+function go(p) {
+  path = p;
+  history.replaceState(null, "", p ? "#path=" + q(p) : location.pathname);
+  load();
+}
+
+function crumbs() {
+  const c = $("crumbs");
+  c.textContent = "";
+  const parts = path ? path.split("/") : [];
+  const add = (label, target, last) => {
+    if (last) { const b = document.createElement("b"); b.textContent = label; c.append(b); return; }
+    const a = document.createElement("a"); a.textContent = label; a.onclick = () => go(target); c.append(a);
+  };
+  add("levels", "", parts.length === 0);
+  parts.forEach((part, i) => {
+    const sep = document.createElement("span"); sep.className = "sep"; sep.textContent = "/"; c.append(sep);
+    add(part, parts.slice(0, i + 1).join("/"), i === parts.length - 1);
+  });
+}
+
+function row(cells) {
+  const tr = document.createElement("tr");
+  for (const [cls, content] of cells) {
+    const td = document.createElement("td");
+    td.className = cls;
+    if (content instanceof Node) td.append(content); else td.textContent = content;
+    tr.append(td);
+  }
+  return tr;
+}
+function button(label, cls, onclick) {
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = label; b.className = cls; b.onclick = onclick; b.disabled = busy;
+  return b;
+}
+function both(...nodes) { const s = document.createElement("span"); s.style.display = "inline-flex"; s.style.gap = "6px"; s.append(...nodes); return s; }
+
+async function load() {
+  crumbs();
+  const list = $("list");
+  let data;
+  try { data = await api("GET", "list", path); }
+  catch (e) {
+    if (path) { say(e.message + " - back to the top", "bad"); go(""); return; }
+    say("cannot reach the headset: " + e.message, "bad"); list.textContent = ""; return;
+  }
+  list.textContent = "";
+  if (path) {
+    const up = document.createElement("span");
+    up.className = "dir"; up.textContent = ".. (up)";
+    up.onclick = () => go(path.split("/").slice(0, -1).join("/"));
+    list.append(row([["name", up], ["num", ""], ["num", ""], ["act", ""]]));
+  }
+  for (const d of data.dirs) {
+    const name = document.createElement("span");
+    name.innerHTML = '<span class="icon">▸</span>';
+    const link = document.createElement("span"); link.className = "dir"; link.textContent = d.name;
+    link.onclick = () => go(join(path, d.name));
+    name.append(link);
+    list.append(row([["name", name], ["num", d.files + " files"], ["num", mb(d.bytes)],
+      ["act", button("delete", "danger", () => remove(join(path, d.name), true, d.files))]]));
+  }
+  for (const f of data.files) {
+    const name = document.createElement("span");
+    name.innerHTML = '<span class="icon">·</span>';
+    name.append(f.name);
+    const acts = [button("delete", "danger", () => remove(join(path, f.name), false))];
+    if (/\.zip$/i.test(f.name)) acts.unshift(button("install", "small", () => install(join(path, f.name))));
+    list.append(row([["name", name], ["num", new Date(f.modified).toLocaleDateString()], ["num", mb(f.size)], ["act", both(...acts)]]));
+  }
+  if (!data.dirs.length && !data.files.length) {
+    const tr = document.createElement("tr"); const td = document.createElement("td");
+    td.colSpan = 4; td.className = "empty"; td.textContent = path ? "this folder is empty" : "no levels yet: upload a level pack's folder or zip";
+    tr.append(td); list.append(tr);
+  }
+  $("free").textContent = data.free != null ? "Free space on the headset: " + mb(data.free) : "";
+}
+
+async function remove(p, isDir, files) {
+  if (busy) return;
+  const what = isDir ? "the folder " + p + (files ? " and its " + files + " files" : "") : p;
+  if (!confirm("Delete " + what + " from the headset?")) return;
+  setBusy(true);
+  try { await api("DELETE", "entry", p); say(p + " deleted", "good"); }
+  catch (e) { say("delete failed: " + e.message, "bad"); }
+  setBusy(false);
+  load();
+}
+
+async function install(p) {
+  if (busy) return;
+  setBusy(true);
+  try {
+    const plan = await api("POST", "plan", p);
+    let ask = "Install " + p + " (" + plan.label + (plan.dirs.length ? ": " + plan.dirs.join(", ") : "") + ")?";
+    if (plan.clashing.length) ask += "\n\nThis replaces what is installed in " + plan.clashing.join(", ") + ".";
+    if (plan.replaces) ask += "\n\nThis replaces the " + plan.label + " installed (" + plan.replaces + ").";
+    if (confirm(ask)) {
+      say("installing " + p + "…");
+      progress(null);
+      const r = await api("POST", "install", p);
+      say(r.installed + " installed (" + r.files + " files, " + mb(r.bytes) + "); the zip was removed", "good");
+    } else say("");
+  } catch (e) { say("install failed: " + e.message, "bad"); }
+  setBusy(false);
+  load();
+}
+
+// one file's PUT, with its upload progress
+function put(p, file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open("PUT", "/api/file?path=" + q(p));
+    x.upload.onprogress = (e) => onProgress(e.loaded);
+    x.onload = () => {
+      if (x.status >= 200 && x.status < 300) resolve();
+      else { let m = x.status + " " + x.statusText; try { m = JSON.parse(x.responseText).error || m; } catch (e) {} reject(new Error(m)); }
+    };
+    x.onerror = () => reject(new Error("the connection to the headset failed"));
+    x.send(file);
+  });
+}
+
+// [{rel, file}] uploaded into the current folder, one after the other
+async function upload(items) {
+  items = items.filter((it) => !it.rel.split("/").some((s) => s.startsWith(".")));
+  if (!items.length || busy) return;
+  setBusy(true);
+  const total = items.reduce((n, it) => n + it.file.size, 0) || 1;
+  let done = 0, ok = 0;
+  const fails = [];
+  progress(0);
+  for (const it of items) {
+    const target = join(path, it.rel);
+    say("uploading " + target + " (" + (ok + fails.length + 1) + " of " + items.length + ")");
+    try { await put(target, it.file, (loaded) => progress((done + loaded) / total)); ok++; }
+    catch (e) { fails.push(it.rel + ": " + e.message); }
+    done += it.file.size;
+    progress(done / total);
+  }
+  const zips = items.filter((it) => /\.zip$/i.test(it.rel) && !it.rel.includes("/"));
+  let note = ok + " file" + (ok === 1 ? "" : "s") + " uploaded from a computer";
+  try { await api("POST", "rescan", path, "&note=" + q(note)); } catch (e) { fails.push("library update: " + e.message); }
+  progress(null);
+  if (fails.length) say(ok + " uploaded, " + fails.length + " failed - " + fails.slice(0, 3).join("; "), "bad");
+  else say(note.replace(" from a computer", "") + " (" + mb(total) + ")" + (zips.length ? " - press install next to a zip to unpack it" : ""), "good");
+  setBusy(false);
+  load();
+}
+
+$("pick-files").onchange = (e) => { upload([...e.target.files].map((f) => ({ rel: f.name, file: f }))); e.target.value = ""; };
+$("pick-folder").onchange = (e) => { upload([...e.target.files].map((f) => ({ rel: f.webkitRelativePath || f.name, file: f }))); e.target.value = ""; };
+$("refresh").onclick = () => load();
+
+// drag and drop, folders included (their entries walked)
+function readEntries(dirEntry) {
+  return new Promise((resolve, reject) => {
+    const reader = dirEntry.createReader();
+    const all = [];
+    const next = () => reader.readEntries((batch) => { if (!batch.length) resolve(all); else { all.push(...batch); next(); } }, reject);
+    next();
+  });
+}
+async function walk(entry, prefix, out) {
+  if (entry.isFile) {
+    const file = await new Promise((res, rej) => entry.file(res, rej));
+    out.push({ rel: prefix + entry.name, file });
+  } else if (entry.isDirectory) {
+    for (const child of await readEntries(entry)) await walk(child, prefix + entry.name + "/", out);
+  }
+}
+const drop = $("drop");
+["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((t) => drop.addEventListener(t, () => drop.classList.remove("over")));
+drop.addEventListener("drop", async (e) => {
+  e.preventDefault();
+  const entries = [...e.dataTransfer.items].map((i) => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  const out = [];
+  if (entries.length) { for (const en of entries) await walk(en, "", out); }
+  else for (const f of e.dataTransfer.files) out.push({ rel: f.name, file: f });
+  upload(out);
+});
+document.addEventListener("dragover", (e) => e.preventDefault());
+document.addEventListener("drop", (e) => e.preventDefault());
+
+load();
+</script>
+</body>
+</html>

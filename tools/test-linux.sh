@@ -25,5 +25,9 @@ fi
 export COPYFILE_DISABLE=1
 parts=(repo); [ -e "$OUT/assets" ] && parts+=(assets/levels assets/neolemmix assets/solutions assets/config.json)
 tar --no-mac-metadata -h -C "$OUT" -c "${parts[@]}" | "$ROOT/tools/docker.sh" run -i --rm registry.gitlab.steamos.cloud/steamrt/sniper/platform/arm64:latest bash -c '
-  mkdir /t && tar -x -C /t && cd /t/repo/build/bin && WEB_ASSETS=/t/assets ./Lemmix.Core.Tests '"${TEST_ARGS:-}"' 2>&1 | grep -vE "^\s*$" | grep -vE "Discover|Starting|Finished|Runner| at |End of stack" | head -'"${TEST_LINES:-60}"'' | tee "$OUT/result.txt"
+  mkdir /t && tar -x -C /t && cd /t/repo/build/bin && WEB_ASSETS=/t/assets ./Lemmix.Core.Tests '"${TEST_ARGS:-}"' 2>&1 | grep -vE "^\s*$" | grep -vE "Discover|Starting|Finished|Runner| at |End of stack"' > "$OUT/result.txt"
+# what is not a skip (a skip's line and its reason dropped), the first lines of it, then the
+# summary, however many tests skip
+awk '/\[SKIP\]/ { drop = 2 } drop > 0 { drop--; next } !/Total:/' "$OUT/result.txt" | head -n "${TEST_LINES:-60}"
+grep "Total:" "$OUT/result.txt"
 grep -q "Failed: 0" "$OUT/result.txt"

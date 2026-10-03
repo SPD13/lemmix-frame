@@ -49,6 +49,10 @@ Frame; Claude checks it with you at the start.
    - The setup window opens. Install NeoLemmix, the styles and Lemmings Plus (about 120 MB from
      neolemmix.com).
    - Check that the progress and messages read like the web's setup page.
+   - **Upload from a computer:** tick "web server for level uploads" in the setup page and type the
+     address it shows into a browser on a computer on the same Wi-Fi. Upload a level pack's
+     folder, upload a pack's zip and press install, then delete a folder. Check that the headset's
+     library follows each time. Turn it off and check that the page no longer answers.
 3. **Play.** One level of each Lemmings Plus difficulty and one of the Intro pack. Check:
    - the controllers: the Frame's own models, drawn from the runtime (no green box at the grip),
      their trigger, buttons and stick moving with your fingers, and the Lemmix sticker on the

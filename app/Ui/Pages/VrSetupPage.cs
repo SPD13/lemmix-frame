@@ -41,6 +41,7 @@ public sealed class VrSetupPage : VrPage
     public SetupUnit? Engine, Styles;
     public IReadOnlyList<SetupDir> LevelDirs = Array.Empty<SetupDir>();
     public bool HasLevels;
+    public UploadServerState Upload = UploadServerState.Off;
     public (long Used, long? Available) StorageUse;
     // the message lines: nx, levels, controls, prefs, progress
     public readonly Dictionary<string, ConfigMessage> Messages = new();
@@ -98,6 +99,7 @@ public sealed class VrSetupPage : VrPage
         LevelDirs = Backend.Dirs().ToList(); // its own copy: a delete may be changing the backend's list off the frame
         HasLevels = Backend.HasLevels;
         StorageUse = Backend.Storage();
+        Upload = Backend.Upload;
     }
 
     /** renderPlay: "to play, install …" until NeoLemmix, the styles and a level pack are there. */
@@ -292,6 +294,7 @@ public sealed class VrSetupPage : VrPage
         switch (id)
         {
             case "play": Backend.Play(); return;
+            case "upload-server": Backend.SetUpload(!Upload.On); Refresh(); return;
             case "get-engine": Download(Downloads.Engine, "engine"); return;
             case "get-styles": Download(Downloads.Styles, "styles"); return;
             case "get-packs": Download(Downloads.Packs, "levels"); return;
@@ -432,6 +435,7 @@ public sealed class VrSetupPage : VrPage
         y += Card(y, "", LevelsCard);
         if (ProgressLabel != null) y += U(12) + ProgressBar(y + U(12));
         y += U(12);
+        y += Card(y, "", UploadCard) + U(12);
         y += Card(y, "", ConfigCard) + U(12);
         y += Card(y, "", CreditsCard) + U(40);
         EndScroll(y);
@@ -616,6 +620,45 @@ public sealed class VrSetupPage : VrPage
         }
         foreach (var d in LevelDirs) y += DirRow(d, x, y, w, paint);
         y += Msg("levels", x, y, w, paint);
+        return y - y0;
+    }
+
+    // The level upload server: levels do not ship with the app, so a browser on another computer
+    // of the network can put them in (LevelServer). Its switch, and the address to type.
+    float UploadCard(float x, float y, float w, bool paint)
+    {
+        float y0 = y;
+        var u = Upload;
+        y += H2("Upload from a computer", x, y, paint);
+        y += Para(new[]
+        {
+            Dim("Turn on the web server to manage the levels folder from a web browser on a computer connected to the same network as this headset: browse it, upload level files or whole folders, delete folders, and install a level pack's zip."),
+        }, x, y, w, 17.6f, paint);
+        y += U(8);
+        float rowH = U(26);
+        if (paint) Checkbox("upload-server", "web server for level uploads", u.On, x, y, rowH, enabled: !Busy, labelColor: Css.Text);
+        y += rowH + U(6);
+        if (u.On && u.Urls.Count > 0)
+        {
+            y += Para(new[] { Dim("In the computer's browser, type:") }, x, y, w, 17.6f, paint);
+            foreach (var url in u.Urls)
+            {
+                if (paint)
+                {
+                    cx.font = F(17, true);
+                    cx.fillStyle = Css.Green;
+                    cx.fillText(url, x + U(12), y + U(14));
+                }
+                y += U(28);
+            }
+            y += Para(new[] { Dim("Anyone on this network can reach it while it is on: turn it off when you are done.") }, x, y, w, 17.6f, paint);
+        }
+        else if (u.On)
+            y += Para(new[] { new Run("on, but this headset has no network address: connect it to Wi-Fi", F(11), Css.Red) }, x, y, w, 17.6f, paint);
+        if (u.Error != null)
+            y += Para(new[] { new Run(u.Error, F(11), Css.Red) }, x, y, w, 17.6f, paint);
+        if (u.Activity != "")
+            y += Para(new[] { new Run(u.Activity, F(11), Css.Green) }, x, y, w, 17.6f, paint);
         return y - y0;
     }
 

@@ -19,6 +19,13 @@ public sealed record SetupUnit(int? Files, long? Bytes, long? InstalledAt, strin
 // a level directory (setup.js dirs() joined with the index's node of the same name)
 public sealed record SetupDir(string Dir, string? Name, string? Engine, int? Count, int? Files, long? Bytes, string Source, long? InstalledAt);
 
+// The level upload server as the setup page shows it: on or off, the addresses to type in a
+// browser, why it could not start, the last thing a computer did through it.
+public sealed record UploadServerState(bool On, IReadOnlyList<string> Urls, string? Error, string Activity)
+{
+    public static readonly UploadServerState Off = new(false, Array.Empty<string>(), null, "");
+}
+
 // What the setup page reads and does (web/3d/js/setup.js over vfs.js and config-store.js). The
 // slow ones - Download, Install, DeleteDir - are called off the frame.
 public interface ISetupBackend
@@ -37,6 +44,8 @@ public interface ISetupBackend
     ConfigDownload Export(string kind);               // "controls", "prefs", "progress"
     ConfigMessage Import(string kind, string text, string name);
     void Play();                                      // the head's PLAY: the library, to choose a level
+    UploadServerState Upload => UploadServerState.Off; // the level upload server (native only)
+    void SetUpload(bool on) { }
 }
 
 // The native backend: Installer over <user data>/assets (neolemmix/, levels/, the indexes),
@@ -51,8 +60,16 @@ public sealed class SetupBackend : ISetupBackend
     public string Version { get; }
     public IPageFiles Files { get; }
 
-    public SetupBackend(string assetRoot, IPageFiles files, IStorage store, HotkeyManager hotkeys, string version, Action play, HttpClient? http = null)
+    readonly Func<UploadServerState>? _upload;
+    readonly Action<bool>? _setUpload;
+    public UploadServerState Upload => _upload?.Invoke() ?? UploadServerState.Off;
+    public void SetUpload(bool on) => _setUpload?.Invoke(on);
+
+    public SetupBackend(string assetRoot, IPageFiles files, IStorage store, HotkeyManager hotkeys, string version, Action play, HttpClient? http = null,
+        Func<UploadServerState>? upload = null, Action<bool>? setUpload = null)
     {
+        _upload = upload;
+        _setUpload = setUpload;
         _installer = new Installer(assetRoot);
         Files = files;
         _store = store;

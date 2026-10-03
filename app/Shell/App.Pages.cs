@@ -43,7 +43,7 @@ public sealed partial class App
         AddChild(Pages.Root);
         Files = new PageFiles(UserDataDir);
         Confirm = new WindowsPageConfirm(Windows);
-        SetupPage = Pages.Add(new VrSetupPage(new SetupBackend(AssetRoot, Files, Store, Hotkeys, AppVersion, SetupPlay), Confirm));
+        SetupPage = Pages.Add(new VrSetupPage(new SetupBackend(AssetRoot, Files, Store, Hotkeys, AppVersion, SetupPlay, upload: UploadState, setUpload: SetUploadServer), Confirm));
         ControlsPage = Pages.Add(new VrControlsDialog(Hotkeys, Files));
         var controlsClosed = ControlsPage.Closed;
         ControlsPage.Closed = () => { controlsClosed?.Invoke(); RefreshKeyHints(); };

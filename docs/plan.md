@@ -128,6 +128,7 @@ C# porting rules, enforced by a checklist in `core/README.md` and by the oracles
    - **Setup:**
      - direct downloads of the NeoLemmix engine, the styles and Lemmings Plus, with resume, a zip-signature check, retry and progress;
      - install a zip from `~/Lemmix/import/`;
+     - a level upload web server (on/off, its address shown): a browser on another computer of the network browses the levels folder, uploads files and folders, deletes folders and installs uploaded zips (`LevelServer`, local-network addresses only);
      - list and delete packs, storage usage, and installed engine/styles versions (this replaces the version warning);
      - config export/import in the web's JSON schemas, so progress moves between web and Frame;
      - credits.
