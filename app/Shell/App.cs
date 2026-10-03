@@ -432,11 +432,10 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         if (Session == null) return false;
         var head = headPose ?? HeadNow();
         var headPos = head.Origin;
-        var fwd = head.Basis * new Vector3(0, 0, -1);
-        fwd.Y = 0;
-        if (fwd.LengthSquared() < 1e-4f) fwd = new Vector3(0, 0, -1);
-        else fwd = fwd.Normalized();
-        fwd = fwd.Rotated(Vector3.Up, (float)_yawCorrection);
+        // along the play space's default forward, as the windows are (DefaultForward): the board
+        // and the windows face the same way and stand in front of the player whatever way the head
+        // was turned when the level loaded (a native departure: the web places it on the gaze)
+        var fwd = DefaultForward();
         float yaw = MathF.Atan2(-fwd.X, -fwd.Z);
         var basis = new Basis(Vector3.Up, yaw) * Basis.FromScale(Vector3.One * VR_PIXEL_SCALE);
         var focusLocal = new Vector3(FocusX, Session.Level.Height / 2f, (float)BoardZ.TERRAIN_DEPTH / 2);
@@ -628,11 +627,17 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     Transform3D? FrontOf(Transform3D? head)
     {
         if (head is not Transform3D h) return null;
+        var fwd = DefaultForward();
+        return new Transform3D(new Basis(Vector3.Up, MathF.Atan2(-fwd.X, -fwd.Z)) * new Basis(Vector3.Right, -WindowPitch), h.Origin);
+    }
+
+    /** The play space's default forward on the floor: the origin's -Z, turned by the yaw correction. */
+    Vector3 DefaultForward()
+    {
         var fwd = (Origin?.GlobalBasis ?? Basis.Identity) * Vector3.Forward;
         fwd.Y = 0;
         fwd = fwd.LengthSquared() < 1e-6f ? Vector3.Forward : fwd.Normalized();
-        fwd = fwd.Rotated(Vector3.Up, (float)_yawCorrection);
-        return new Transform3D(new Basis(Vector3.Up, MathF.Atan2(-fwd.X, -fwd.Z)) * new Basis(Vector3.Right, -WindowPitch), h.Origin);
+        return fwd.Rotated(Vector3.Up, (float)_yawCorrection);
     }
     public bool GameRunning => Session?.Running ?? false;
     public bool AudioEnabled => Audio.Enabled;
