@@ -244,6 +244,12 @@ public static class BoardTests
         Check.True(rig.Env.CurrentGallery?.FogOnly == true && rig.Env.CurrentGallery.Scenery == null, "fog: the haze alone, no scenery");
         Check.True(rig.Env.Scenery.Shown == null, "fog: no strips shown");
         Check.True(rig.Env.SceneColor != EnvironmentView.ENV_SCENE_COLOR, "fog: the background is the fog");
+        s.SetEnvironment("full");
+        Check.True(rig.Env.Ready && (rig.Env.Scenery.Shown == null) == (rig.Env.CurrentGallery?.Scenery == null), "full again: the scenery when the gallery has one");
+        if (rig.Env.Scenery.Shown != null)
+            Check.True(!rig.Env.GetChildren().OfType<MeshInstance3D>().Any(m => m.Visible && m.Name.ToString().StartsWith("env-")), "full again: no fog planes under the scenery");
+        s.SetEnvironment("fog");
+        Check.True(rig.Env.Scenery.Shown == null, "fog again: the strips down");
         s.SetEnvironment("none");
         Check.True(!rig.Env.Visible, "the room is gone");
         Check.Equal(EnvironmentView.ENV_SCENE_COLOR, rig.Env.SceneColor, "the page's background again");

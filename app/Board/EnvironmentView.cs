@@ -135,7 +135,8 @@ public sealed partial class EnvironmentView : Node3D
         Mode = mode;
         ApplyVisibility();
         if (_ctx == null) return;
-        if (mode == "none") { DisposeSet(); ApplyBackdrop(); ApplyScene(); return; }
+        DisposeSet(); // the last mode's room down (full's scenery or fog's planes) before the next is put up
+        if (mode == "none") { ApplyBackdrop(); ApplyScene(); return; }
         _ = BuildAsync(BuildInBackground);
     }
 
