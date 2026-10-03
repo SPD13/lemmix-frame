@@ -60,6 +60,7 @@ public sealed partial class App
 
     void DisposeSession()
     {
+        CancelLoad();
         if (Session == null) return;
         Windows.Status.Badge.Set(false, Presenting);
         _solutionLit = false;
@@ -68,9 +69,7 @@ public sealed partial class App
         _endGame = null;
         var s = Session;
         Session = null;
-        s.Close();
-        if (s.GetParent() == this) RemoveChild(s);
-        s.QueueFree();
+        FreeSession(s);
         Bar?.Dispose();
         Bar = null;
         if (BarView != null)
@@ -80,6 +79,13 @@ public sealed partial class App
             BarView = null;
         }
         _hoverTile = null;
+    }
+
+    void FreeSession(GameSession s)
+    {
+        s.Close();
+        if (s.GetParent() == this) RemoveChild(s);
+        s.QueueFree();
     }
 
     void ShowUnplayable(LevelDescription where)
@@ -111,7 +117,12 @@ public sealed partial class App
     /** loadLevel: the level state.levelId names, in place of the one on the board. */
     public void LoadLevel()
     {
+        // a level still being prepared on the worker: this one waits for it (the worker's io is
+        // its alone), then loads (PollLoad)
+        if (_loading is { Session: null, Task.IsCompleted: false }) { _loadAgain = true; return; }
+        LoadTimes.Start();
         DisposeSession();
+        LoadTimes.Lap("dispose");
         _lobbyRoom = false; // the level's room takes the lobby's place
         Windows.SetLevelText(null);
         Windows.Status.Set(note: "loading…", kind: "");
@@ -145,24 +156,99 @@ public sealed partial class App
         }
         _pendingNxrp = null;
 
-        GameSession s;
-        try
+        var options = new SessionOptions
         {
-            s = GameSession.Load(new SessionOptions
-            {
-                Assets = Io, LevelId = LevelId, Switches = Fx.Switches(), DioramaRoot = DioramaRoot, Environment = Env,
-                Audio = Audio, Speed = Speed, EnvironmentInBackground = Options.EnvironmentInBackground, Clock = Now,
-                SpreadRestore = Options.SpreadRestore,
-                ReplayText = replay, ReplayKind = kind,
-            });
-        }
-        catch (Exception e)
+            Assets = SyncLoad ? Io : LoaderIo, EnvironmentAssets = Io, LevelId = LevelId, Switches = Fx.Switches(), DioramaRoot = DioramaRoot, Environment = Env,
+            Audio = Audio, Speed = Speed, EnvironmentInBackground = Options.EnvironmentInBackground, Clock = Now,
+            SpreadRestore = Options.SpreadRestore,
+            ReplayText = replay, ReplayKind = kind,
+        };
+        if (SyncLoad)
         {
-            GD.PushError("[app] level " + LevelId + ": " + e);
-            Windows.Status.Set(name: where.Label, meta: where.PackName, note: "FAILED TO LOAD", kind: "lost");
+            GameSession s;
+            try { s = GameSession.Load(options); }
+            catch (Exception e) { LoadFailed(where, e); return; }
+            Adopt(s);
+            FinishLoad(s, where);
             return;
         }
-        Session = s;
+        // in a headset: the level built on a worker while the frames go on (the head tracked, the
+        // windows answering), then its board handed to the engine a few milliseconds a frame (PollLoad)
+        var load = _loading = new PendingLoad { Options = options, Where = where };
+        load.Task = System.Threading.Tasks.Task.Run(() => GameSession.Prepare(options));
+    }
+
+    // ---- a level's load spread over frames
+    sealed class PendingLoad
+    {
+        public required SessionOptions Options;
+        public required LevelDescription Where;
+        public System.Threading.Tasks.Task<GameSession.Prepared>? Task;
+        public GameSession? Session;        // attached, its terrain on its way to the engine
+        public bool Abandoned;              // the level left before it was up
+    }
+    PendingLoad? _loading;
+    bool _loadAgain;                        // another level asked for while one was being prepared
+    public bool SyncLoad;                   // loads finish within LoadLevel (tests, the benchmark)
+    public bool Loading => _loading != null;
+    public const double TerrainBudgetMs = 4; // the terrain's share of a frame while a level comes up
+
+    // once a frame: the worker's level attached when ready, then its terrain a slice at a time
+    void PollLoad()
+    {
+        var load = _loading;
+        if (load == null) return;
+        if (load.Session == null)
+        {
+            if (!load.Task!.IsCompleted) return;
+            if (_loadAgain || load.Abandoned)
+            {
+                _loading = null;
+                bool again = _loadAgain;   // asked for after the worker began (abandoned or not)
+                _loadAgain = false;
+                if (again) LoadLevel();
+                return;
+            }
+            if (load.Task.IsFaulted) { _loading = null; LoadFailed(load.Where, load.Task.Exception?.InnerException ?? load.Task.Exception!); return; }
+            GameSession attached;
+            try { attached = GameSession.Attach(load.Options, load.Task.Result, deferTerrain: true); }
+            catch (Exception e) { _loading = null; LoadFailed(load.Where, e); return; }
+            Adopt(attached);
+            attached.Board.Visible = false;     // shown whole, once its terrain is in
+            load.Session = attached;
+            return;
+        }
+        var s = load.Session;
+        s.Board.TerrainView.Sync(TerrainBudgetMs);
+        if (s.Board.TerrainView.Pending) return;
+        s.Board.Visible = true;
+        _loading = null;
+        LoadTimes.Lap("terrain-frames");
+        FinishLoad(s, load.Where);
+    }
+
+    // a load under way dropped (DisposeSession: the level left, or another one loading)
+    void CancelLoad()
+    {
+        var load = _loading;
+        if (load == null) return;
+        if (load.Session != null)
+        {
+            FreeSession(load.Session);
+            _loading = null;
+        }
+        else load.Abandoned = true;         // its worker finishes; PollLoad lets it go
+    }
+
+    void LoadFailed(LevelDescription where, Exception e)
+    {
+        GD.PushError("[app] level " + LevelId + ": " + e);
+        Windows.Status.Set(name: where.Label, meta: where.PackName, note: "FAILED TO LOAD", kind: "lost");
+    }
+
+    // the session's node in the shell (it is stepped by the shell's frame, not its own)
+    void Adopt(GameSession s)
+    {
         AddChild(s);
         s.SetProcess(false); // the shell's frame loop steps it
         s.Eye = Head as Camera3D;
@@ -172,6 +258,12 @@ public sealed partial class App
         s.Restored += _ => OnRestored(s);
         s.ReloadRequested += RequestReload;
         s.Game.OnLoadReplayRequest = OpenReplayFiles;
+    }
+
+    // the loaded level made current: its skills bar, its texts, its place
+    void FinishLoad(GameSession s, LevelDescription where)
+    {
+        Session = s;
 
         // the skills bar, in the bar's root (its panel is the game's GUI)
         try
@@ -184,6 +276,7 @@ public sealed partial class App
             _hoverTile = BarView.GetNodeOrNull<Node3D>("HoverTile");
         }
         catch (Exception e) { GD.PushError("[app] skills bar: " + e.Message); Bar = null; }
+        LoadTimes.Lap("skillbar");
 
         // a window the player is dealing with holds whatever game is current: this one too
         foreach (var who in _holders) s.Hold(who);
@@ -197,6 +290,7 @@ public sealed partial class App
         LayoutGuiPanel();
         if (Presenting) PlaceDiorama(HeadNow());
         _collectIn = 2; // once the old board is freed (QueueFree: the end of this frame)
+        LoadTimes.Print(LevelId);
     }
 
     // A level's load leaves its garbage (the old board, the build's scratch) for the collector:
@@ -213,13 +307,16 @@ public sealed partial class App
         if (System.Runtime.GCSettings.LatencyMode == System.Runtime.GCLatencyMode.NoGCRegion)
             try { GC.EndNoGCRegion(); } catch (InvalidOperationException) { }
         System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+        var gcClock = System.Diagnostics.Stopwatch.StartNew();
         GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
+        double gcMs = gcClock.Elapsed.TotalMilliseconds;
         foreach (long size in NoGcRegionSizes)
         {
             try { if (GC.TryStartNoGCRegion(size)) break; }
             catch (ArgumentOutOfRangeException) { }   // more than this runtime allows: a smaller one
             catch (InvalidOperationException) { break; }
         }
+        GD.Print($"[load] after the load: full collection {gcMs:0} ms, no-GC region {gcClock.Elapsed.TotalMilliseconds - gcMs:0} ms");
     }
 
     // ------------------------------------------------------------ the end of a level

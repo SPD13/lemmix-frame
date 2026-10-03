@@ -55,18 +55,29 @@ void fragment() {
 
     // A chunk's buffers as an ArrayMesh: one surface per material group, each with the vertices
     // its indices use (three.js draws a group with its material from the shared buffers), numbered
-    // in the order the indices first use them. Main thread only (the remap is scratch).
-    static int[] _remap = System.Array.Empty<int>();
-    static int[] _used = System.Array.Empty<int>();
+    // in the order the indices first use them. In two steps: the compaction is plain arrays (any
+    // thread: a level's load does it on a worker, BoardData), the mesh is Godot's (main thread).
+    public sealed class CompactSurface
+    {
+        public required Vector3[] Pos;
+        public required Vector2[] Uv;
+        public Color[]? Col;
+        public required int[] Idx;
+        public int Material;
+    }
 
-    public static ArrayMesh? ToMesh(ChunkGeometry g, Material[] materials)
+    [System.ThreadStatic] static int[]? _remap;
+    [System.ThreadStatic] static int[]? _used;
+
+    /** The chunk's surfaces as plain arrays, or null for an empty chunk. Any thread. */
+    public static CompactSurface[]? Compact(ChunkGeometry g)
     {
         int total = g.VertexCount;
         if (total == 0 || g.Indices.Length == 0) return null;
-        if (_remap.Length < total) { _remap = new int[total]; _used = new int[total]; }
-        var remap = _remap; var used = _used;
-        var mesh = new ArrayMesh();
+        if (_remap == null || _remap.Length < total) { _remap = new int[total]; _used = new int[total]; }
+        var remap = _remap; var used = _used!;
         int groupCount = g.Groups.Length > 0 ? g.Groups.Length : 1;
+        var surfaces = new System.Collections.Generic.List<CompactSurface>(groupCount);
         for (int gi = 0; gi < groupCount; gi++)
         {
             var grp = g.Groups.Length > 0 ? g.Groups[gi] : new GeometryGroup(0, g.Indices.Length, 0);
@@ -93,15 +104,29 @@ void fragment() {
                 if (hasUv || g.Uvs.Length >= 2 * (v + 1)) uv[n] = new Vector2(g.Uvs[2 * v], g.Uvs[2 * v + 1]);
                 if (col != null) col[n] = new Color(g.Colors![3 * v], g.Colors[3 * v + 1], g.Colors[3 * v + 2]);
             }
+            surfaces.Add(new CompactSurface { Pos = pos, Uv = uv, Col = col, Idx = idx, Material = grp.MaterialIndex });
+        }
+        return surfaces.Count == 0 ? null : surfaces.ToArray();
+    }
+
+    /** The compacted surfaces as an ArrayMesh, each with its material. Main thread. */
+    public static ArrayMesh? ToMesh(CompactSurface[]? surfaces, Material[] materials)
+    {
+        if (surfaces == null) return null;
+        var mesh = new ArrayMesh();
+        foreach (var sf in surfaces)
+        {
             using var arrays = new Godot.Collections.Array(); // let go now, not by a finalizer
             arrays.Resize((int)Mesh.ArrayType.Max);
-            arrays[(int)Mesh.ArrayType.Vertex] = pos;
-            arrays[(int)Mesh.ArrayType.TexUV] = uv;
-            if (col != null) arrays[(int)Mesh.ArrayType.Color] = col;
-            arrays[(int)Mesh.ArrayType.Index] = idx;
+            arrays[(int)Mesh.ArrayType.Vertex] = sf.Pos;
+            arrays[(int)Mesh.ArrayType.TexUV] = sf.Uv;
+            if (sf.Col != null) arrays[(int)Mesh.ArrayType.Color] = sf.Col;
+            arrays[(int)Mesh.ArrayType.Index] = sf.Idx;
             mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
-            mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, materials[System.Math.Min(grp.MaterialIndex, materials.Length - 1)]);
+            mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, materials[System.Math.Min(sf.Material, materials.Length - 1)]);
         }
         return mesh;
     }
+
+    public static ArrayMesh? ToMesh(ChunkGeometry g, Material[] materials) => ToMesh(Compact(g), materials);
 }

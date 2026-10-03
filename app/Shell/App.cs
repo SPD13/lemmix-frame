@@ -38,6 +38,8 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     public string AssetRoot { get; private set; } = "";
     public string ReplaysDir => Path.Combine(UserDataDir, "replays");
     public DiskFileSource Io { get; private set; } = null!;
+    // the level loads' own (on their worker): its directory cache is never shared with the frame's
+    public DiskFileSource LoaderIo { get; private set; } = null!;
     public HotkeyManager Hotkeys { get; private set; } = null!;
     public HotkeyDispatch Dispatch { get; private set; } = null!;
     public LevelTree Tree { get; private set; } = new();
@@ -156,6 +158,8 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         AssetRoot = Options.ResolveAssetRoot(UserDataDir);
         try { Directory.CreateDirectory(AssetRoot); } catch (IOException) { }
         Io = new DiskFileSource(AssetRoot);
+        LoaderIo = new DiskFileSource(AssetRoot);
+        SyncLoad = Options.Manual;      // tests step the frames themselves: their loads finish at once
         Hotkeys = new HotkeyManager(Store);
         Dispatch = new HotkeyDispatch(Hotkeys);
 
@@ -265,6 +269,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     public void ReloadLibrary()
     {
         Io = new DiskFileSource(AssetRoot); // its directory listings are cached
+        LoaderIo = new DiskFileSource(AssetRoot);
         Tree = new LevelTree();
         LoadTree();
         Library = new LibraryState(Store, Tree);
@@ -357,6 +362,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         double dt = double.IsNaN(_last) ? 0 : Math.Max(0, now - _last);
         _last = now;
         DrainUploadEvents();
+        PollLoad();
         LogHeadHeight(now);
         if (_reload) { _reload = false; if (LevelId != null) LoadLevel(); }
         CollectAfterLoad();

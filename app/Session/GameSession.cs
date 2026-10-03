@@ -76,6 +76,7 @@ public sealed class LevelLocation
 public sealed class SessionOptions
 {
     public required IFileSource Assets;             // the asset root: neolemmix/, levels/ (and 3d/env/ if made)
+    public IFileSource? EnvironmentAssets;          // the room's (the frame's io, when Assets is a load worker's)
     public required string LevelId;
     public BoardSwitches Switches = new();
     public Node3D? DioramaRoot;                     // the board goes under it (VR placement scales it)
@@ -139,7 +140,7 @@ public sealed partial class GameSession : Node
     static readonly Dictionary<IFileSource, Masks> MasksByIo = new();
 
     GameSession(SessionOptions o, LevelLocation loc, Level level, Game game, SpriteSet sprites, Lemmix.Ui.GamePanel? panel,
-        DepthProfile profile, EnvProfile envProfile)
+        DepthProfile profile, EnvProfile envProfile, BoardData boardData, bool deferTerrain)
     {
         Name = "session";
         Options = o; Location = loc; Level = level; Game = game; Sprites = sprites; Panel = panel;
@@ -149,7 +150,7 @@ public sealed partial class GameSession : Node
         {
             Level = level, Game = game, Sprites = sprites, Profile = profile, EnvProfile = envProfile,
             Switches = o.Switches.Clone(), BackdropMaterial = Environment?.BackdropMaterial,
-        })
+        }, boardData, deferTerrain)
         { Now = _clock, ShadowsOn = o.Switches.Shadows };
         Board.LastTickMs = _clock();
         Board.OnCue = cue => PlayCue(cue.Name, cue.X, cue.Y);
@@ -199,37 +200,75 @@ public sealed partial class GameSession : Node
 
     // loadLevel (the Lemmix engine): the level built from its styles, the sprite set its theme
     // names, the Game, the board, the room, the music; the game started (or held)
-    public static GameSession Load(SessionOptions o)
+    /** loadLevel at once (tests, the benchmark): Prepare then Attach, the terrain synced now. */
+    public static GameSession Load(SessionOptions o) => Attach(o, Prepare(o), deferTerrain: false);
+
+    // A level's computed half (Prepare): what needs no engine object - the level built, its game,
+    // sprites and profiles, and the board's data (BoardData) - made on any thread.
+    public sealed class Prepared
+    {
+        public required LevelLocation Location;
+        public required Level Level;
+        public required Game Game;
+        public required SpriteSet Sprites;
+        public Lemmix.Ui.GamePanel? Panel;
+        public required DepthProfile Profile;
+        public required EnvProfile EnvProfile;
+        public required BoardData Board;
+    }
+
+    static readonly object CacheLock = new();
+
+    /** Any thread: the level read and built, its game and the board's data. */
+    public static Prepared Prepare(SessionOptions o)
     {
         var io = o.Assets;
         string index = io.Text("levels/index.json") ?? throw new InvalidOperationException("no levels/index.json");
         var loc = LevelLocation.Find(index, o.LevelId) ?? throw new InvalidOperationException("no level " + o.LevelId);
+        LoadTimes.Lap("index");
         var styles = new StyleManager(io);
-        if (!MasksByIo.TryGetValue(io, out var masks)) MasksByIo[io] = masks = Masks.Load(io);
+        Masks? masks;
+        lock (CacheLock) { if (!MasksByIo.TryGetValue(io, out masks)) MasksByIo[io] = masks = Masks.Load(io); }
         LevelBuilder.DigitFont = masks.Countdown;
         var level = LevelBuilder.Build(LevelBuilder.ParseLevel(io.Text(loc.Url) ?? throw new InvalidOperationException("no file " + loc.Url)), styles, o.LevelId);
+        LoadTimes.Lap("build");
         string setName = level.Theme.Lemmings is { Length: > 0 } s ? s : "default";
-        if (!SpriteSets.TryGetValue((io, setName), out var sprites)) SpriteSets[(io, setName)] = sprites = new SpriteSet(io).Load(setName);
+        SpriteSet? sprites;
+        lock (CacheLock) { if (!SpriteSets.TryGetValue((io, setName), out sprites)) SpriteSets[(io, setName)] = sprites = new SpriteSet(io).Load(setName); }
+        LoadTimes.Lap("sprites");
         var game = new Game(level, masks, l => SpriteSet.GeneratePickupIcons(l, sprites, l.Theme));
+        LoadTimes.Lap("game");
         Lemmix.Ui.GamePanel? panel = null;
         if (o.PanelAssets != null && game.Gui == null)
             panel = Lemmix.Ui.GamePanel.SetGuiDisplay(game, new Lemmix.Ui.PixelCanvas(), o.PanelAssets, sprites);
         var gd = GroundData.FromLevel(level);
         var profile = DepthProfile.Merge(DepthProfile.FilesForGroundData(gd).Select(f => DepthProfile.Parse(ReadProfile(o.ProfilesDir, f))));
         var envProfile = EnvProfile.ForLevel(level, url => ReadProfile(o.ProfilesDir, url[(url.LastIndexOf('/') + 1)..]));
-        var session = new GameSession(o, loc, level, game, sprites, panel, profile, envProfile);
+        LoadTimes.Lap("profiles");
+        var board = BoardData.Build(new BoardInputs { Level = level, Game = game, Sprites = sprites, Profile = profile, EnvProfile = envProfile, Switches = o.Switches.Clone() });
         if (o.ReplayText != null) game.LoadReplay(Replay.Parse(o.ReplayText), o.ReplayKind);
+        return new Prepared { Location = loc, Level = level, Game = game, Sprites = sprites, Panel = panel, Profile = profile, EnvProfile = envProfile, Board = board };
+    }
 
+    /**
+     * Main thread: the session's nodes from a prepared level - the board (its terrain left for
+     * Board.TerrainView.Sync(budget) when deferTerrain), the room asked for, the game started.
+     */
+    public static GameSession Attach(SessionOptions o, Prepared p, bool deferTerrain)
+    {
+        var session = new GameSession(o, p.Location, p.Level, p.Game, p.Sprites, p.Panel, p.Profile, p.EnvProfile, p.Board, deferTerrain);
+        LoadTimes.Lap("board");
         // the room: drawn after the board is up
         if (session.Environment != null)
         {
             session.Environment.SetMode(o.Switches.Environment);
             if (!session.Presenting()) session.Environment.PlaceDesktop();
-            _ = session.Environment.SetLevel(EnvironmentLayout.LevelContext(level, o.LevelId, envProfile), io, o.EnvironmentInBackground);
+            _ = session.Environment.SetLevel(EnvironmentLayout.LevelContext(p.Level, o.LevelId, p.EnvProfile), o.EnvironmentAssets ?? o.Assets, o.EnvironmentInBackground);
         }
+        LoadTimes.Lap("room");
         // (as on the web, the sprites are drawn from the first tick on: the openings and the
         // slices are there from the start, the flat objects and the lemmings come with the tick)
-        game.Start();
+        p.Game.Start();
         return session;
     }
 
