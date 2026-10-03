@@ -244,35 +244,17 @@ public static class PagesTests
     }
 
     [AppTest]
-    public static void SetupConfigFiles()
+    public static void SetupHasNoSettingsFiles()
     {
+        // the settings files moved to the upload server's page (a computer saves and restores them)
         using var rig = new Rig();
-        var (b, _, p) = SetupPage(rig);
-        b.Prefs.SetItem(ConfigFiles.ClearedKey, "{\"a\":{\"best\":50,\"clears\":1}}");
-        p.ScrollTo(1e6f);
-        rig.Press("dl-progress");
-        Check.Equal("saved as /data/export/lemmings-3d-progress.json", p.Messages["progress"].Text, "exported");
-        Check.True(b.Mem.Texts["/data/export/lemmings-3d-progress.json"].Contains("\"best\": 50"), "the web's text");
-        // progress import merges: the best of both
-        b.Mem.Put("/data/import", "progress.json", "{\"format\":\"lemmings-3d-progress\",\"version\":1,\"cleared\":{\"a\":{\"best\":40,\"clears\":3,\"saved\":7},\"b\":{\"best\":10,\"clears\":1}},\"talismans\":{}}");
-        rig.Press("ul-progress");
-        Check.True(p.Popup != null, "the import folder's files");
-        int i = p.Popup!.Options.FindIndex(o => o.Value == "/data/import/progress.json");
-        rig.Press("popup:" + i);
-        Check.Equal("progress.json: 2 levels merged", p.Messages["progress"].Text, "the merge message");
-        var cleared = JsJson.Parse(b.Prefs.GetItem(ConfigFiles.ClearedKey)!);
-        Check.Equal(40.0, Js.Get(Js.Get(cleared, "a"), "best"), "the better time");
-        Check.Equal(3.0, Js.Get(Js.Get(cleared, "a"), "clears"), "the more clears");
-        // a file that is not JSON
-        b.Mem.Put("/data/import", "notes.json", "hello");
-        p.ImportFile("prefs", "/data/import/notes.json");
-        Check.Equal("notes.json: notes.json is not a JSON file", p.Messages["prefs"].Text, "the complaint");
-        Check.True(p.Messages["prefs"].Bad, "in red");
-        // controls into the live table
-        b.Mem.Put("/data/import", "mine.json", "{\"format\":\"lemmings-3d-controls\",\"version\":1,\"keys\":{\"KeyP\":{\"action\":\"pause\",\"mod\":0}}}");
-        p.ImportFile("controls", "/data/import/mine.json");
-        Check.Equal("mine.json: 1 bindings loaded, VR left at the default", p.Messages["controls"].Text, "the controls message");
-        Check.Equal("pause", b.Hotkeys.Get("KeyP")?.Action, "the table took it");
+        var (_, _, p) = SetupPage(rig);
+        for (float s = 0; s <= p.ContentHeight; s += p.View.Size.Y / 2)
+        {
+            p.ScrollTo(s);
+            p.Paint();
+            Check.True(!p.Regions.Any(r => r.Id.StartsWith("dl-", StringComparison.Ordinal) || r.Id.StartsWith("ul-", StringComparison.Ordinal)), "no export or import button");
+        }
     }
 
     [AppTest]

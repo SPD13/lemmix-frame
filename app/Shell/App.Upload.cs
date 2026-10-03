@@ -1,15 +1,20 @@
 using System;
 using System.Collections.Concurrent;
+using System.IO;
+using System.Threading.Tasks;
 using Godot;
 using Lemmix.App.Ui.Pages;
 using Lemmix.Setup;
+using Lemmix.Store;
 
 namespace Lemmix.App.Shell;
 
 // The level upload server (LevelServer): the levels do not ship with the app, so a browser on
 // another computer of the network can put them in. Its switch is on the setup page and is kept
 // in the store (on stays on at the next start); what a computer changed reloads the library on
-// the frame (the server's threads queue it, Frame runs it).
+// the frame (the server's threads queue it, Frame runs it). The settings files (controls,
+// preferences, progress) are saved and read back through it too, by the setup backend on the
+// frame while the server's thread waits.
 public sealed partial class App
 {
     public const string UploadServerKey = "lemmix-frame-upload-server";
@@ -44,6 +49,8 @@ public sealed partial class App
         var server = new LevelServer(new Installer(AssetRoot));
         server.LevelsChanged += () => _uploadEvents.Enqueue(AfterUpload);
         server.Activity += a => _uploadEvents.Enqueue(() => _uploadActivity = a);
+        server.ExportConfig = kind => OnFrame(() => SetupPage.Backend.Export(kind));
+        server.ImportConfig = (kind, text, name) => OnFrame(() => ImportConfig(kind, text, name));
         try
         {
             server.Start();
@@ -63,6 +70,30 @@ public sealed partial class App
         UploadServer?.Dispose();
         UploadServer = null;
         _uploadError = null;
+    }
+
+    // a call from a server thread, run on the frame; the thread waits for its answer
+    T OnFrame<T>(Func<T> f)
+    {
+        var done = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _uploadEvents.Enqueue(() =>
+        {
+            try { done.SetResult(f()); }
+            catch (Exception e) { done.SetException(e); }
+        });
+        if (!done.Task.Wait(10_000)) throw new IOException("the app did not answer");
+        return done.Task.Result;
+    }
+
+    // a settings file from a computer: read in as the setup page did, then shown at once
+    ConfigMessage ImportConfig(string kind, string text, string name)
+    {
+        var m = SetupPage.Backend.Import(kind, text, name);
+        if (m.Bad) return m;
+        if (kind == "progress") ReloadLibrary();       // the catalog's cleared marks and best times
+        if (kind == "controls") RefreshKeyHints();
+        // the 3D effects are read at start (as the web's page reload)
+        return m with { Text = m.Text.Replace("when the game page reloads", "when Lemmix starts again", StringComparison.Ordinal) };
     }
 
     // once a frame: what the server's threads queued

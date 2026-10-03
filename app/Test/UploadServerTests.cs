@@ -54,6 +54,22 @@ public static class UploadServerTests
             Check.Equal("1 file uploaded from a computer", app.UploadState().Activity, "what the computer did, for the page");
             Check.True(page.LevelDirs.Count == 1 && page.LevelDirs[0].Dir == "Uploaded Pack", "the setup page lists the folder");
 
+            // the settings files, answered on the frame while the server's thread waits
+            T Pumped<T>(System.Threading.Tasks.Task<T> t)
+            {
+                for (int i = 0; i < 500 && !t.IsCompleted; i++) { rig.Frame(); System.Threading.Thread.Sleep(10); }
+                Check.True(t.IsCompleted, "answered within the frames");
+                return t.Result;
+            }
+            app.Store.SetItem(Lemmix.Store.ConfigFiles.ClearedKey, "{\"a\":{\"best\":50,\"clears\":1}}");
+            var dl = Pumped(http.GetAsync("api/config?kind=progress"));
+            Check.True(dl.IsSuccessStatusCode, "the progress file served: " + dl.StatusCode);
+            Check.True(dl.Content.ReadAsStringAsync().Result.Contains("\"best\": 50"), "with the headset's progress");
+            var up = Pumped(http.PostAsync("api/config?kind=prefs&name=p.json", new StringContent("{\"format\":\"lemmings-3d-preferences\",\"version\":1,\"values\":{\"lem3d-emboss\":\"off\"}}")));
+            string reply = up.Content.ReadAsStringAsync().Result;
+            Check.True(reply.Contains("when Lemmix starts again"), "the headset's words for when preferences apply: " + reply);
+            Check.Equal("off", app.Store.GetItem("lem3d-emboss"), "the preference stored");
+
             // off
             PressOnPage(page, "upload-server");
             Check.True(app.UploadServer == null && !app.UploadState().On, "the switch stops it");

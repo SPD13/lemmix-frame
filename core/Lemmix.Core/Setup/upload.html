@@ -44,6 +44,16 @@
   .status.good { color: var(--green); }
   .progress { height: 8px; background: var(--row); border-radius: 4px; overflow: hidden; margin-top: 10px; display: none; }
   .progress > div { height: 100%; width: 0; background: var(--green); transition: width .1s; }
+  .cfg { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; align-items: stretch; }
+  .cfg .what { padding: 8px 0; border-top: 1px solid var(--border); }
+  .cfg .what b { display: block; }
+  .cfg .what span { color: var(--dim); font-size: 13px; }
+  .cfg .acts { display: flex; gap: 8px; padding: 8px 0; border-top: 1px solid var(--border); justify-content: flex-end; align-items: center; }
+  .cfg .msg { grid-column: 1 / -1; font-size: 13px; min-height: 0; }
+  .cfg .msg.bad { color: var(--red); }
+  .cfg .msg.good { color: var(--green); }
+  a.btn { text-decoration: none; display: inline-block; }
+  h2 { font-size: 15px; letter-spacing: .06em; margin: 0 0 4px; }
   .foot { color: var(--dim); font-size: 13px; }
   .foot p { margin: 4px 0; }
   code { background: var(--row); padding: 1px 5px; border-radius: 4px; }
@@ -69,9 +79,15 @@
     <table><tbody id="list"></tbody></table>
   </div>
 
+  <div class="card">
+    <h2>SETTINGS BACKUP</h2>
+    <p class="sub" style="margin-bottom:10px">Save the headset's settings on this computer, or bring a saved file back. The files are the web version's too.</p>
+    <div class="cfg" id="cfg"></div>
+  </div>
+
   <div class="foot">
     <p>A level pack is a folder: upload the whole folder, or its <code>.zip</code> and press <b>install</b> next to it (the zips of NeoLemmix and its styles install the same way).</p>
-    <p>The headset's library updates when an upload or a delete is done. This page only works while the web server is turned on in the app's setup page.</p>
+    <p>The headset's library and settings update when an upload, a delete or a settings file is done. This page only works while the web server is turned on in the app's setup page.</p>
     <p id="free"></p>
   </div>
 </main>
@@ -295,6 +311,49 @@ drop.addEventListener("drop", async (e) => {
 document.addEventListener("dragover", (e) => e.preventDefault());
 document.addEventListener("drop", (e) => e.preventDefault());
 
+// the settings files: a download link and an upload per kind
+const CONFIGS = [
+  ["controls", "Controls", "keyboard and VR controller bindings"],
+  ["prefs", "Preferences", "3D effects, default view, sound and music, the skills bar's place, the library's order"],
+  ["progress", "Progress", "levels cleared, best times, most lemmings saved, talismans (an upload merges, keeping the best of both)"],
+];
+function configs() {
+  const box = $("cfg");
+  for (const [kind, title, what] of CONFIGS) {
+    const w = document.createElement("div");
+    w.className = "what";
+    const b = document.createElement("b"); b.textContent = title;
+    const s = document.createElement("span"); s.textContent = what;
+    w.append(b, s);
+    const acts = document.createElement("div");
+    acts.className = "acts";
+    const dl = document.createElement("a");
+    dl.className = "btn"; dl.textContent = "Download"; dl.href = "/api/config?kind=" + kind; dl.setAttribute("download", "");
+    const up = document.createElement("label");
+    up.className = "btn"; up.textContent = "Upload…";
+    const input = document.createElement("input");
+    input.type = "file"; input.accept = ".json,application/json";
+    up.append(input);
+    const msg = document.createElement("div");
+    msg.className = "msg";
+    input.onchange = async () => {
+      const f = input.files[0];
+      input.value = "";
+      if (!f) return;
+      msg.className = "msg"; msg.textContent = "sending " + f.name + "…";
+      try {
+        const res = await fetch("/api/config?kind=" + kind + "&name=" + q(f.name), { method: "POST", body: await f.text() });
+        const r = await res.json();
+        if (!res.ok) throw new Error(r.error || res.status);
+        msg.className = "msg " + (r.bad ? "bad" : "good"); msg.textContent = r.text;
+      } catch (e) { msg.className = "msg bad"; msg.textContent = "upload failed: " + e.message; }
+    };
+    acts.append(dl, up);
+    box.append(w, acts, msg);
+  }
+}
+
+configs();
 load();
 </script>
 </body>

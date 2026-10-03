@@ -54,7 +54,6 @@ public sealed class VrSetupPage : VrPage
     public string? ProgressLabel;
     public double? ProgressFrac;
     public bool Busy;
-    public string? LastExport;                      // the path the last export wrote (tests)
     CancellationTokenSource? _cancel;
     readonly object _lock = new();
     string? _bgLabel; double? _bgFrac; bool _bgDirty;
@@ -269,31 +268,7 @@ public sealed class VrSetupPage : VrPage
         });
     }
 
-    // ---------------------------------------------------------------- configuration
-    public void ExportFile(string kind)
-    {
-        var f = Backend.Export(kind);
-        try
-        {
-            LastExport = Backend.Files.WriteText(Backend.Files.ExportFolder, f.Name, f.Text);
-            Say(kind, "saved as " + LastExport);
-        }
-        catch (Exception e) { Say(kind, f.Name + ": " + e.Message, true); }
-    }
-
-    public void ImportFile(string kind, string path)
-    {
-        string name = Path.GetFileName(path);
-        string text;
-        try { text = Backend.Files.ReadText(path); }
-        catch (Exception e) { Say(kind, name + ": " + e.Message, true); return; }
-        var m = Backend.Import(kind, text, name);
-        Say(kind, m.Text, m.Bad);
-    }
-
     // ---------------------------------------------------------------- presses
-    static readonly string[] Kinds = { "controls", "prefs", "progress" };
-
     protected override void OnPress(string id)
     {
         switch (id)
@@ -305,28 +280,6 @@ public sealed class VrSetupPage : VrPage
             case "get-packs": Download(Downloads.Packs, "levels"); return;
         }
         if (id.StartsWith("del:", StringComparison.Ordinal)) { DeleteDir(id[4..]); return; }
-        if (id.StartsWith("dl-", StringComparison.Ordinal)) { ExportFile(id[3..]); return; }
-        if (id.StartsWith("ul-", StringComparison.Ordinal)) { PickFile(id, ".json", id[3..]); return; }
-    }
-
-    /** The files of the import folder as the popup of the button pressed (the web's file picker). */
-    void PickFile(string id, string ext, string msgKind)
-    {
-        var files = Backend.Files.List(Backend.Files.ImportFolder, ext);
-        string msg = msgKind;
-        if (files.Count == 0)
-        {
-            Say(msg, "no " + ext + " file in " + Backend.Files.ImportFolder + " - copy one there first", true);
-            return;
-        }
-        var anchor = RegionRect(id) ?? new Rect2(W / 2, H / 2, U(260), ButtonH);
-        anchor.Size = new Vector2(Math.Max(anchor.Size.X, U(360)), anchor.Size.Y);
-        OpenPopup(id, files.Select(f => (f.Path, f.Name + " · " + PageText.Mb(f.Size))).ToList(), null, anchor);
-    }
-
-    protected override void Choose(string popupId, string value)
-    {
-        if (popupId.StartsWith("ul-", StringComparison.Ordinal)) ImportFile(popupId[3..], value);
     }
 
     public override bool OnKey(string code, string? text)
@@ -433,7 +386,6 @@ public sealed class VrSetupPage : VrPage
         if (ProgressLabel != null) y += U(12) + ProgressBar(y + U(12));
         y += U(12);
         y += Card(y, "", UploadCard) + U(12);
-        y += Card(y, "", ConfigCard) + U(12);
         y += Card(y, "", CreditsCard) + U(40);
         EndScroll(y);
     }
@@ -697,35 +649,6 @@ public sealed class VrSetupPage : VrPage
         cx.fillStyle = Css.Dim;
         cx.fillText(ProgressLabel ?? "", x, y + th + U(4) + U(8.8f));
         return th + U(4) + U(17.6f);
-    }
-
-    float ConfigCard(float x, float y, float w, bool paint)
-    {
-        float y0 = y;
-        y += H2("Configuration", x, y, paint);
-        y += Para(new[] { Dim("Your settings live on this headset too. Export them to keep or move them (they land in " + Backend.Files.ExportFolder + "); import a file from the import folder to bring them back.") }, x, y, w, 17.6f, paint);
-        y += ConfigRow("controls", "Controls", "keyboard and VR controller bindings", x, y, w, paint);
-        y += Msg("controls", x, y, w, paint);
-        y += ConfigRow("prefs", "Preferences", "3D effects, default view, sound and music, the VR skills bar's place, the library's order", x, y, w, paint);
-        y += Msg("prefs", x, y, w, paint);
-        y += ConfigRow("progress", "Progress", "the levels cleared, best times, most lemmings saved, talismans", x, y, w, paint);
-        y += Msg("progress", x, y, w, paint);
-        return y - y0;
-    }
-
-    float ConfigRow(string kind, string name, string what, float x, float y, float w, bool paint)
-    {
-        float top = y + U(6), line = U(25.6f), h = U(6) + line + U(14) + U(6);
-        if (!paint || !InView(y, h)) return h;
-        Row(x, top, w, h);
-        float ix = x + U(13), mid = top + U(7) + line / 2;
-        float nx = ix + WhereBadge(ix, mid, true) + U(10);
-        float ub = ButtonW("import…"), db = ButtonW("export");
-        float b2 = x + w - U(13) - ub, b1 = b2 - U(6) - db;
-        Button("dl-" + kind, "export", b1, mid - ButtonH / 2);
-        Button("ul-" + kind, "import…", b2, mid - ButtonH / 2);
-        NameWithDim(name, what, nx, mid, b1 - U(10) - nx);
-        return h;
     }
 
     float CreditsCard(float x, float y, float w, bool paint)

@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Lemmix.Store;
 
 namespace Lemmix.Setup;
 
@@ -24,6 +25,11 @@ namespace Lemmix.Setup;
 //   POST   /api/plan?path=x.zip    what installing that zip would do
 //   POST   /api/install?path=x.zip unpacks it (Installer), then removes the zip
 //   POST   /api/rescan             the indexes rebuilt after a batch of uploads
+//   GET    /api/config?kind=k      the settings file k (controls, prefs, progress) to save
+//   POST   /api/config?kind=k&name=n  a settings file read back: {text, bad} (the setup page's line)
+//
+// The settings files are the web version's three JSON files (ConfigFiles): the app supplies the
+// export and the import (ExportConfig, ImportConfig), on its own thread.
 //
 // Requests are served off the frame; LevelsChanged and Activity are raised from those threads.
 public sealed class LevelServer : IDisposable
@@ -38,6 +44,13 @@ public sealed class LevelServer : IDisposable
     CancellationTokenSource? _stop;
 
     public int Port { get; private set; }
+
+    public static readonly string[] ConfigKinds = { "controls", "prefs", "progress" };
+    public const int MaxConfigBytes = 16 << 20;
+    /** The settings file of a kind, as it would be saved (null: settings are not served). */
+    public Func<string, ConfigDownload>? ExportConfig;
+    /** A settings file read back: (kind, text, file name) -> the line to show. */
+    public Func<string, string, string, ConfigMessage>? ImportConfig;
     public bool Running => _listener?.IsListening == true;
 
     /** The levels on disk changed (and the indexes were rebuilt): the library should reload. */
@@ -198,6 +211,12 @@ public sealed class LevelServer : IDisposable
                     return;
                 case "POST /api/install":
                     await Json(res, 200, Install(path));
+                    return;
+                case "GET /api/config":
+                    await SendConfig(res, Query(req.Url, "kind"));
+                    return;
+                case "POST /api/config":
+                    await Json(res, 200, await ReceiveConfig(req, Query(req.Url, "kind"), Query(req.Url, "name")));
                     return;
                 case "POST /api/rescan":
                     Rescan(Query(req.Url, "note"));
@@ -401,6 +420,31 @@ public sealed class LevelServer : IDisposable
         Activity?.Invoke(what + " installed from a computer");
         LevelsChanged?.Invoke();
         return new JsonObject { ["kind"] = plan.Kind, ["installed"] = what, ["files"] = unit.Files, ["bytes"] = unit.Bytes };
+    }
+
+    string ConfigKind(string? kind, bool export)
+    {
+        if ((export ? ExportConfig == null : ImportConfig == null)) throw new HttpError(404, "settings are not served here");
+        if (kind == null || Array.IndexOf(ConfigKinds, kind) < 0) throw new HttpError(400, "no settings named " + kind);
+        return kind;
+    }
+
+    async Task SendConfig(HttpListenerResponse res, string? kind)
+    {
+        var f = ExportConfig!(ConfigKind(kind, true));
+        res.Headers["Content-Disposition"] = "attachment; filename=\"" + f.Name + "\"";
+        await Send(res, 200, "application/json; charset=utf-8", f.Text);
+    }
+
+    async Task<JsonObject> ReceiveConfig(HttpListenerRequest req, string? kind, string? name)
+    {
+        string k = ConfigKind(kind, false);
+        if (req.ContentLength64 > MaxConfigBytes) throw new HttpError(413, "larger than " + (MaxConfigBytes >> 20) + " MB");
+        using var reader = new StreamReader(req.InputStream, Encoding.UTF8);
+        string text = await reader.ReadToEndAsync();
+        var m = ImportConfig!(k, text, string.IsNullOrEmpty(name) ? k + ".json" : Path.GetFileName(name));
+        if (!m.Bad) Activity?.Invoke(m.Text + " (from a computer)");
+        return new JsonObject { ["text"] = m.Text, ["bad"] = m.Bad };
     }
 
     public void Rescan(string? note = null)

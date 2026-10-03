@@ -38,8 +38,6 @@ public partial class PageShots : Node
         ["setup-progress"] = () => Setup(p =>
         {
             p.Progress("unpacking NeoLemmix_V12.14.0.zip — 3.2 MB of 7.0 MB, 412 files", 0.45);
-            p.Say("progress", "lemmings-3d-progress.json: 12 levels merged");
-            p.Say("prefs", "notes.json: notes.json is not a JSON file", true);
             p.Paint();
             p.ScrollTo(PageFixtureY(p, 820));
         }),
@@ -65,14 +63,6 @@ public partial class PageShots : Node
             var b = new PageFixture.Setup { Levels = false, Store = (8000, 10_740_000_000) };
             return Page(new VrSetupPage(b, new PageFixture.Confirms()), _ => { });
         },
-        ["setup-popup"] = () => Setup(p =>
-        {
-            ((PageFixture.Setup)p.Backend).Mem.Put("/data/import", "lemmings-3d-controls.json", "{}", 4_210);
-            ((PageFixture.Setup)p.Backend).Mem.Put("/data/import", "lemmings-3d-prefs.json", "{}", 1_870);
-            p.Paint();
-            for (float s = 0; p.RegionRect("ul-controls") == null && s <= p.ContentHeight; s += p.View.Size.Y / 2) { p.ScrollTo(s); p.Paint(); }
-            p.Press(new PagePick("ul-controls"));
-        }),
         ["setup-confirm"] = () =>
         {
             var m = new VrModal();

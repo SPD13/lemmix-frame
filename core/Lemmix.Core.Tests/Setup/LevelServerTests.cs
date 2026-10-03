@@ -3,7 +3,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json.Nodes;
+using Lemmix.Input;
 using Lemmix.Setup;
+using Lemmix.Store;
 
 namespace Lemmix.Tests.Setup;
 
@@ -197,6 +199,58 @@ public class LevelServerTests : IDisposable
         Assert.Equal(before + 1, _changed);
         Assert.Contains("1 file uploaded from a computer", _activity);
         Assert.Contains("Batch", File.ReadAllText(Path.Combine(_root, "levels", "index.json")));
+    }
+
+    // the settings files through the app's export and import (here: a store and a key table)
+    (LocalStore Store, HotkeyManager Keys) ServeConfig()
+    {
+        var store = new LocalStore();
+        var keys = new HotkeyManager(store);
+        _server.ExportConfig = kind => kind switch
+        {
+            "controls" => ConfigFiles.ExportControls(keys),
+            "prefs" => ConfigFiles.ExportPrefs(store),
+            _ => ConfigFiles.ExportProgress(store),
+        };
+        _server.ImportConfig = (kind, text, name) => kind switch
+        {
+            "controls" => ConfigFiles.ImportControls(keys, text, name),
+            "prefs" => ConfigFiles.ImportPrefs(store, text, name),
+            _ => ConfigFiles.ImportProgress(store, text, name),
+        };
+        return (store, keys);
+    }
+
+    async Task<JsonObject> PostConfig(string kind, string name, string text) =>
+        await Json(await _http.PostAsync("api/config?kind=" + kind + "&name=" + Q(name), new StringContent(text), TestContext.Current.CancellationToken));
+
+    [Fact]
+    public async Task SettingsFilesDownloadAndComeBack()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        Assert.Equal(HttpStatusCode.NotFound, (await _http.GetAsync("api/config?kind=progress", ct)).StatusCode);
+        var (store, keys) = ServeConfig();
+        store.SetItem(ConfigFiles.ClearedKey, "{\"a\":{\"best\":50,\"clears\":1}}");
+        // download: the web's file, under its name
+        var r = await _http.GetAsync("api/config?kind=progress", ct);
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+        Assert.Equal("lemmings-3d-progress.json", r.Content.Headers.ContentDisposition!.FileName!.Trim('"'));
+        Assert.Contains("\"best\": 50", await r.Content.ReadAsStringAsync(ct));
+        // upload: progress merges, the best of both
+        var m = await PostConfig("progress", "backup.json", "{\"format\":\"lemmings-3d-progress\",\"version\":1,\"cleared\":{\"a\":{\"best\":40,\"clears\":3},\"b\":{\"best\":10,\"clears\":1}},\"talismans\":{}}");
+        Assert.Equal("backup.json: 2 levels merged", (string)m["text"]!);
+        Assert.False((bool)m["bad"]!);
+        Assert.Contains("\"best\":40", store.GetItem(ConfigFiles.ClearedKey));
+        Assert.Contains("backup.json: 2 levels merged (from a computer)", _activity);
+        // controls into the live table; a file that is not JSON says so
+        m = await PostConfig("controls", "mine.json", "{\"format\":\"lemmings-3d-controls\",\"version\":1,\"keys\":{\"KeyP\":{\"action\":\"pause\",\"mod\":0}}}");
+        Assert.False((bool)m["bad"]!);
+        Assert.Equal("pause", keys.Get("KeyP")?.Action);
+        m = await PostConfig("prefs", "notes.json", "hello");
+        Assert.True((bool)m["bad"]!);
+        Assert.Equal("notes.json: notes.json is not a JSON file", (string)m["text"]!);
+        // only the three kinds
+        Assert.Equal(HttpStatusCode.BadRequest, (await _http.GetAsync("api/config?kind=secrets", ct)).StatusCode);
     }
 
     [Theory]
