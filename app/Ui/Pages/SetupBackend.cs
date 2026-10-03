@@ -19,11 +19,14 @@ public sealed record SetupUnit(int? Files, long? Bytes, long? InstalledAt, strin
 // a level directory (setup.js dirs() joined with the index's node of the same name)
 public sealed record SetupDir(string Dir, string? Name, string? Engine, int? Count, int? Files, long? Bytes, string Source, long? InstalledAt);
 
-// The level upload server as the setup page shows it: on or off, the addresses to type in a
-// browser, why it could not start, the last thing a computer did through it.
-public sealed record UploadServerState(bool On, IReadOnlyList<string> Urls, string? Error, string Activity)
+// The level upload server's switch: off (the default), on until the app quits, or on at every start.
+public enum UploadMode { Off, Session, Always }
+
+// The level upload server as the setup page shows it: its switch, whether it runs, the addresses to
+// type in a browser, why it could not start, the last thing a computer did through it.
+public sealed record UploadServerState(UploadMode Mode, bool On, IReadOnlyList<string> Urls, string? Error, string Activity)
 {
-    public static readonly UploadServerState Off = new(false, Array.Empty<string>(), null, "");
+    public static readonly UploadServerState Off = new(UploadMode.Off, false, Array.Empty<string>(), null, "");
 }
 
 // What the setup page reads and does (web/3d/js/setup.js over vfs.js and config-store.js). The
@@ -45,7 +48,7 @@ public interface ISetupBackend
     ConfigMessage Import(string kind, string text, string name);
     void Play();                                      // the head's PLAY: the library, to choose a level
     UploadServerState Upload => UploadServerState.Off; // the level upload server (native only)
-    void SetUpload(bool on) { }
+    void SetUpload(UploadMode mode) { }
 }
 
 // The native backend: Installer over <user data>/assets (neolemmix/, levels/, the indexes),
@@ -61,12 +64,12 @@ public sealed class SetupBackend : ISetupBackend
     public IPageFiles Files { get; }
 
     readonly Func<UploadServerState>? _upload;
-    readonly Action<bool>? _setUpload;
+    readonly Action<UploadMode>? _setUpload;
     public UploadServerState Upload => _upload?.Invoke() ?? UploadServerState.Off;
-    public void SetUpload(bool on) => _setUpload?.Invoke(on);
+    public void SetUpload(UploadMode mode) => _setUpload?.Invoke(mode);
 
     public SetupBackend(string assetRoot, IPageFiles files, IStorage store, HotkeyManager hotkeys, string version, Action play, HttpClient? http = null,
-        Func<UploadServerState>? upload = null, Action<bool>? setUpload = null)
+        Func<UploadServerState>? upload = null, Action<UploadMode>? setUpload = null)
     {
         _upload = upload;
         _setUpload = setUpload;

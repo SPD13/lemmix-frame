@@ -108,10 +108,10 @@ public static class PageFixture
         public void DeleteDir(string dir) { Log.Add("delete " + dir); DirList.RemoveAll(d => d.Dir == dir); }
         public UploadServerState UploadValue = UploadServerState.Off;
         public UploadServerState Upload => UploadValue;
-        public void SetUpload(bool on)
+        public void SetUpload(UploadMode mode)
         {
-            Log.Add("upload " + (on ? "on" : "off"));
-            UploadValue = on ? new UploadServerState(true, new[] { "http://192.168.1.42:8642/" }, null, "") : UploadServerState.Off;
+            Log.Add("upload " + mode.ToString().ToLowerInvariant());
+            UploadValue = mode != UploadMode.Off ? new UploadServerState(mode, true, new[] { "http://192.168.1.42:8642/" }, null, "") : UploadServerState.Off;
         }
         public ConfigDownload Export(string kind) => kind switch
         {

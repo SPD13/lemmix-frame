@@ -44,12 +44,12 @@ public partial class PageShots : Node
         ["setup-upload"] = () => Setup(p =>
         {
             p.Paint();
-            p.Press(new PagePick("upload-server"));
+            p.Press(new PagePick("upload:session"));
             var b = (PageFixture.Setup)p.Backend;
             b.UploadValue = b.UploadValue with { Activity = "Lemmings Plus IV installed from a computer" };
             p.Refresh();
             p.Paint();
-            for (float s = 0; p.RegionRect("upload-server") == null && s <= p.ContentHeight; s += p.View.Size.Y / 4) { p.ScrollTo(s); p.Paint(); }
+            for (float s = 0; p.RegionRect("upload:session") == null && s <= p.ContentHeight; s += p.View.Size.Y / 4) { p.ScrollTo(s); p.Paint(); }
             p.ScrollTo(p.Scroll + 260 * p.S);
         }),
         ["setup-levels"] = () => Setup(p =>

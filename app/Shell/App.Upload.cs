@@ -10,8 +10,9 @@ using Lemmix.Store;
 namespace Lemmix.App.Shell;
 
 // The level upload server (LevelServer): the levels do not ship with the app, so a browser on
-// another computer of the network can put them in. Its switch is on the setup page and is kept
-// in the store (on stays on at the next start); what a computer changed reloads the library on
+// another computer of the network can put them in. Its switch is on the setup page: off (the
+// default), on for this session (not stored, so the next start is off) or on always (kept in the
+// store, so the next start turns it on again); what a computer changed reloads the library on
 // the frame (the server's threads queue it, Frame runs it). The settings files (controls,
 // preferences, progress) are saved and read back through it too, by the setup backend on the
 // frame while the server's thread waits.
@@ -19,27 +20,30 @@ public sealed partial class App
 {
     public const string UploadServerKey = "lemmix-frame-upload-server";
     public LevelServer? UploadServer { get; private set; }
+    UploadMode _uploadMode = UploadMode.Off;
     string? _uploadError;
     string _uploadActivity = "";
     readonly ConcurrentQueue<Action> _uploadEvents = new();
 
     public UploadServerState UploadState() => new(
+        _uploadMode,
         UploadServer?.Running == true,
         UploadServer?.Running == true ? UploadServer.Urls() : Array.Empty<string>(),
         _uploadError, _uploadActivity);
 
-    /** The setup page's switch: started or stopped, and remembered. */
-    public void SetUploadServer(bool on)
+    /** The setup page's switch: started or stopped; only "on always" is remembered. */
+    public void SetUploadServer(UploadMode mode)
     {
-        Store.SetItem(UploadServerKey, on ? "on" : "off");
-        if (on) StartUploadServer();
+        _uploadMode = mode;
+        Store.SetItem(UploadServerKey, mode == UploadMode.Always ? "always" : "off");
+        if (mode != UploadMode.Off) StartUploadServer();
         else StopUploadServer();
     }
 
-    // at start: on if the player left it on
+    // at start: on if the player chose "on always" ("on" is what the old two-way switch kept)
     void StartUploadServerIfOn()
     {
-        if (Store.GetItem(UploadServerKey) == "on") StartUploadServer();
+        if (Store.GetItem(UploadServerKey) is "always" or "on") SetUploadServer(UploadMode.Always);
     }
 
     void StartUploadServer()

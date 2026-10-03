@@ -33,14 +33,17 @@ public static class ShellTests
         public readonly string UserData;
         public bool Quit;                   // the app asked to end
 
-        public Rig(string? assets = null, params string[] args)
+        public Rig(string? assets = null, params string[] args) : this(assets, new LocalStore(), args) { }
+
+        // with a store of its own: a second start of the app over what the first left
+        public Rig(string? assets, LocalStore store, params string[] args)
         {
             UserData = Path.Combine(Path.GetTempPath(), "lemmix-shell-" + Guid.NewGuid().ToString("N")[..8]);
             Directory.CreateDirectory(UserData);
             App = new ShellApp(new AppOptions
             {
                 Args = ShellArgs.Parse(args.Append("--environment=none")),
-                Input = Input, Store = new LocalStore(), Clock = () => Now, Manual = true,
+                Input = Input, Store = store, Clock = () => Now, Manual = true,
                 EnvironmentInBackground = false, UserDataDir = UserData, AssetRoot = assets ?? TerrainShot.Assets,
                 Quit = () => Quit = true,
             });

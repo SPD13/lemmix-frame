@@ -8,9 +8,9 @@ using Rig = Lemmix.App.Test.ShellTests.Rig;
 
 namespace Lemmix.App.Test;
 
-// The level upload server through the app: the setup page's switch starts it (remembered in the
-// store) and shows where to browse; an upload from a computer reloads the library on the frame;
-// off stops it.
+// The level upload server through the app: the setup page's three-way switch starts it (only
+// "on always" remembered in the store) and shows where to browse; an upload from a computer
+// reloads the library on the frame; off stops it; the next start turns it on only if it was on always.
 public static class UploadServerTests
 {
     const string Level = "# NeoLemmix level\nTITLE Uploaded level\nAUTHOR Test\nTHEME orig_dirt\nLEMMINGS 1\nSAVE_REQUIREMENT 1\nWIDTH 320\nHEIGHT 160\n";
@@ -35,11 +35,12 @@ public static class UploadServerTests
             Check.True(app.UploadServer == null, "off at first");
             app.OpenSetup();
             var page = app.SetupPage;
-            PressOnPage(page, "upload-server");
+            Check.Equal(UploadMode.Off, app.UploadState().Mode, "the switch is off by default");
+            PressOnPage(page, "upload:session");
             var state = app.UploadState();
-            Check.True(state.On && app.UploadServer!.Running, "the switch starts it");
-            Check.Equal("on", app.Store.GetItem(Lemmix.App.Shell.App.UploadServerKey), "remembered");
-            Check.True(page.Upload.On, "the page shows it on");
+            Check.True(state.On && app.UploadServer!.Running, "on for this session starts it");
+            Check.Equal("off", app.Store.GetItem(Lemmix.App.Shell.App.UploadServerKey), "not remembered: the next start is off");
+            Check.True(page.Upload.On && page.Upload.Mode == UploadMode.Session, "the page shows it on for this session");
             foreach (var url in state.Urls) Check.True(url.StartsWith("http://", StringComparison.Ordinal) && url.EndsWith(":" + app.UploadServer.Port + "/", StringComparison.Ordinal), "an address to type: " + url);
 
             // a computer uploads a pack's folder, then says it is done
@@ -70,15 +71,46 @@ public static class UploadServerTests
             Check.True(reply.Contains("when Lemmix starts again"), "the headset's words for when preferences apply: " + reply);
             Check.Equal("off", app.Store.GetItem("lem3d-emboss"), "the preference stored");
 
+            // on always: the same server keeps running, and the next start turns it on
+            var running = app.UploadServer;
+            PressOnPage(page, "upload:always");
+            Check.True(app.UploadServer == running && app.UploadState().Mode == UploadMode.Always, "on always keeps the running server");
+            Check.Equal("always", app.Store.GetItem(Lemmix.App.Shell.App.UploadServerKey), "remembered for the next start");
+
             // off
-            PressOnPage(page, "upload-server");
+            PressOnPage(page, "upload:off");
             Check.True(app.UploadServer == null && !app.UploadState().On, "the switch stops it");
             Check.Equal("off", app.Store.GetItem(Lemmix.App.Shell.App.UploadServerKey), "remembered off");
         }
         finally
         {
-            app.SetUploadServer(false);
+            app.SetUploadServer(UploadMode.Off);
             try { Directory.Delete(assets, true); } catch (IOException) { }
         }
+    }
+
+    // the next start: off unless the switch was left on always ("on" is the old two-way switch's)
+    [AppTest]
+    public static void OnlyOnAlwaysTurnsItOnAtTheNextStart()
+    {
+        string assets = Path.Combine(Path.GetTempPath(), "lemmix-upload-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(assets);
+        try
+        {
+            foreach (var (stored, mode) in new[] { ((string?)null, UploadMode.Off), ("off", UploadMode.Off), ("always", UploadMode.Always), ("on", UploadMode.Always) })
+            {
+                var store = new Lemmix.Store.LocalStore();
+                if (stored != null) store.SetItem(Lemmix.App.Shell.App.UploadServerKey, stored);
+                using var rig = new Rig(assets, store);
+                var app = rig.App;
+                try
+                {
+                    Check.Equal(mode, app.UploadState().Mode, "the switch at start, stored " + (stored ?? "nothing"));
+                    Check.Equal(mode == UploadMode.Always, app.UploadServer?.Running == true, "the server at start, stored " + (stored ?? "nothing"));
+                }
+                finally { app.SetUploadServer(UploadMode.Off); }
+            }
+        }
+        finally { try { Directory.Delete(assets, true); } catch (IOException) { } }
     }
 }
