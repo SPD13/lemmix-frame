@@ -71,6 +71,7 @@ public sealed partial class App
         var s = Session;
         Session = null;
         FreeSession(s);
+        _lobbyRoom = false; // the level's room went with it: the lobby's is put up again
         Bar?.Dispose();
         Bar = null;
         if (BarView != null)

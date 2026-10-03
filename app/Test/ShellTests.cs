@@ -214,6 +214,37 @@ public static class ShellTests
     }
 
     [AppTest]
+    public static void TheLobbysDirtSceneryComesBackAfterALevel()
+    {
+        if (!HaveAssets()) return;
+        using var rig = new Rig();
+        var app = rig.App;
+        rig.Frame();
+        app.Fx.ToggleEnvironment(); // none -> fog
+        app.Fx.ToggleEnvironment(); // fog -> full: the scenery to the horizon
+        for (int i = 0; i < 3; i++) rig.Frame();
+        Check.Equal("full", app.Env.Mode, "the full room");
+        Check.True(app.Env.Scenery.Shown != null && app.Env.Visible, "the Dirt scenery is up round the lobby");
+        var dirt = app.Env.Scenery.Shown;
+        int parts = app.Env.Scenery.GetChildCount();
+        // the level loaded over frames, as in a headset (the lobby's frames go on meanwhile)
+        app.SyncLoad = false;
+        app.EnterLevel(Builders);
+        for (int i = 0; i < 2000 && (app.Loading || app.Session == null); i++) { System.Threading.Thread.Sleep(2); rig.Frame(); }
+        for (int i = 0; i < 3; i++) rig.Frame();
+        Check.True(app.Session != null, "the level up");
+        Check.True(app.Env.Scenery.Shown != dirt, "the level's room in its place");
+        // out through the toolbar's exit, as a player does
+        rig.Click(app.Windows.Toolbar.Quit);
+        rig.Click(app.Windows.Modal.Yes);
+        for (int i = 0; i < 3; i++) rig.Frame();
+        Check.True(app.Session == null && app.Lobby.Root.Visible, "the lobby again");
+        Check.True(app.Env.Visible, "the room shown");
+        Check.True(app.Env.Scenery.Shown == dirt, "the Dirt scenery back (" + (app.Env.Scenery.Shown == null ? "none" : "another") + ")");
+        Check.Equal(parts, app.Env.Scenery.GetChildCount(), "all its parts");
+    }
+
+    [AppTest]
     public static void TheToolbarsExitGoesBackToTheLobby()
     {
         if (!HaveAssets()) return;

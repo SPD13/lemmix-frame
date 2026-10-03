@@ -14,7 +14,7 @@ public sealed partial class App
 {
     public const string LobbyStyle = "orig_dirt";
     const int LobbyBoardW = 1600, LobbyBoardH = 160;   // a typical level's size, for the room's layout
-    bool _lobbyRoom;                                     // the lobby's room is the one up
+    bool _lobbyRoom;                                     // the lobby's room is the one up (a level's closing takes it down: DisposeSession)
 
     /** The Dirt gallery's context: its style's theme and profile, no level of its own. */
     EnvContext? LobbyRoomContext()
@@ -30,10 +30,11 @@ public sealed partial class App
         };
     }
 
-    // per frame: the room put up once the lobby is (with the first head pose), then kept placed
+    // per frame: the room put up once the lobby is (with the first head pose), then kept placed;
+    // left as it is while a level loads (the level's room replaces it when the level is up)
     void LobbyRoomFrame(bool presenting)
     {
-        if (Session != null || !presenting || FirstRun || Vr.LastHeadPose is not Transform3D head) return;
+        if (Session != null || Loading || !presenting || FirstRun || Vr.LastHeadPose is not Transform3D head) return;
         if (!_lobbyRoom)
         {
             _lobbyRoom = true;
