@@ -192,6 +192,13 @@ oracles that the change touches (`node oracle/<x>.js`), run the core tests, port
 `AppOptions.FromCommandLine` maps the web's URL parameters: `--level=<id>`, `--nxrp=<file>`,
 `--assets=<dir>`, `--environment=none`, speed, solution.
 
+**Boot splash.** Before `Main` runs, Godot shows `app/Splash/splash.png`
+(`application/boot_splash/image`, background `boot_splash/bg_color`, a dark dirt brown): the
+NeoLemmix logo over its title screen's dirt background, "STEAM FRAME EDITION" under it. It is
+built on the Mac by `tools/splash/make-splash.sh [gfx/menu dir]` (by default from the Frame's
+NeoLemmix install, over ssh) with CoreGraphics. The logo and background are NeoLemmix's artwork,
+bundled at the project owner's decision (`app/Splash/README.md`).
+
 ### 6.2 `Shell/App` (one node, partial class)
 
 | File | Responsibility |
