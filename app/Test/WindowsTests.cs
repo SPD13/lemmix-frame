@@ -103,6 +103,7 @@ public static class WindowsTests
         public void WatchSolution() => Log.Add("solution");
         public void EnterLevel(string id) => Log.Add("enter " + id);
         public void QuitGame() => Log.Add("quit");
+        public void ExitToLobby() => Log.Add("lobby");
     }
 
     sealed class Fx : IVrEffects
@@ -575,13 +576,20 @@ public static class WindowsTests
                 Check.True(w.Toolbar.Quit.State.Hovered, "quit lit under the beam");
                 w.ApplyHover(null);
             }
+            // with a level: back to the lobby, asking first
             host.HasSession = true;
             Check.True(w.Act(new VrPick("bar", BarTool: "quit")), "quit is a bar tool");
-            Check.Equal("Quit Lemmix?", w.Modal.Title, "asks first");
+            Check.Equal("Back to the lobby?", w.Modal.Title, "asks first");
             Check.True(w.Modal.Yes.Visible && w.Modal.No.Visible, "with yes and no");
             w.Act(new VrPick("bar", BarTool: "no"));
             Check.True(!w.Modal.Root.Visible && host.Log.Count == 0, "no: nothing happens");
             w.Act(new VrPick("bar", BarTool: "quit"));
+            w.Act(new VrPick("bar", BarTool: "yes"));
+            Check.Equal("lobby", host.Log.LastOrDefault(), "yes: back to the lobby");
+            // without one: the app ends
+            host.HasSession = false;
+            w.Act(new VrPick("bar", BarTool: "quit"));
+            Check.Equal("Quit Lemmix?", w.Modal.Title, "asks first");
             w.Act(new VrPick("bar", BarTool: "yes"));
             Check.Equal("quit", host.Log.LastOrDefault(), "yes: the game ends");
         }

@@ -11,8 +11,9 @@ namespace Lemmix.App.Test;
 // head pose (1.6 m up, looking ahead and a little down) - the shell as a session runs it: the
 // board placed in front, the room around it, the skills bar below with its row of controls, the
 // status strip over the level, the right hand's beam on the board with NeoLemmix's cursor where it
-// lands; or, with no level chosen, the catalog the app starts on. SHOT_LEVEL picks the level;
-// SHOT_ENV the room's mode (default full); SHOT_LOOK="yaw,pitch" (degrees, left and up positive) turns the head once the board is placed,
+// lands; or, with no level chosen, the lobby the app starts on ("vr-lobby", the beam on its PLAY
+// sign) or the catalog its PLAY opens ("vr-catalog"). SHOT_LEVEL picks the level;
+// SHOT_FOV the vertical field of view (75), to look closer; SHOT_ENV the room's mode (default full); SHOT_LOOK="yaw,pitch" (degrees, left and up positive) turns the head once the board is placed,
 // to look round the room.
 public static class ShellShots
 {
@@ -23,7 +24,7 @@ public static class ShellShots
         foreach (var c in n.GetChildren()) Dump(c);
     }
 
-    public static Viewport Make(Node root, bool catalog)
+    public static Viewport Make(Node root, string mode)
     {
         var vp = new SubViewport
         {
@@ -45,15 +46,36 @@ public static class ShellShots
         left.Grip = left.Aim;
         string level = System.Environment.GetEnvironmentVariable("SHOT_LEVEL") ?? BoardShot.Builders;
         string envMode = System.Environment.GetEnvironmentVariable("SHOT_ENV") ?? "full"; // none | fog | full
-        var args = catalog ? new[] { "--environment=" + envMode } : new[] { "--level=" + level, "--environment=" + envMode };
+        bool catalog = mode == "catalog", lobby = mode == "lobby" || mode == "lobby-vr";
+        var args = catalog || lobby ? new[] { "--environment=" + envMode } : new[] { "--level=" + level, "--environment=" + envMode };
         var app = new ShellApp(new AppOptions
         {
             Args = ShellArgs.Parse(args), Input = input, Store = new LocalStore(),
-            Head = new Camera3D { Name = "head", Fov = 75 }, EnvironmentInBackground = false,
+            Head = new Camera3D { Name = "head", Fov = float.Parse(System.Environment.GetEnvironmentVariable("SHOT_FOV") ?? "75", System.Globalization.CultureInfo.InvariantCulture) }, EnvironmentInBackground = false,
             UserDataDir = OS.GetUserDataDir(), AssetRoot = TerrainShot.Assets,
         });
         if (catalog) app.Ready += () => app.Library.Navigate("Lemmings_Redux/Gentle");
         vp.AddChild(app);
+        // once the session has started (the windows placed): the catalog opened, or the beam on PLAY
+        if (catalog || lobby)
+        {
+            int frames = 0;
+            void Open()
+            {
+                if (++frames < 2) return;
+                if (catalog) app.Windows.SetCatalog(true);
+                else if (mode == "lobby-vr") app.Windows.SetVrOptions(true);
+                else
+                {
+                    app.Lobby.CentreScrollerText();
+                    var sign = app.Lobby.Signs[0].GlobalPosition;
+                    right.Aim = new Transform3D(Basis.LookingAt((sign - from).Normalized(), Vector3.Up), from);
+                    right.Grip = right.Aim.Translated(new Vector3(0, -0.02f, 0.05f));
+                }
+                root.GetTree().ProcessFrame -= Open;
+            }
+            root.GetTree().ProcessFrame += Open;
+        }
         if (System.Environment.GetEnvironmentVariable("SHOT_LOOK") is { } look && look.Split(',') is { Length: 2 } yp)
         {
             float yaw = Mathf.DegToRad(float.Parse(yp[0], System.Globalization.CultureInfo.InvariantCulture));

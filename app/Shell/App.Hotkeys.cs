@@ -46,10 +46,10 @@ public sealed partial class App
             if (Pages.OnKey(code, text)) return true;
             if (!(Pages.Current is VrKeyHints)) return true;
         }
-        // the library locked (no level yet): the rest waits for a level; up over a level, Escape closes it
+        // no level yet: the rest waits for a level; Escape closes the catalog (back to the lobby without one)
         if (Windows.Catalog.Root.Visible && (Locked || code == "Escape"))
         {
-            if (code == "Escape" && !Locked) Windows.SetCatalog(false);
+            if (code == "Escape") Windows.SetCatalog(false);
             return true;
         }
         var r = Dispatch.KeyDown(code, repeat);

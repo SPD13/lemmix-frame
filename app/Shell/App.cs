@@ -112,6 +112,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     public VrWindows Windows { get; private set; } = null!;
     public PointerView Pointers { get; private set; } = null!;
     public VrPages Pages { get; private set; } = null!;
+    public VrLobby Lobby { get; private set; } = null!;
     public CursorImages? Cursor { get; private set; }
     public Func<double> Now { get; private set; } = null!;
 
@@ -212,6 +213,10 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         Windows.Catalog.WantsThumb = Catalog.WantThumb;
         Windows.Tooltip.SkillTip = SkillTip;
         Windows.Toolbar.PaintSound(Audio.Volume, Audio.Enabled);
+        // the lobby: the title screen, in the windows' frame behind them, while no level is chosen
+        Lobby = new VrLobby { Version = AppVersion, WindowPitch = WindowPitch };
+        Windows.WindowRoot.AddChild(Lobby.Root);
+        Lobby.Load(Io);
 
         // the beams, NeoLemmix's cursor at their landing, the floor grid
         try { Cursor = CursorImages.Load(Io); } catch (Exception e) { GD.PushWarning("[app] cursor: " + e.Message); }
@@ -266,6 +271,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         Progress = new LevelProgress(Store, Tree);
         Catalog.Rebuild();
         RebuildLibraryPages();
+        Lobby.Load(Io);
         Audio.Configure(Io, Audio.Enabled, Audio.Volume);
         try { Cursor = CursorImages.Load(Io); } catch (Exception) { }
         FirstRun = !Installed();
@@ -403,18 +409,21 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         Pointers.Update(Vr, Input, cur?.Hovered != null, cur?.Game.Sim.EffectiveSelectDx ?? 0, DioramaRoot.Scale.X);
         Pointers.SetFloor(presenting, Env.Active && Env.Shown);
         if (Catalog.PollThumbs() && Windows.Catalog.Root.Visible) Windows.Catalog.Paint();
+        // the lobby: up in a session while no level is on the board, its scroller turning
+        Lobby.Root.Visible = presenting && Session == null;
+        Lobby.SetShaded(Windows.AnyWindowUp || Pages.AnyUp);
+        Lobby.Update(now);
         CheckLevelEnd(now);
     }
 
     // sessionstart: the bar on the head until the board is placed, then below it; the windows
-    // placed on the first pose; no level chosen yet, the catalog (nothing installed: the setup)
+    // placed on the first pose; no level chosen yet, the lobby (nothing installed: the setup over it)
     void OnSessionStart()
     {
         Windows.Bar.AutoPlace = true;
         LayoutGuiPanel();
         Windows.WindowsPlaced = false;
         if (FirstRun) OpenSetup();
-        else if (LevelId == null) Windows.SetCatalog(true);
     }
 
     // sessionend: the in-scene windows are the headset's
@@ -658,13 +667,34 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     }
 
     // ------------------------------------------------------------ IVrWindowsHost
-    /** The toolbar's quit, answered yes: the settings saved, the upload server stopped, the app ended. */
+    /**
+     * The toolbar's exit, answered yes: the level put away (its board, bar, room, sound), no level
+     * chosen any more, the bar's row and the strip hidden as before the first level, and the lobby
+     * up again in front of the player.
+     */
+    public void ExitToLobby()
+    {
+        GD.Print("[app] back to the lobby from " + LevelId);
+        CloseWindows();
+        DisposeSession();
+        Windows.SetLevelText(null);
+        LevelId = null;
+        Locked = true;
+        Windows.Status.Set(name: "choose a level", meta: "", note: "", kind: "");
+        Windows.Toolbar.Hide();
+        Windows.Status.Hide();
+        Windows.Tooltip.NoteHover(null, Now());
+        if (Presenting) Windows.PlaceWindows(WindowPose);
+    }
+
+    /** The lobby's quit (or the toolbar's, with no level): the settings saved, the upload server stopped, the app ended. */
     public void QuitGame()
     {
-        GD.Print("[app] quit from the toolbar");
+        GD.Print("[app] quit");
         StopUploadServer();
         _localStore?.Flush();
-        GetTree().Quit(0);
+        if (Options.Quit != null) Options.Quit();
+        else GetTree().Quit(0);
     }
 
     public bool Presenting => Vr != null && Vr.Presenting;

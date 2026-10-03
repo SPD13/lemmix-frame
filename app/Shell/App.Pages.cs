@@ -131,7 +131,7 @@ public sealed partial class App
     public void OpenLibrarySearch()
     {
         if (!Windows.Catalog.Root.Visible) Windows.SetCatalog(true);
-        Pages.OpenLibrarySearch(Search, id => PlayFromPage(id, false), () => { if (!Locked) Windows.SetCatalog(false); });
+        Pages.OpenLibrarySearch(Search, id => PlayFromPage(id, false), () => Windows.SetCatalog(false));
     }
 
     public void RefreshKeyHints() { if (HintsPage.Root.Visible) HintsPage.Paint(); }

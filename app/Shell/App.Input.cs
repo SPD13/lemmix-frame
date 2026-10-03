@@ -54,6 +54,18 @@ public sealed partial class App
             point = o + d * distance;
             return HitKind.Window;
         }
+        // no window up and no level: the lobby's signs, and its screen stops the beam
+        if (Session == null && !Windows.AnyWindowUp)
+        {
+            var (lp, ld, onLobby) = Lobby.Pick(o, d);
+            if (onLobby)
+            {
+                pick = lp;
+                distance = ld;
+                point = o + d * ld;
+                return HitKind.Window;
+            }
+        }
         if (wOwned || Session == null) return HitKind.None;
         // the skills bar
         if (BarView != null && Bar?.Mesh is { } m && BarView.HitUv(o, d) is Vector2 uv)
@@ -120,6 +132,7 @@ public sealed partial class App
     {
         if (Pages.Act(p)) return;
         if (ActOnEntry(p.BarTool)) return;
+        if (ActOnLobby(p.BarTool)) return;
         if (Windows.Act(p)) return;
         if (Session == null) return;
         if (p.BarTool == "minimap" && Bar != null && p.Data is Vector2 mu)
@@ -145,9 +158,22 @@ public sealed partial class App
     {
         Pages.ApplyHover(p);
         Windows.ApplyHover(p);
+        Lobby.SetHover(p?.BarTool);
         if (Session == null) return;
         Bar?.SetHover(p != null && p.Kind == "panel" && p.Data is Vector2 uv ? (uv.X, uv.Y) : null);
         Session.SetPointer(p != null && p.Kind == "board" && p.Data is Vector2I sim ? sim : null);
+    }
+
+    /** The lobby's signs: the world catalog (nothing installed: the setup), the VR window, the end. */
+    bool ActOnLobby(string? tool)
+    {
+        switch (tool)
+        {
+            case "lobbyplay": if (FirstRun) OpenSetup(); else Windows.SetCatalog(true); return true;
+            case "lobbyvr": Windows.SetVrOptions(true); return true;
+            case "lobbyquit": QuitGame(); return true;
+        }
+        return false;
     }
 
     // a hold on the minimap ends with the trigger, or when the beam leaves it

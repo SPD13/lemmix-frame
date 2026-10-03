@@ -67,6 +67,7 @@ public sealed class AppOptions
     public string? UserDataDir;             // null: OS.GetUserDataDir()
     public Func<double>? Clock;             // ms; Time.GetTicksUsec by default
     public bool Manual;                     // no _Process: the caller runs Frame(now)
+    public Action? Quit;                    // the app's end (a test's: noted); the tree quits by default
     public bool EnvironmentInBackground = true;
     public bool SpreadRestore;              // a jump's refresh spread over frames (the real app; tests check the board at once)
 
