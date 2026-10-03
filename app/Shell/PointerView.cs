@@ -9,8 +9,8 @@ namespace Lemmix.App.Shell;
 
 // web/3d/js/vr.js, what the controllers draw: per hand a lightsaber beam (a bright core inside a
 // soft additive halo, stretched to where the ray lands), the hand marker at the aim pose and a
-// box at the grip pose (green, over everything) - unless the runtime's model of the controller is
-// drawn there (ControllerModels) -, the impact dot where the beam lands; NeoLemmix's
+// box at the grip pose (green, over everything) - both left out when the runtime's model of the
+// controller is drawn (ControllerModels) -, the impact dot where the beam lands; NeoLemmix's
 // cursor (cursor.js: a cross, a square over a lemming, an arrow with the direction filter) at the
 // landing on the board in place of the dot; the dim floor grid shown in a session until the
 // room's floor takes over. Updated once a frame after VrManager.Update, allocation-free.
@@ -21,14 +21,15 @@ public sealed partial class PointerView : Node3D
 
     sealed class Hand
     {
-        public Node3D Aim = null!, Beam = null!, Grip = null!;
+        public Node3D Aim = null!, Beam = null!, Grip = null!, Tip = null!;
         public MeshInstance3D Dot = null!;
         public Sprite3D? Cursor;
     }
 
     readonly Hand[] _hands = new Hand[2];
     public readonly MeshInstance3D Floor;
-    // whether the runtime's controller model stands for this hand (then no box at the grip)
+    // whether the runtime's controller model stands for this hand (then no box at the grip and
+    // no marker at the aim)
     public Func<int, bool>? HandModelShown;
     readonly CursorImages? _cursor;
     readonly Dictionary<string, ImageTexture> _cursorTex = new(System.StringComparer.Ordinal);
@@ -84,7 +85,8 @@ public sealed partial class PointerView : Node3D
             h.Beam.AddChild(Cylinder("glow", GLOW_RADIUS, glow));
             h.Beam.Scale = new Vector3(1, 1, 4);
             h.Aim.AddChild(h.Beam);
-            h.Aim.AddChild(new MeshInstance3D { Name = "tip", Mesh = tipMesh, MaterialOverride = tip });
+            h.Tip = new MeshInstance3D { Name = "tip", Mesh = tipMesh, MaterialOverride = tip };
+            h.Aim.AddChild(h.Tip);
             AddChild(h.Aim);
             AddChild(h.Grip);
             AddChild(h.Dot);
@@ -160,7 +162,9 @@ public sealed partial class PointerView : Node3D
             var src = input.Hands[i];
             bool shown = presenting && hasControllers && src.Connected;
             h.Aim.Visible = shown;
-            h.Grip.Visible = shown && !(HandModelShown?.Invoke(i) ?? false);
+            bool model = HandModelShown?.Invoke(i) ?? false;
+            h.Grip.Visible = shown && !model;
+            h.Tip.Visible = !model;
             if (!shown)
             {
                 h.Dot.Visible = false;

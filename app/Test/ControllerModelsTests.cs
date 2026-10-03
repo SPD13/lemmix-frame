@@ -82,7 +82,7 @@ public static class ControllerModelsTests
     }
 
     [AppTest]
-    public static void TheGripBoxGivesWayToTheModel()
+    public static void TheGripBoxAndTipSphereGiveWayToTheModel()
     {
         var input = new ScriptedXrInput();
         var root = new Node3D();
@@ -98,7 +98,12 @@ public static class ControllerModelsTests
             pv.Update(vr, input, false, 0, 0.001f);
             Check.True(pv.GetNode<Node3D>("grip0").Visible, "left box kept (no model)");
             Check.True(!pv.GetNode<Node3D>("grip1").Visible, "right box hidden (its model is drawn)");
-            Check.True(pv.GetNode<Node3D>("aim1").Visible, "the right hand's beam marker stays");
+            Check.True(pv.GetNode<Node3D>("aim0/tip").Visible, "left marker sphere kept (no model)");
+            Check.True(pv.GetNode<Node3D>("aim1").Visible && pv.GetNode<Node3D>("aim1/beam").Visible, "the right hand's beam stays");
+            Check.True(!pv.GetNode<Node3D>("aim1/tip").Visible, "right marker sphere hidden (its model is drawn)");
+            pv.HandModelShown = null;
+            pv.Update(vr, input, false, 0, 0.001f);
+            Check.True(pv.GetNode<Node3D>("grip1").Visible && pv.GetNode<Node3D>("aim1/tip").Visible, "the model gone: box and sphere back");
         }
         finally { pv.Free(); root.Free(); }
     }
