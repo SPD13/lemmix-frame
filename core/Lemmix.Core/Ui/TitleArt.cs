@@ -64,6 +64,7 @@ public sealed class TitleArt
 
     public bool Ok;
     public Bitmap? Screen;              // the background tiled, the logo on it
+    public int LogoBottom;              // the screen row under the logo's foot (the app's subtitle goes below)
     public MenuFont? Font;
     public Bitmap? ScrollerLemmings, ScrollerSegment;
     public Sign? Play, Setup, VrSettings, Quit;
@@ -89,8 +90,10 @@ public sealed class TitleArt
         for (int y = 0; y < ScreenH; y += bg.Height)
             for (int x = 0; x < ScreenW; x += bg.Width)
                 Blend(bg, art.Screen, x, y, 0, 0, bg.Width, bg.Height);
-        // DrawLogo
+        // DrawLogo (the wordmark alone: the app puts its own subtitle under it)
+        logo = WithoutSubtitle(logo);
         Blend(logo, art.Screen, (ScreenW - logo.Width) / 2, LogoCenterY - logo.Height / 2, 0, 0, logo.Width, logo.Height);
+        art.LogoBottom = LogoCenterY - logo.Height / 2 + logo.Height;
 
         art.Play = MakeSign(RemoveKeyCap(play));
         art.Setup = MakeSign(SetupSign(RemoveKeyCap(levels)));
@@ -98,6 +101,25 @@ public sealed class TitleArt
         art.Quit = MakeSign(RemoveKeyCap(quit));
         art.Ok = true;
         return art;
+    }
+
+    /**
+     * The logo without a subtitle line of its own (the older releases' COMMUNITY EDITION under the
+     * wordmark): cut at the first row in its lower half with nothing solid on it (the wordmark's
+     * soft shadow may run on into the subtitle) that has solid picture under it.
+     */
+    public static Bitmap WithoutSubtitle(Bitmap logo)
+    {
+        int w = logo.Width, h = logo.Height;
+        bool Clear(int y) { for (int x = 0; x < w; x++) if (logo.Data[(y * w + x) * 4 + 3] >= 128) return false; return true; }
+        for (int y = h / 2; y < h; y++)
+        {
+            if (!Clear(y)) continue;
+            for (int below = y + 1; below < h; below++)
+                if (!Clear(below)) return logo.Crop(0, 0, w, y);
+            return logo;
+        }
+        return logo;
     }
 
     // MakePosition(h, 0): a card's centre on the screen, h cards right of the middle

@@ -148,6 +148,33 @@ public class TitleArtTests
     }
 
     [Fact]
+    public void TheLogoLosesItsOwnSubtitleLine()
+    {
+        Assert.SkipWhen(!HasMenu, "no NeoLemmix menu graphics");
+        foreach (var (variant, io) in Variants())
+        {
+            var logo = io.Image(TitleArt.Dir + "logo.png")!;
+            var cut = TitleArt.WithoutSubtitle(logo);
+            Dump(variant + "-logo.png", cut);
+            Assert.Equal(logo.Width, cut.Width);
+            Assert.True(cut.Height > logo.Height / 2, variant + ": the wordmark kept (" + cut.Height + " of " + logo.Height + ")");
+            // a wordmark is about 7 times as wide as it is tall, with or without a line of its own under it
+            Assert.InRange(cut.Width / (double)cut.Height, 4.5, 8);
+            // nothing solid under a row with nothing solid on it any more
+            bool clearSeen = false;
+            for (int y = cut.Height / 2; y < cut.Height; y++)
+            {
+                bool clear = true;
+                for (int x = 0; x < cut.Width; x++) if (cut.Data[(y * cut.Width + x) * 4 + 3] >= 128) { clear = false; break; }
+                Assert.False(clearSeen && !clear, variant + ": picture under a clear row at " + y);
+                clearSeen |= clear;
+            }
+        }
+        var art = TitleArt.Load(OracleData.Io);
+        Assert.True(art.LogoBottom > TitleArt.LogoCenterY && art.LogoBottom < TitleArt.CardsCenterY - 60, "the logo's foot: " + art.LogoBottom);
+    }
+
+    [Fact]
     public void AHoveredSignGlowsRoundItsEdge()
     {
         Assert.SkipWhen(!HasMenu, "no NeoLemmix menu graphics");

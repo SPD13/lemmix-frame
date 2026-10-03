@@ -10,7 +10,8 @@ using static Lemmix.App.Xr.VrManager;
 namespace Lemmix.App.Ui.Windows;
 
 // The lobby (native, the app's title screen): NeoLemmix's main menu (GameMenuScreen.pas) as a
-// screen standing in the room before the player - its background tiled, its logo, its footer and
+// screen standing in the room before the player - its background tiled, its logo with the app's
+// STEAM FRAME EDITION under it (res://Splash/subtitle.png, tools/art), its footer and
 // its scroller with the two worker lemmings - with three signs held up by lemmings floating in
 // front of it, each the headset's own: PLAY (the world catalog), SETTINGS (the setup page: the
 // downloads, installs and the upload server), VR SETTINGS (the VR window, as the bar's VR button
@@ -66,6 +67,8 @@ public sealed class VrLobby
     ImageTexture? _screenTex, _scrollerTex;
     readonly ImageTexture?[] _signTex = new ImageTexture?[4], _signHotTex = new ImageTexture?[4];
     readonly Dictionary<string, ImageTexture> _footer = new();
+    // the app's subtitle under the logo, drawn at the screen's 2x canvas, pixel for pixel
+    static readonly Texture2D? Subtitle = ResourceLoader.Exists("res://Splash/subtitle.png") ? GD.Load<Texture2D>("res://Splash/subtitle.png") : null;
 
     public VrLobby()
     {
@@ -167,6 +170,7 @@ public sealed class VrLobby
         if (_screenTex != null)
         {
             cx.drawImage(_screenTex, 0, 0, w, h);
+            if (Subtitle != null) cx.drawImage(Subtitle, (w - Subtitle.GetWidth()) / 2, (_art!.LogoBottom + 6) * ScreenK);
             int y = TitleArt.FooterTextY;
             foreach (var line in new[] { l1, l2 })
             {
@@ -187,6 +191,7 @@ public sealed class VrLobby
             cx.font = "bold 150px monospace";
             cx.textAlign = "center";
             cx.fillText("LEMMIX", w / 2f, TitleArt.LogoCenterY * ScreenK + 50);
+            if (Subtitle != null) cx.drawImage(Subtitle, (w - Subtitle.GetWidth()) / 2, TitleArt.LogoCenterY * ScreenK + 80);
             cx.fillStyle = "#f0f3f8";
             cx.font = "36px monospace";
             cx.fillText(l1, w / 2f, TitleArt.FooterTextY * ScreenK + 36);

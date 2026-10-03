@@ -194,9 +194,10 @@ oracles that the change touches (`node oracle/<x>.js`), run the core tests, port
 
 **Boot splash.** Before `Main` runs, Godot shows `app/Splash/splash.png`
 (`application/boot_splash/image`, background `boot_splash/bg_color`, a dark dirt brown): the
-NeoLemmix logo over its title screen's dirt background, "STEAM FRAME EDITION" under it. It is
-built on the Mac by `tools/splash/make-splash.sh [gfx/menu dir]` (by default from the Frame's
-NeoLemmix install, over ssh) with CoreGraphics. The logo and background are NeoLemmix's artwork,
+NeoLemmix logo over its title screen's dirt background, "STEAM FRAME EDITION" under it. It, the
+lobby's subtitle (`app/Splash/subtitle.png`) and the Steam library's art (`steam/library/`) are
+built on the Mac by `tools/art/make-art.sh [gfx/menu dir]` (by default from the Frame's NeoLemmix
+install, over ssh) with CoreGraphics. The logo, background and sign are NeoLemmix's artwork,
 bundled at the project owner's decision (`app/Splash/README.md`).
 
 ### 6.2 `Shell/App` (one node, partial class)
@@ -286,7 +287,9 @@ is a `VrPage`: CSS-like units (`U(css)` = css × `S` canvas px), widgets (`Butto
 level is on the board: NeoLemmix's main menu (`GameMenuScreen.pas`, numbers from
 `data/title.nxmi`) as a 1.5 m screen 1.4 m off in the windows' frame - centred on the line the
 windows open along, upright (square to the floor) as the windows are - built from the installed
-`neolemmix/gfx/menu/` by `core/.../Ui/TitleArt.cs`: `background.png` tiled, `logo.png`, a footer
+`neolemmix/gfx/menu/` by `core/.../Ui/TitleArt.cs`: `background.png` tiled, `logo.png` (cut above
+a subtitle line of its own, `WithoutSubtitle`) with the app's STEAM FRAME EDITION under it
+(`app/Splash/subtitle.png`, drawn by `VrLobby`), a footer
 in `menu_font.png` (what the sign under the beam does; the app's version), and the scroller (the
 reel turned by the two worker lemmings, `TitleScroller`, 12 px taller than NeoLemmix's so the text clears its dashed edges; lines in `VrLobby.ScrollerLines`). Four
 signs float 12 cm in front, in one row, the headset's own: **PLAY** (`sign_play.png`) opens the world
