@@ -179,6 +179,34 @@ public static class ShellTests
     }
 
     [AppTest]
+    public static void TheToolbarsExitGoesBackToTheLobby()
+    {
+        if (!HaveAssets()) return;
+        using var rig = new Rig(null, "--level=" + Builders);
+        LoadedRig(rig);
+        var app = rig.App;
+        rig.Frame();
+        Check.True(!app.Lobby.Root.Visible, "no lobby while a level is on the board");
+        rig.Click(app.Windows.Toolbar.Quit);
+        Check.Equal("Back to the lobby?", app.Windows.Modal.Title, "asks first");
+        rig.Click(app.Windows.Modal.Yes);
+        rig.Frame();
+        Check.True(!rig.Quit, "the app goes on");
+        Check.True(app.Session == null && app.LevelId == null && app.Locked, "the level put away");
+        Check.True(app.Bar == null && app.BarView == null, "its skills bar too");
+        Check.True(!app.Windows.Toolbar.Quit.Visible && !app.Windows.Toolbar.Pause.Visible, "the bar's row hidden");
+        Check.True(app.Lobby.Root.Visible && !app.Lobby.Shade.Visible, "the lobby is up, unveiled");
+        // and from there into a level again
+        rig.Click(Sign(app, "lobbyplay"));
+        Check.True(app.Windows.Catalog.Root.Visible, "PLAY opens the catalog again");
+        app.Windows.SetCatalog(false);
+        app.EnterLevel(Builders);
+        rig.Frame();
+        Check.True(app.Session != null && !app.Lobby.Root.Visible, "a level again, the lobby gone");
+        Check.True(app.Windows.Toolbar.Quit.Visible, "the bar's row back");
+    }
+
+    [AppTest]
     public static void ATilePickedWithTheBeamLoadsTheLevel()
     {
         if (!HaveAssets()) return;

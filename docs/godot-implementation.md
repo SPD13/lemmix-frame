@@ -289,7 +289,7 @@ swapped for a drawn headset) opens the VR window as the bar's VR button does, **
 (`TitleArt.RemoveKeyCap`); under the beam a sign glows as NeoLemmix's does under the mouse
 (`MakeClickableImageAuto`'s glow) and steps forward. While a window or a page is up the screen is
 veiled and the signs put away. The catalog is never locked any more: its close (and Escape) go
-back to the lobby. Without the menu art the screen and signs are drawn plainly. Picks are
+back to the lobby. The toolbar's exit (the door) also comes back here, after asking. Without the menu art the screen and signs are drawn plainly. Picks are
 `lobbyplay`, `lobbyvr`, `lobbyquit` (`App.ActOnLobby`); shots `vr-lobby`, `vr-lobby-vr`.
 
 **Placement (native).** Windows and pages open from the head's position **facing the play
@@ -435,7 +435,7 @@ run with `--scenery=off`, or revert the commits on branch `scenery`.
 |---|---|
 | Frame controller models with the Lemmix sticker, drawn on top; no green box/sphere | Valve's requirement; device session 1 |
 | Aim/grip derived from the palm pose on the Frame | SteamVR leaves them untracked (section 8) |
-| Quit button (door icon) at the left end of the toolbar, asks "Quit Lemmix?" | a native app needs a way out |
+| Exit button (door icon) at the left end of the toolbar: with a level, asks "Back to the lobby?" and puts the level away (`App.ExitToLobby`); the lobby's QUIT ends the app | a native app needs a way out |
 | Windows and pages open along the default forward, not the gaze | device session 1 |
 | Setup page: larger scale, big Get buttons, no zip buttons, no config card, minimal text | device session 1 |
 | Level upload server + browser page (files, folders, zips, settings backup) | levels cannot ship |

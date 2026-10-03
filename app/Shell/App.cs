@@ -667,10 +667,30 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     }
 
     // ------------------------------------------------------------ IVrWindowsHost
-    /** The toolbar's quit, answered yes, or the lobby's: the settings saved, the upload server stopped, the app ended. */
+    /**
+     * The toolbar's exit, answered yes: the level put away (its board, bar, room, sound), no level
+     * chosen any more, the bar's row and the strip hidden as before the first level, and the lobby
+     * up again in front of the player.
+     */
+    public void ExitToLobby()
+    {
+        GD.Print("[app] back to the lobby from " + LevelId);
+        CloseWindows();
+        DisposeSession();
+        Windows.SetLevelText(null);
+        LevelId = null;
+        Locked = true;
+        Windows.Status.Set(name: "choose a level", meta: "", note: "", kind: "");
+        Windows.Toolbar.Hide();
+        Windows.Status.Hide();
+        Windows.Tooltip.NoteHover(null, Now());
+        if (Presenting) Windows.PlaceWindows(WindowPose);
+    }
+
+    /** The lobby's quit (or the toolbar's, with no level): the settings saved, the upload server stopped, the app ended. */
     public void QuitGame()
     {
-        GD.Print("[app] quit from " + (Session == null ? "the lobby" : "the toolbar"));
+        GD.Print("[app] quit");
         StopUploadServer();
         _localStore?.Flush();
         if (Options.Quit != null) Options.Quit();
