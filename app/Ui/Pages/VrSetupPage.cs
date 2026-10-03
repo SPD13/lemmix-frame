@@ -344,7 +344,7 @@ public sealed class VrSetupPage : VrPage
         Logo(x, padY + (inner - U(48)) / 2, U(48));
         cx.font = F(15, true);
         cx.fillStyle = Css.Green;
-        float tw = PageText.Spaced(cx, "LEMMIX JS+VR — SETUP", titleX, top + U(12), U(1.2f));
+        float tw = PageText.Spaced(cx, "LEMMIX VR Steam Frame — SETUP", titleX, top + U(12), U(1.2f));
         cx.font = F(11);
         cx.fillStyle = Css.Dim;
         cx.fillText("v" + Backend.Version, titleX + tw + U(10), top + U(12));
