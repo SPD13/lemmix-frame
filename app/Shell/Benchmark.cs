@@ -61,6 +61,9 @@ public partial class Benchmark : Node
     public Benchmark(App app)
     {
         _app = app; Name = "benchmark";
+        // first in each frame: the interval from one call to the next is one whole engine frame,
+        // and a rewind given here belongs to the frame that then runs it
+        ProcessPriority = -100;
         for (int i = 0; i < _sub.Length; i++) _sub[i] = new List<double>(4096);
     }
 
@@ -272,6 +275,9 @@ public partial class Benchmark : Node
             other.Add(Math.Max(0, _frames[f] - sum));
         }
         var os = other.OrderBy(x => x).ToList();
+        // the frame's own work: every section added up (the frame less the engine's share, the idle
+        // wait for the next frame and whatever the host took)
+        var work = _frames.Select((f, i) => f - other[i]).OrderBy(x => x).ToList();
         sections["Other"] = new JsonObject
         {
             ["totalMs"] = Round(other.Sum(), 1), ["meanMs"] = Round(other.Count == 0 ? 0 : other.Average(), 3),
@@ -310,6 +316,7 @@ public partial class Benchmark : Node
             ["warmup"] = new JsonObject { ["frames"] = _warmFrames, ["ms"] = Round(_warmMs, 1), ["maxFrameMs"] = Round(_warmMax), ["gcPauseMs"] = Round(_gc0 - _gcLoad0), ["gen2"] = _gen2 - _gen2Load0 },
             ["frames"] = sorted.Count,
             ["frameMs"] = new JsonObject { ["p50"] = Round(Pct(sorted, 0.5)), ["p90"] = Round(Pct(sorted, 0.9)), ["p99"] = Round(Pct(sorted, 0.99)), ["max"] = sorted.Count == 0 ? 0 : Round(sorted[^1]) },
+            ["workMs"] = new JsonObject { ["p50"] = Round(Pct(work, 0.5)), ["p99"] = Round(Pct(work, 0.99)), ["max"] = work.Count == 0 ? 0 : Round(work[^1]), ["over11ms"] = work.Count(w => w > SlowMs) },
             ["over11ms"] = slow,
             ["over11pct"] = sorted.Count == 0 ? 0 : Round(100.0 * slow / sorted.Count),
             ["slowFramesWithGc"] = slowWithGc, ["slowFramesGcMs"] = Round(slowGcMs, 1),
