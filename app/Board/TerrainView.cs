@@ -38,6 +38,7 @@ public partial class TerrainView : Node3D
     // Per frame (the web's per-tick flush is the caller's: TerrainMesh.FlushDirty)
     public void Sync()
     {
+        var upload = Perf.Time(Perf.S.TexUpload);
         if (_tm.TextureNeedsUpdate)
         {
             _texture.Update(Image.CreateFromData(_tm.W, _tm.H, false, Image.Format.Rgba8, _tm.TexData));
@@ -55,7 +56,9 @@ public partial class TerrainView : Node3D
                 _decalTexture.Update(Image.CreateFromData(decals.W, decals.H, false, Image.Format.Rgba8, decals.Data));
             decals.TextureNeedsUpdate = false;
         }
+        upload.Dispose();
         if (_dirty.Count == 0) return;
+        using var _ = Perf.Time(Perf.S.MeshSwap);
         foreach (int id in _dirty)
         {
             Swap(_chunks, id, _tm.ChunkMeshes[id], _materials);

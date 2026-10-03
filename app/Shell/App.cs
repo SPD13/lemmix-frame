@@ -269,6 +269,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
      */
     public void Frame(double now)
     {
+        using var _ = Perf.Time(Perf.S.Shell);
         double dt = double.IsNaN(_last) ? 0 : Math.Max(0, now - _last);
         _last = now;
         if (_reload) { _reload = false; if (LevelId != null) LoadLevel(); }
@@ -286,6 +287,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
             s.Step(now);
             if (Bar != null)
             {
+                using var bar = Perf.Time(Perf.S.Bar);
                 Bar.SetViewRect(VisibleLevelRect());
                 Bar.Update();
                 BarView!.Sync();

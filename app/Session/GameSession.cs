@@ -245,6 +245,7 @@ public sealed partial class GameSession : Node
     public int Step(double now)
     {
         if (Disposed) return 0;
+        using var _ = Perf.Time(Perf.S.Step);
         double dt = double.IsNaN(_lastFrame) ? 0 : now - _lastFrame;
         _lastFrame = now;
         var timer = Game.GameTimer;
@@ -256,7 +257,7 @@ public sealed partial class GameSession : Node
             TickDebt = Math.Min(TickDebt + dt, tickMs * 5);
             while (TickDebt >= tickMs && timer.IsRunning())
             {
-                timer.Tick();
+                using (Perf.Time(Perf.S.Sim)) timer.Tick();
                 ticks++;
                 TickDebt -= tickMs;
             }
@@ -273,6 +274,7 @@ public sealed partial class GameSession : Node
         Board.TerrainView.Sync();
         if (Environment != null && Eye != null && Board.GetParent() is Node3D root)
         {
+            using var env = Perf.Time(Perf.S.Env);
             var moved = Environment.Update(Eye.GlobalPosition, root, Presenting());
             if (moved is Vector3 m && !Presenting()) Eye.GlobalPosition = m;
         }
@@ -323,7 +325,8 @@ public sealed partial class GameSession : Node
     void RefreshAfterRestore(RestoreInfo info)
     {
         if (Disposed) return;
-        Board.Terrain.Resync();
+        using var _ = Perf.Time(Perf.S.Restore);
+        using (Perf.Time(Perf.S.Resync)) Board.Terrain.Resync();
         Board.Lemmings.ClearPrevPositions();
         Board.ResetSceneMemory();
         TickDebt = 0;

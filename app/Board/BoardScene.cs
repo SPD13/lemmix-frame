@@ -315,6 +315,7 @@ public sealed partial class BoardScene : Node3D
     public void SyncScene(bool redrawOnly)
     {
         SyncCount++;
+        using var _ = Perf.Time(Perf.S.Objects);
         if (!redrawOnly) LastTickMs = Now();
         var level = Level;
         var game = Game;
@@ -408,8 +409,9 @@ public sealed partial class BoardScene : Node3D
                 }
             }
         }
-        Objects.Sync(_objectItems, _objectZ, false, game.ClearPhysics);
+        using (Perf.Time(Perf.S.Pools)) Objects.Sync(_objectItems, _objectZ, false, game.ClearPhysics);
 
+        var lemSection = Perf.Time(Perf.S.Lemmings);
         LemCapture.Begin();
         var lems = game.Sim.Lemmings;
         if (!redrawOnly && OnCue != null)
@@ -429,10 +431,14 @@ public sealed partial class BoardScene : Node3D
             Sprites.RenderLemming(game, lem, _drawLemming);
         }
         SyncFallers(redrawOnly);
-        Lemmings.Sync(LemCapture.Items, _lemmingZ, true, false);
-        Particles.Sync(LemCapture.Particles);
+        lemSection.Dispose();
+        using (Perf.Time(Perf.S.Pools))
+        {
+            Lemmings.Sync(LemCapture.Items, _lemmingZ, true, false);
+            Particles.Sync(LemCapture.Particles);
+        }
 
-        Terrain.FlushDirty();
+        using (Perf.Time(Perf.S.Mesh)) Terrain.FlushDirty();
         Materials.SyncTints();
         TerrainView.Sync();
     }
