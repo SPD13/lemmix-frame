@@ -1,0 +1,58 @@
+using System;
+using Godot;
+using Lemmix.App.Shell;
+using Lemmix.App.Xr;
+using Lemmix.Store;
+using ShellApp = Lemmix.App.Shell.App;
+
+namespace Lemmix.App.Test;
+
+// The "vr-scene" and "vr-catalog" shots: the whole headset view, one eye's worth, from a fixed
+// head pose (1.6 m up, looking ahead and a little down) - the shell as a session runs it: the
+// board placed in front, the room around it, the skills bar below with its row of controls, the
+// status strip over the level, the right hand's beam on the board with NeoLemmix's cursor where it
+// lands; or, with no level chosen, the catalog the app starts on. SHOT_LEVEL picks the level.
+public static class ShellShots
+{
+    static void Dump(Node n)
+    {
+        if (n is VisualInstance3D v && v.IsVisibleInTree())
+            GD.Print($"[dump] {v.GetPath()} {v.GetType().Name} at {v.GlobalPosition} aabb {v.GetAabb().Size}");
+        foreach (var c in n.GetChildren()) Dump(c);
+    }
+
+    public static Viewport Make(Node root, bool catalog)
+    {
+        var vp = new SubViewport
+        {
+            Size = new Vector2I(1280, 960), OwnWorld3D = true, Msaa3D = Viewport.Msaa.Msaa4X,
+            RenderTargetUpdateMode = SubViewport.UpdateMode.Always,
+        };
+        root.AddChild(vp);
+        var input = new ScriptedXrInput();
+        var head = new Transform3D(new Basis(Vector3.Right, Mathf.DegToRad(-14)), new Vector3(0, 1.6f, 0));
+        input.HeadValue = head;
+        // the right hand low and to the side, its beam on the board's middle; the left at rest
+        var right = input.HandsValue[1];
+        var from = new Vector3(0.16f, 1.28f, -0.25f);
+        var to = new Vector3(0.02f, 1.42f, -0.9f);
+        right.Aim = new Transform3D(Basis.LookingAt((to - from).Normalized(), Vector3.Up), from);
+        right.Grip = right.Aim.Translated(new Vector3(0, -0.02f, 0.05f));
+        var left = input.HandsValue[0];
+        left.Aim = new Transform3D(Basis.LookingAt(new Vector3(0.1f, -0.3f, -1).Normalized(), Vector3.Up), new Vector3(-0.22f, 1.2f, -0.3f));
+        left.Grip = left.Aim;
+        string level = System.Environment.GetEnvironmentVariable("SHOT_LEVEL") ?? BoardShot.Builders;
+        var args = catalog ? new[] { "--environment=full" } : new[] { "--level=" + level, "--environment=full" };
+        var app = new ShellApp(new AppOptions
+        {
+            Args = ShellArgs.Parse(args), Input = input, Store = new LocalStore(),
+            Head = new Camera3D { Name = "head", Fov = 75 }, EnvironmentInBackground = false,
+            UserDataDir = OS.GetUserDataDir(), AssetRoot = TerrainShot.Assets,
+        });
+        if (catalog) app.Ready += () => app.Library.Navigate("Lemmings_Redux/Gentle");
+        vp.AddChild(app);
+        if (System.Environment.GetEnvironmentVariable("SHOT_DEBUG") == "1")
+            app.GetTree().CreateTimer(0.3).Timeout += () => Dump(app);
+        return vp;
+    }
+}

@@ -22,6 +22,8 @@ public partial class Shots : Node
         ["board-plain"] = r => BoardShot.Make(r, "board-plain"),
         ["board-beast"] = r => BoardShot.Make(r, "board-beast"),
         ["skillbar"] = SkillBarShot.Make,
+        ["vr-scene"] = r => ShellShots.Make(r, false),
+        ["vr-catalog"] = r => ShellShots.Make(r, true),
     };
 
     // a check to run on the saved picture (a shot may set it)

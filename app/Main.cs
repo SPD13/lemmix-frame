@@ -3,9 +3,10 @@ using Godot;
 
 namespace Lemmix.App;
 
-// The root of the app. Starts OpenXR when a runtime answers (the Frame, SteamVR on a PC);
-// without one (the Mac, CI, a container) it stays on the desktop camera, which only the
-// tests use: the shipped app is VR only.
+// The root of the app. Starts OpenXR when a runtime answers (the Frame, SteamVR on a PC) and runs
+// the shell (Shell/App: the game as the web's app.js wires it in a headset session). Without a
+// runtime (the Mac, CI, a container) the shell stands a fixed head where a player would; the
+// tests, shots and probes run instead of it, on the desktop camera.
 public partial class Main : Node3D
 {
     public bool XrActive { get; private set; }
@@ -21,10 +22,12 @@ public partial class Main : Node3D
             DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
             XrActive = true;
         }
-        GetNode<Camera3D>("DesktopCamera").Current = !XrActive;
         GD.Print($"[lemmix] started, xr={(XrActive ? "openxr" : "off")}, renderer={RenderingServer.GetCurrentRenderingMethod()}");
 
         var args = OS.GetCmdlineUserArgs();
+        bool tool = args.Contains("--probe") || args.Contains("--test") || args.Contains("--shot");
+        GetNode<Camera3D>("DesktopCamera").Current = tool && !XrActive;
+        if (!tool) AddChild(new Shell.App(Shell.AppOptions.FromCommandLine(args)));
         if (args.Contains("--probe")) AddChild(new Test.Probe());
         if (args.Contains("--test")) AddChild(new Test.TestRunner());
         if (args.Contains("--shot")) AddChild(new Test.Shots());

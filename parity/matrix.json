@@ -344,17 +344,18 @@
    "webSha": "239ebc5"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "vr.interactions",
    "area": "vr",
    "title": "Trigger click, trigger-drag board, grip grab, two-grip scale, beam hand swap, sticks",
    "source": "3d/js/vr.js",
    "oracle": "scripted-pose",
    "phase": 4,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "Shell/App.Input.cs over VrManager: raycastHit order (modal > page > level text > settings > catalog > volume > icon buttons > skills bar > pick plane) with the beam's length, actOnPick (every bar tool, catalog, yes/no, skill panel press, minimap scrub, assign on the board), applyHover (sticky ring, raised button, tile/row hover), sticks (catalog scroll, vr_pan/tilt/zoom), held dollies, grip drag/scale, bar drag; beams, dot, hand markers, NeoLemmix cursor at the landing, floor grid (Shell/PointerView.cs). ShellTests cover tile pick, assign, restart, pause, grips, VR buttons and sticks."
   },
   {
-   "status": "wip",
+   "status": "done",
    "id": "vr.modal",
    "area": "vr",
    "title": "Confirm (yes/no) and notice (OK) windows, holding the clock",
@@ -362,10 +363,10 @@
    "oracle": "view-model",
    "phase": 4,
    "webSha": "239ebc5",
-   "notes": "UI ported (app/Ui/Windows/VrModal.cs + VrWindows.SetModal/AskConfirm/AskNotice): restart/prev/next/solution/catalog questions and the no-solution notice, owns the ray, holds the clock, paint and layout = web. Integration: IVrWindowsHost.HoldSim/ReleaseSim, MoveLevel, WatchSolution"
+   "notes": "UI ported (VrModal) and wired: Shell/App is the IVrWindowsHost (hold/release over the session, a new level starts held); restart/prev/next/solution/catalog questions; the pages ask through it (WindowsPageConfirm). ShellTests.TheRestartButtonAsksThenRestarts."
   },
   {
-   "status": "wip",
+   "status": "done",
    "id": "vr.replay_badge",
    "area": "vr",
    "title": "REPLAY badge above the status strip",
@@ -373,20 +374,21 @@
    "oracle": "view-model",
    "phase": 4,
    "webSha": "239ebc5",
-   "notes": "UI ported (app/Ui/Windows/VrStatusStrip.cs VrReplayBadge): paint + layout over the strip = web. Integration: Badge.Set(replaying, presenting) where setReplayBadge is called"
+   "notes": "UI ported; Shell/App.Frame sets Badge.Set(game.Replaying, presenting) every frame; cleared with the level. ShellTests.AWatchedSolution... checks it."
   },
   {
-   "status": "todo",
+   "status": "wip",
    "id": "vr.session",
    "area": "vr",
    "title": "OpenXR session, local-floor, 2.5 mm per pixel, focus-loss pause, recenter",
    "source": "3d/js/vr.js",
    "oracle": "scripted-pose",
    "phase": 4,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "Shell/App: OpenXR rig built in code (XROrigin3D, XRCamera3D, aim_pose + grip_pose XRController3D per hand), VrManager with OpenXrInput; sessionstart (bar on the head until placed, windows on the first pose, catalog when no level), placeDioramaForXR (0.9 m ahead, 2.5 mm/px, focus just below eye level, bar and room follow), recenter (VrPointA, settings row, runtime pose_recentered), the system menu (session_visible) holds the clock and lets the keys go, sessionend closes the windows. Pending: a check on the Frame itself."
   },
   {
-   "status": "wip",
+   "status": "done",
    "id": "vr.status_strip",
    "area": "vr",
    "title": "Status strip above the board, detail icon",
@@ -394,10 +396,10 @@
    "oracle": "view-model",
    "phase": 4,
    "webSha": "239ebc5",
-   "notes": "UI ported (app/Ui/Windows/VrStatusStrip.cs): paint identical for playing/won/lost/loading/solution/choose; layout in board px = web; detail button. Integration: parent Root under the diorama (web board coords: y up from the level bottom), Set() from level load/end (setVrStatus calls), Apply(focusX, height, hasText) per frame"
+   "notes": "UI ported; Shell/App: Root under the diorama root, laid out per frame (layoutGuiPanel), setVrStatus for loading / name+meta / outcome / SOLUTION / saved replay / choose a level; detail button with the level text. Shot vr-scene."
   },
   {
-   "status": "wip",
+   "status": "done",
    "id": "vr.toolbar",
    "area": "vr",
    "title": "VR toolbar: lock/move/park/settings, pause, worlds, prev/restart/solution/next, mute + volume",
@@ -405,10 +407,10 @@
    "oracle": "view-model",
    "phase": 4,
    "webSha": "239ebc5",
-   "notes": "UI ported (app/Ui/Windows/VrToolbar.cs, BarIcons.cs, IconButton.cs, VrWindowPlacement.cs VrBar): every icon painted call for call vs the web (oracle/webshots.js traces), row/sound-column layout and hover growth = web numbers, slider linger 2000 ms, lock/park/move/prefs (lem3d-bar JSON) and parking under windows tested (WindowsTests). Integration: VrWindows into Main/VrManager hooks (Pick/ApplyHover/Act, OnBarDrag*), IVrWindowsHost (pause, level moves, audio), the skills bar mesh size (guiW/barH), BarFrame from the diorama, lem3d-bar storage"
+   "notes": "UI ported; Shell/App: guiRoot on the head (VrBar) until the board is placed, then below it (lem3d-bar prefs), the skills bar (SkillBarView) in it, buttons acting through VrWindows.Act, pause icon tracking the clock, solution button lit while watching, sound from GameAudio + lem3d-sound/volume; parked while a window or a page is up. Shot vr-scene."
   },
   {
-   "status": "wip",
+   "status": "done",
    "id": "vr.tooltip",
    "area": "vr",
    "title": "Skill tooltip strip after 1500 ms",
@@ -416,7 +418,7 @@
    "oracle": "view-model",
    "phase": 4,
    "webSha": "239ebc5",
-   "notes": "UI ported (app/Ui/Windows/VrTooltip.cs): vrTipTexts, 1500 ms rest, strip sized to its text, placed over its button in the bar plane (= web numbers). Integration: VrWindows.Update() per frame; SkillTip hook for the skills bar buttons (GamePanel hover tip)"
+   "notes": "UI ported; Shell/App: VrWindows.Update per frame, SkillTip from SkillBar.HoverTip over the raised tile; the shell's extra entries carry their labels."
   },
   {
    "status": "todo",
@@ -980,7 +982,7 @@
    "notes": "app/Ui/Pages/VrKeyboard.cs (beam keyboard, letters or digits, Bluetooth typing) + CatalogSearch (library.js search on VrCatalog: matches as typed, Enter plays the first, Escape clears then closes) + VrPages.OpenLibrarySearch. Not wired yet"
   },
   {
-   "status": "wip",
+   "status": "done",
    "id": "vr.keyboard",
    "area": "vr",
    "title": "Bluetooth keyboard hotkeys with the same table",
@@ -988,7 +990,7 @@
    "oracle": "unit",
    "phase": 5,
    "webSha": "239ebc5",
-   "notes": "hotkey dispatch data done: HotkeyDispatch.cs (app.js keydown/keyup, held filters, repeat, VR buttons/sticks, runHotkey gate, nuke double press), unit-tested against app.js; the table itself identical in oracle/settings.js (store hash + result per step) replayed by Lemmix.Core.Tests. Godot key events into it pending"
+   "notes": "Shell/KeyCodes.cs (Godot keys -> KeyboardEvent.code), Shell/App.Hotkeys.cs: keydown/keyup through HotkeyDispatch, runHotkey's whole switch on Game/GameSession/windows/audio, checkShifts/keyUp/releaseHeldKeys (focus loss), view keys (arrows pan, shift orbit); the VR modal takes Enter/Escape, a page or the VR keyboard takes the keys first. ShellTests.AKeyAndAControllerButtonRunTheirFunctions."
   },
   {
    "status": "done",
@@ -1013,37 +1015,40 @@
    "notes": "Wired in app/Session/GameSession.cs: each tick's sim cues (game.sounds, identical frame by frame) played through GameAudio.PlayCue at sfxPos (the lemmings' plane through the diorama's placement), the listener at the eye (BoardTests.SoundCuesAtTheirPlace). The web's extra AdLib effects (assign click, door flaps, letsgo at load, nuke, builder ting) are classic-engine data, not part of the native app; the Lemmix sim cues its own file sounds for those"
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "flow.cli",
    "area": "flow",
    "title": "Command line: level id, .nxrp, solution, speed (the URL params)",
    "source": "3d/js/app.js",
    "oracle": "unit",
    "phase": 7,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "Shell/AppOptions.cs ShellArgs: --level, --nxrp (res://, user://, disk), --solution, --speed, the URL switches (emboss, smooth, smoothterrain, colorblend, doors, skillbar, flatskills, environment, shadows, music) into Preferences as the web reads its params, --assets (else WEB_ASSETS, else <user data>/assets). ShellTests use them."
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "flow.first_run",
    "area": "flow",
    "title": "Nothing installed: open Setup first",
    "source": "3d/js/vfs.js",
    "oracle": "unit",
    "phase": 7,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "Shell/App: no levels/index.json or no neolemmix/gfx -> the setup page (VrSetupPage) at the session start; its close or PLAY reads the indexes again (ReloadLibrary) and opens the catalog, or the setup again while nothing is installed. ShellTests.NothingInstalledOpensTheSetupPage."
   },
   {
-   "status": "todo",
+   "status": "done",
    "id": "flow.level_end",
    "area": "flow",
    "title": "Win: auto-advance after 3 s; loss: restart; cancelled by rewind",
    "source": "3d/js/app.js",
    "oracle": "unit",
    "phase": 7,
-   "webSha": "239ebc5"
+   "webSha": "239ebc5",
+   "notes": "Shell/App.Level.cs onGameEnd: progress (not when watching a solution), talismans, POSTTEXT behind detail, the strip's note and colour, 3 s later the next level after a win or the same again; a replay or a step back since cancels (Restored); a level arriving behind a window starts held. ShellTests.AWatchedSolution..., APlayedWin..."
   },
   {
-   "status": "wip",
+   "status": "done",
    "id": "flow.progress",
    "area": "flow",
    "title": "Progress: best time, clears, most saved, talismans; recorded except when watching a solution",
@@ -1051,7 +1056,7 @@
    "oracle": "schema",
    "phase": 7,
    "webSha": "239ebc5",
-   "notes": "data layer done: LevelProgress.Record/Best/Saved, Talismans.RecordWin, ConfigFiles progress build/apply/export/import-merge, identical in oracle/settings.js (store hash + result per step) replayed by Lemmix.Core.Tests. Pending: the app's win hook (record unless watching a solution)"
+   "notes": "data layer: LevelProgress/Talismans/ConfigFiles (oracle-replayed). App hook: Shell/App.Level.cs OnGameEnd records the clear (time, saved) and the talismans unless game.WatchingSolution; the catalog shows best/cleared from it."
   },
   {
    "status": "done",
