@@ -123,6 +123,7 @@ public sealed class VrLobby
             {
                 _scroller = new TitleScroller(a.Font, a.ScrollerLemmings, a.ScrollerSegment, ScrollerLines);
                 var s = _scroller.Strip;
+                Scroller.Resize(s.Width * ScrollerK, s.Height * ScrollerK); // (the reel is taller than NeoLemmix's)
                 _scrollerImage = Image.CreateFromData(s.Width, s.Height, false, Image.Format.Rgba8, s.Data);
                 _scrollerTex = ImageTexture.CreateFromImage(_scrollerImage);
             }
@@ -241,6 +242,7 @@ public sealed class VrLobby
         Root.Position = new Vector3(0, y, Z);
         // leaning back by as much, so the screen faces the eyes rather than standing upright under them
         Root.Rotation = new Vector3(-WindowPitch, 0, 0);
+        // NeoLemmix's reel's middle stays where it was; the taller reel grows round it
         Scroller.Position = At(TitleArt.ScreenW / 2f, TitleArt.ScrollerTopY + 14, 0.004f);
         for (int i = 0; i < Signs.Length; i++)
         {
@@ -298,6 +300,15 @@ public sealed class VrLobby
             if (Tools[i] == was || Tools[i] == tool) PaintSign(i);
         PaintScreen();
         Layout();
+    }
+
+    /** A shot's: the reel run on until its line stands centred. */
+    public void CentreScrollerText()
+    {
+        if (_scroller == null) return;
+        for (int i = 0; i < 5000 && _scroller.Freeze == 0; i++) _scroller.Step();
+        _scroller.Draw();
+        PaintScroller();
     }
 
     /** Per frame while up: the scroller's reel turns. */

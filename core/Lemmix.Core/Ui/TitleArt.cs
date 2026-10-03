@@ -306,13 +306,16 @@ public sealed class TitleArt
 // GameMenuScreen.pas's scroller: a reel of scroller_segment.png turned by a worker lemming at
 // each end (scroller_lemmings.png: 16 frames, the left lemming in the left half), the lines of
 // text sliding across it right to left, each held still for a while when it is centred. A step
-// every 6 ms; Strip is the whole row (lemming, reel, lemming), redrawn after a step.
+// every 6 ms; Strip is the whole row (lemming, reel, lemming), redrawn after a step. The reel is
+// taller than NeoLemmix's (its plain middle row repeated ReelPad times), so the text stands clear
+// of its dashed edges rather than touching them; the text and the lemmings are centred on it.
 public sealed class TitleScroller
 {
     public const int MsPerUpdate = 6;
     public const int TextFreezeBase = 333, TextFreezeWidthDiv = 3;
     // after a long stop (the lobby hidden), the reel picks up where it was rather than catching up
     const int MaxStepsPerUpdate = 50;
+    public const int ReelPad = 12;
 
     readonly MenuFont _font;
     readonly Bitmap _lemmings, _segment;
@@ -334,12 +337,26 @@ public sealed class TitleScroller
         LemmingW = lemmings.Width / 2;
         LemmingH = lemmings.Height / TitleArt.ScrollerLemmingFrames;
         // LoadScrollerGraphics: the segment tiled one segment past the reel's length
-        _reel = new Bitmap(TitleArt.ScrollerWidth + segment.Width, segment.Height);
-        for (int x = 0; x < _reel.Width; x += segment.Width) TitleArt.Blend(segment, _reel, x, 0, 0, 0, segment.Width, segment.Height);
-        Strip = new Bitmap(TitleArt.ScrollerWidth + LemmingW * 2, Math.Max(segment.Height, LemmingH));
+        var tall = Taller(segment, ReelPad);
+        _reel = new Bitmap(TitleArt.ScrollerWidth + segment.Width, tall.Height);
+        for (int x = 0; x < _reel.Width; x += segment.Width) TitleArt.Blend(tall, _reel, x, 0, 0, 0, tall.Width, tall.Height);
+        Strip = new Bitmap(TitleArt.ScrollerWidth + LemmingW * 2, Math.Max(tall.Height, LemmingH));
         if (_lines.Count(l => l.Trim() != "") > 0) NextText();
         else Disabled = true;
         Draw();
+    }
+
+    // the segment with its middle row (between the dashed edges) repeated `pad` more times
+    static Bitmap Taller(Bitmap seg, int pad)
+    {
+        var t = new Bitmap(seg.Width, seg.Height + pad);
+        int mid = seg.Height / 2, row = seg.Width * 4;
+        for (int y = 0; y < t.Height; y++)
+        {
+            int from = y <= mid ? y : y <= mid + pad ? mid : y - pad;
+            Array.Copy(seg.Data, from * row, t.Data, y * row, row);
+        }
+        return t;
     }
 
     /** UpdateReel: the steps due since the last call; true when the strip changed. */
@@ -381,22 +398,23 @@ public sealed class TitleScroller
             break;
         }
         if (s == null) { Disabled = true; return; }
-        Text = new Bitmap(MenuFont.Width(s), MenuFont.CharH + 4);
-        _font.Draw(Text, s, 0, 4);
+        Text = new Bitmap(MenuFont.Width(s), MenuFont.CharH);
+        _font.Draw(Text, s, 0, 0);
         TextPos = TitleArt.ScrollerWidth;
     }
 
     // DrawScroller: the reel, the text over it clipped to the reel, the two lemmings
-    void Draw()
+    public void Draw()
     {
         Array.Clear(Strip.Data);
         int left = LemmingW;
         TitleArt.Blend(_reel, Strip, left, 0, ReelFrame % _segment.Width, 0, TitleArt.ScrollerWidth, _reel.Height);
         int sx = Math.Max(0, -TextPos), dx = left + Math.Max(0, TextPos);
         int tw = Math.Min(Text.Width - sx, TitleArt.ScrollerWidth - Math.Max(0, TextPos));
-        if (tw > 0) TitleArt.Blend(Text, Strip, dx, 0, sx, 0, tw, Text.Height);
+        if (tw > 0) TitleArt.Blend(Text, Strip, dx, (_reel.Height - Text.Height) / 2, sx, 0, tw, Text.Height);
         int frame = ReelFrame / 4 % TitleArt.ScrollerLemmingFrames;
-        TitleArt.Blend(_lemmings, Strip, 0, 0, 0, frame * LemmingH, LemmingW, LemmingH);
-        TitleArt.Blend(_lemmings, Strip, left + TitleArt.ScrollerWidth, 0, LemmingW, frame * LemmingH, LemmingW, LemmingH);
+        int ly = (Strip.Height - LemmingH) / 2;
+        TitleArt.Blend(_lemmings, Strip, 0, ly, 0, frame * LemmingH, LemmingW, LemmingH);
+        TitleArt.Blend(_lemmings, Strip, left + TitleArt.ScrollerWidth, ly, LemmingW, frame * LemmingH, LemmingW, LemmingH);
     }
 }

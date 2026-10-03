@@ -135,6 +135,8 @@ public class TitleArtTests
         var art = Art();
         var sc = new TitleScroller(art.Font!, art.ScrollerLemmings!, art.ScrollerSegment!, new[] { "HELLO", "", "WORLD" });
         Assert.Equal(TitleArt.ScrollerWidth + art.ScrollerLemmings!.Width, sc.Strip.Width);
+        // the reel taller than NeoLemmix's 28 px, the text clear of its dashed edges
+        Assert.Equal(art.ScrollerSegment!.Height + TitleScroller.ReelPad, sc.Strip.Height);
         Assert.Equal(TitleArt.ScrollerWidth, sc.TextPos);
         Assert.True(!sc.Update(0) && !sc.Update(5), "nothing before a whole step");
         Assert.True(sc.Update(12));
@@ -143,6 +145,17 @@ public class TitleArtTests
         // to the centre, then held there
         int centre = (TitleArt.ScrollerWidth - MenuFont.Width("HELLO")) / 2;
         while (sc.TextPos > centre) sc.Step();
+        sc.Draw();
+        Dump("scroller-centred.png", sc.Strip);
+        // the text's rows: nothing in the top or bottom 5 rows, where the dashes run
+        int left = sc.LemmingW + centre, first = int.MaxValue, last = -1;
+        for (int y = 0; y < sc.Strip.Height; y++)
+            for (int x = left; x < left + MenuFont.Width("HELLO"); x++)
+            {
+                int i = (y * sc.Strip.Width + x) * 4;
+                if (sc.Strip.Data[i + 2] > 150 && sc.Strip.Data[i] < 120) { first = Math.Min(first, y); last = Math.Max(last, y); }
+            }
+        Assert.True(first >= 6 && last <= sc.Strip.Height - 7, $"text rows {first}..{last} of {sc.Strip.Height}");
         Assert.Equal(TitleScroller.TextFreezeBase + MenuFont.Width("HELLO") / TitleScroller.TextFreezeWidthDiv, sc.Freeze);
         int frame = sc.ReelFrame;
         sc.Step();

@@ -13,7 +13,7 @@ namespace Lemmix.App.Test;
 // status strip over the level, the right hand's beam on the board with NeoLemmix's cursor where it
 // lands; or, with no level chosen, the lobby the app starts on ("vr-lobby", the beam on its PLAY
 // sign) or the catalog its PLAY opens ("vr-catalog"). SHOT_LEVEL picks the level;
-// SHOT_ENV the room's mode (default full); SHOT_LOOK="yaw,pitch" (degrees, left and up positive) turns the head once the board is placed,
+// SHOT_FOV the vertical field of view (75), to look closer; SHOT_ENV the room's mode (default full); SHOT_LOOK="yaw,pitch" (degrees, left and up positive) turns the head once the board is placed,
 // to look round the room.
 public static class ShellShots
 {
@@ -51,7 +51,7 @@ public static class ShellShots
         var app = new ShellApp(new AppOptions
         {
             Args = ShellArgs.Parse(args), Input = input, Store = new LocalStore(),
-            Head = new Camera3D { Name = "head", Fov = 75 }, EnvironmentInBackground = false,
+            Head = new Camera3D { Name = "head", Fov = float.Parse(System.Environment.GetEnvironmentVariable("SHOT_FOV") ?? "75", System.Globalization.CultureInfo.InvariantCulture) }, EnvironmentInBackground = false,
             UserDataDir = OS.GetUserDataDir(), AssetRoot = TerrainShot.Assets,
         });
         if (catalog) app.Ready += () => app.Library.Navigate("Lemmings_Redux/Gentle");
@@ -67,6 +67,7 @@ public static class ShellShots
                 else if (mode == "lobby-vr") app.Windows.SetVrOptions(true);
                 else
                 {
+                    app.Lobby.CentreScrollerText();
                     var sign = app.Lobby.Signs[0].GlobalPosition;
                     right.Aim = new Transform3D(Basis.LookingAt((sign - from).Normalized(), Vector3.Up), from);
                     right.Grip = right.Aim.Translated(new Vector3(0, -0.02f, 0.05f));

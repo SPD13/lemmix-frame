@@ -281,7 +281,7 @@ level is on the board: NeoLemmix's main menu (`GameMenuScreen.pas`, numbers from
 windows open along and leaning back to face the eyes - built from the installed
 `neolemmix/gfx/menu/` by `core/.../Ui/TitleArt.cs`: `background.png` tiled, `logo.png`, a footer
 in `menu_font.png` (what the sign under the beam does; the app's version), and the scroller (the
-reel turned by the two worker lemmings, `TitleScroller`, lines in `VrLobby.ScrollerLines`). Three
+reel turned by the two worker lemmings, `TitleScroller`, 12 px taller than NeoLemmix's so the text clears its dashed edges; lines in `VrLobby.ScrollerLines`). Three
 signs float 12 cm in front, the headset's own: **PLAY** (`sign_play.png`) opens the world
 catalog (setup when nothing is installed), **VR SETTINGS** (`sign_config.png`, its music note
 swapped for a drawn headset) opens the VR window as the bar's VR button does, **QUIT**
