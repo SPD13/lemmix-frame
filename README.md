@@ -35,8 +35,9 @@ docs/                   plan, probe results, porting notes
 ## Setup (macOS, Apple Silicon)
 
 - .NET SDK 8 or later; Node; Docker (colima here; `tools/docker.sh` works around its config).
-- Godot 4.7.2 .NET in `.tools/` (not in git): the macOS and linux-arm64 editors from the
-  4.7.2-stable release, and the `linux_*.arm64` and `android_*` export templates unpacked into
+- Godot 4.7.2 .NET (not in git): `tools/get-godot.sh` downloads the official release, checks it
+  against its SHA-512 sums, and puts the macOS and linux-arm64 editors in `.tools/` and the
+  Linux ARM64 export templates (`--android` adds Android's) in
   `~/Library/Application Support/Godot/export_templates/4.7.2.stable.mono/`.
 - The assets the oracles need (`neolemmix/`, `levels/`) come from a working copy of the web
   repo with them installed: `WEB_ASSETS`, by default `../LemmingsJS`.
