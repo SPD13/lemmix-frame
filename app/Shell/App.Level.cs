@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Godot;
 using Lemmix.App.Board;
 using Lemmix.App.Session;
+using Lemmix.App.Ui.Windows;
 using Lemmix.Engine;
 using Lemmix.Library;
 using Lemmix.Render;
@@ -31,7 +32,7 @@ public sealed partial class App
     public void RequestReload() => _reload = true;
 
     /** library.enter: into a level - the lock the app starts under lifted; `solution`: with its
-     *  stored solution replaying (the solutions list's "watch"). */
+     *  stored solution replaying (the toolbar's Watch Solution, or the --solution argument). */
     public void EnterLevel(string levelId) => EnterLevel(levelId, false);
 
     public void EnterLevel(string levelId, bool solution)
@@ -225,6 +226,19 @@ public sealed partial class App
         _loading = null;
         LoadTimes.Lap("terrain-frames");
         FinishLoad(s, load.Where);
+    }
+
+    // the loading banner: up, where the windows open, while a level is on its way; its spinner turning
+    void ShowLoading(double seconds)
+    {
+        bool show = Loading && Presenting;
+        if (show && !LoadingBanner.Root.Visible && WindowPose is Transform3D head)
+        {
+            var (pos, quat, _) = VrWindowPlacement.PlaceWindows(head.Origin, head.Basis.GetRotationQuaternion(), 0);
+            LoadingBanner.Show(true, new Transform3D(new Basis(quat), pos));
+        }
+        else if (!show) LoadingBanner.Show(false);
+        LoadingBanner.Spin(seconds);
     }
 
     // a load under way dropped (DisposeSession: the level left, or another one loading)

@@ -348,6 +348,9 @@ public static class ShellTests
         int frames = 0;
         double worst = 0;
         var clock = new System.Diagnostics.Stopwatch();
+        rig.Frame();
+        Check.True(app.LoadingBanner.Root.Visible, "the loading banner up");
+        float spin0 = app.LoadingBanner.Spinner.Rotation.Z;
         for (int i = 0; i < 2000 && app.Loading; i++)
         {
             System.Threading.Thread.Sleep(2);
@@ -355,7 +358,10 @@ public static class ShellTests
             rig.Frame();
             worst = Math.Max(worst, clock.Elapsed.TotalMilliseconds);
             frames++;
+            if (i == 3) Check.True(app.LoadingBanner.Spinner.Rotation.Z != spin0, "its spinner turning");
         }
+        rig.Frame();
+        Check.True(!app.LoadingBanner.Root.Visible, "the banner gone once the level is up");
         Check.True(!app.Loading && app.Session != null, "the level up (" + frames + " frames)");
         Check.True(frames > 3, "over several frames (" + frames + ")");
         Check.True(app.Session!.Board.Visible && !app.Session.Board.TerrainView.Pending, "the board shown whole");

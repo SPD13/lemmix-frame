@@ -40,6 +40,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
     public DiskFileSource Io { get; private set; } = null!;
     // the level loads' own (on their worker): its directory cache is never shared with the frame's
     public DiskFileSource LoaderIo { get; private set; } = null!;
+    public VrLoadingBanner LoadingBanner { get; private set; } = null!;
     public HotkeyManager Hotkeys { get; private set; } = null!;
     public HotkeyDispatch Dispatch { get; private set; } = null!;
     public LevelTree Tree { get; private set; } = new();
@@ -224,6 +225,8 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
 
         // the beams, NeoLemmix's cursor at their landing, the floor grid
         try { Cursor = CursorImages.Load(Io); } catch (Exception e) { GD.PushWarning("[app] cursor: " + e.Message); }
+        LoadingBanner = new VrLoadingBanner();
+        AddChild(LoadingBanner.Root);
         Pointers = new PointerView(Cursor);
         if (Controllers != null) Pointers.HandModelShown = Controllers.Shown;
         AddChild(Pointers);
@@ -363,6 +366,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
         _last = now;
         DrainUploadEvents();
         PollLoad();
+        ShowLoading(dt / 1000);
         LogHeadHeight(now);
         if (_reload) { _reload = false; if (LevelId != null) LoadLevel(); }
         CollectAfterLoad();
