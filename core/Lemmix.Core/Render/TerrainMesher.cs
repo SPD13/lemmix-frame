@@ -133,7 +133,13 @@ public sealed class TerrainMesh : IDisposable
     }
     [ThreadStatic] static MeshScratch? t_scratch;
     static MeshScratch Scratch => t_scratch ??= new MeshScratch();
-    static TerrainGeometryBuilder _b => Scratch.B;
+    [ThreadStatic] static TerrainGeometryBuilder? t_band; // a row band's own builder (BuildSmoothBanded)
+    static TerrainGeometryBuilder _b => t_band ?? Scratch.B;
+
+    /// <summary>A chunk re-meshed alone on the smooth path is built in this many row bands side by
+    /// side, then joined in row order (1: never).</summary>
+    public static int SmoothBands = 4;
+    TerrainGeometryBuilder[]? _bandBuilders;
 
     /// <summary>Mesh this many dirty chunks or more on the thread pool (int.MaxValue: never).</summary>
     public static int ParallelMin = 2;
@@ -777,7 +783,7 @@ public sealed class TerrainMesh : IDisposable
         int id = cy * ChunksX + cx;
         ChunkMeshes[id] = null;
         DecalMeshes[id] = BuildDecalChunk(cx, cy);
-        ChunkMeshes[id] = BuildChunkGeometry(cx, cy);
+        ChunkMeshes[id] = BuildChunkGeometry(cx, cy, banded: SmoothBands > 1);
         ChunkRebuilt?.Invoke(id);
     }
 
@@ -864,17 +870,27 @@ public sealed class TerrainMesh : IDisposable
 
     ChunkGeometry? BuildChunkGeometrySmooth(int cx, int cy)
     {
+        int ch = Math.Min(TERRAIN_CHUNK, H - cy * TERRAIN_CHUNK);
+        var b = _b;
+        b.Reset();
+        SmoothRows(cx, cy, 0, ch);
+        if (b.Indices.Count == 0 && b.ColorIndices.Count == 0) return null;
+        return b.ToGeometry(withColors: true, groups: b.ColorIndices.Count > 0);
+    }
+
+    // the smooth path's rows ly0 (inclusive) to ly1 of a chunk, into the builder _b
+    void SmoothRows(int cx, int cy, int ly0, int ly1)
+    {
         int x0 = cx * TERRAIN_CHUNK, y0 = cy * TERRAIN_CHUNK;
-        int cw = Math.Min(TERRAIN_CHUNK, W - x0), ch = Math.Min(TERRAIN_CHUNK, H - y0);
+        int cw = Math.Min(TERRAIN_CHUNK, W - x0);
         bool slope = Smooth && HasRelief;
         double ramp = ColorSoftness;
         var b = _b;
-        b.Reset();
         Span<double> U = stackalloc double[4];
         U[0] = 0; U[1] = ramp / 2; U[2] = 1 - ramp / 2; U[3] = 1;
         Span<TerrainP3> grid = stackalloc TerrainP3[16];
 
-        for (int ly = 0; ly < ch; ly++)
+        for (int ly = ly0; ly < ly1; ly++)
         {
             for (int lx = 0; lx < cw; lx++)
             {
@@ -956,9 +972,6 @@ public sealed class TerrainMesh : IDisposable
                         p11, p01, px + 1, py + 1, px, py + 1, true);
             }
         }
-
-        if (b.Indices.Count == 0 && b.ColorIndices.Count == 0) return null;
-        return b.ToGeometry(withColors: true, groups: b.ColorIndices.Count > 0);
     }
 
     static TerrainP3 Lerp3(in TerrainP3 a, in TerrainP3 b, double t) =>
@@ -976,13 +989,62 @@ public sealed class TerrainMesh : IDisposable
     }
 
     /// <summary>The geometry of one chunk (null when it has nothing solid).</summary>
-    public ChunkGeometry? BuildChunkGeometry(int cx, int cy)
+    public ChunkGeometry? BuildChunkGeometry(int cx, int cy) => BuildChunkGeometry(cx, cy, false);
+
+    ChunkGeometry? BuildChunkGeometry(int cx, int cy, bool banded)
     {
         int x0 = cx * TERRAIN_CHUNK, y0 = cy * TERRAIN_CHUNK;
         int cw = Math.Min(TERRAIN_CHUNK, W - x0), ch = Math.Min(TERRAIN_CHUNK, H - y0);
         if (SmoothTerrain || (Smooth && HasRelief) || ChunkHasColor(x0, y0, cw, ch))
-            return BuildChunkGeometrySmooth(cx, cy);
+            return banded ? BuildSmoothBanded(cx, cy) : BuildChunkGeometrySmooth(cx, cy);
         return BuildChunkGeometryStepped(cx, cy);
+    }
+
+    // The smooth path's pixels emit on their own, row by row: the rows split into bands built side
+    // by side, each in its own builder, then joined in row order - the vertices numbered on, the
+    // textured quads' indices then the colour quads', as one builder going through the rows would.
+    ChunkGeometry? BuildSmoothBanded(int cx, int cy)
+    {
+        int ch = Math.Min(TERRAIN_CHUNK, H - cy * TERRAIN_CHUNK);
+        int nb = Math.Min(SmoothBands, ch);
+        if (_bandBuilders == null || _bandBuilders.Length < nb)
+        {
+            _bandBuilders = new TerrainGeometryBuilder[nb];
+            for (int k = 0; k < nb; k++) _bandBuilders[k] = new TerrainGeometryBuilder();
+        }
+        var bands = _bandBuilders;
+        System.Threading.Tasks.Parallel.For(0, nb, k =>
+        {
+            var bb = bands[k];
+            bb.Reset();
+            var outer = t_band;
+            t_band = bb;
+            try { SmoothRows(cx, cy, ch * k / nb, ch * (k + 1) / nb); }
+            finally { t_band = outer; }
+        });
+        int nv = 0, ni = 0, nci = 0;
+        for (int k = 0; k < nb; k++) { nv += bands[k].VertexCount; ni += bands[k].Indices.Count; nci += bands[k].ColorIndices.Count; }
+        if (ni == 0 && nci == 0) return null;
+        var pos = new float[nv * 3]; var col = new float[nv * 3]; var uv = new float[nv * 2];
+        var idx = new int[ni + nci];
+        int v = 0, ii = 0, ci = ni;
+        for (int k = 0; k < nb; k++)
+        {
+            var bb = bands[k];
+            bb.Positions.CopyTo(pos, v * 3);
+            bb.Colors.CopyTo(col, v * 3);
+            bb.Uvs.CopyTo(uv, v * 2);
+            bb.Indices.CopyTo(idx, ii, v); ii += bb.Indices.Count;
+            bb.ColorIndices.CopyTo(idx, ci, v); ci += bb.ColorIndices.Count;
+            v += bb.VertexCount;
+        }
+        bool big = false;
+        for (int i = idx.Length - 1; i >= 0; --i) if (idx[i] >= 65535) { big = true; break; } // arrayNeedsUint32
+        return new ChunkGeometry
+        {
+            Positions = pos, Colors = col, Uvs = uv, Indices = idx, Index32 = big,
+            Groups = nci > 0 ? new[] { new GeometryGroup(0, ni, 0), new GeometryGroup(ni, nci, 1) } : Array.Empty<GeometryGroup>(),
+        };
     }
 
     // ------------------------------------------------------------------ the stepped path
@@ -1264,6 +1326,7 @@ public sealed class TerrainFloatList
         _a[Count++] = v;
     }
     public float[] ToArray() => _a.AsSpan(0, Count).ToArray();
+    public void CopyTo(float[] dst, int at) => _a.AsSpan(0, Count).CopyTo(dst.AsSpan(at));
 }
 
 public sealed class TerrainIntList
@@ -1277,4 +1340,6 @@ public sealed class TerrainIntList
         _a[Count++] = v;
     }
     public void CopyTo(int[] dst, int at) => _a.AsSpan(0, Count).CopyTo(dst.AsSpan(at));
+    // with `add` added to each (a band's vertex numbers moved on)
+    public void CopyTo(int[] dst, int at, int add) { for (int i = 0; i < Count; i++) dst[at + i] = _a[i] + add; }
 }
