@@ -150,7 +150,7 @@ public sealed class BoardMaterials
     public ImageTexture Texture(SpriteTexture t)
     {
         if (_textures.TryGetValue(t, out var tex)) return tex;
-        tex = ImageTexture.CreateFromImage(Image.CreateFromData(t.Width, t.Height, false, Image.Format.Rgba8, t.Rgba));
+        using (var img = Image.CreateFromData(t.Width, t.Height, false, Image.Format.Rgba8, t.Rgba)) tex = ImageTexture.CreateFromImage(img);
         _textures[t] = tex;
         return tex;
     }
@@ -171,7 +171,7 @@ public sealed class BoardMaterials
         if (vc == 0 || g.Index.Length == 0) return null;
         var pos = new Vector3[vc];
         for (int i = 0; i < vc; i++) pos[i] = new Vector3(g.Position[3 * i], g.Position[3 * i + 1], g.Position[3 * i + 2]);
-        var arrays = new Godot.Collections.Array();
+        using var arrays = new Godot.Collections.Array(); // let go now, not by a finalizer
         arrays.Resize((int)Godot.Mesh.ArrayType.Max);
         arrays[(int)Godot.Mesh.ArrayType.Vertex] = pos;
         if (g.Uv != null && g.Uv.Length >= 2 * vc)
@@ -195,7 +195,7 @@ public sealed class BoardMaterials
     // An RGBA picture as a texture; `flipY` as three's texture.flipY (row 0 at v = 1)
     public static ImageTexture TextureOf(byte[] rgba, int w, int h, bool flipY = false, bool mipmaps = false)
     {
-        var img = Image.CreateFromData(w, h, false, Image.Format.Rgba8, rgba);
+        using var img = Image.CreateFromData(w, h, false, Image.Format.Rgba8, rgba);
         if (flipY) img.FlipY();
         if (mipmaps) img.GenerateMipmaps();
         return ImageTexture.CreateFromImage(img);

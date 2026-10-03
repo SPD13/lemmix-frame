@@ -27,6 +27,7 @@ public partial class GameAudio : Node
     TrackerModule? _tracker;
     float[] _trackerBuf = new float[4096];
     Vector2[] _push = new Vector2[2048];
+    readonly System.Collections.Generic.Dictionary<int, Vector2[]> _pushBySize = new();
 
     public bool Enabled { get; private set; } = true;
     public float Volume { get; private set; } = 1;
@@ -204,7 +205,8 @@ public partial class GameAudio : Node
         {
             int n = _tracker.Read(MixRate, _trackerBuf, Math.Min(room, _trackerBuf.Length / 2));
             if (n <= 0) break;
-            if (_push.Length != n) _push = new Vector2[n];
+            // one buffer per length (PushBuffer takes the whole array), kept: no garbage per frame
+            if (_push.Length != n && !_pushBySize.TryGetValue(n, out _push!)) _pushBySize[n] = _push = new Vector2[n];
             for (int i = 0; i < n; i++) _push[i] = new Vector2(_trackerBuf[2 * i], _trackerBuf[2 * i + 1]);
             pb.PushBuffer(_push);
             room -= n;

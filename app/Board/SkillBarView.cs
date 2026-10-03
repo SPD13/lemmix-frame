@@ -38,6 +38,7 @@ void fragment() {
     public readonly SkillBar Bar;
     readonly ImageTexture _panelTex;
     ImageTexture? _mapTex;
+    Image? _mapImage;                   // the minimap's picture, refilled in place
     Image _panelImage;
     int _textureVersion = -1, _mapVersion = -1;
 
@@ -94,6 +95,18 @@ void fragment() {
         node.Scale = new Vector3((float)o.Sx, (float)o.Sy, (float)o.Sz);
     }
 
+    // the counters' relief changes with the text: only the current one is kept
+    ChunkGeometry? _textGeometry;
+    ArrayMesh? _textMesh;
+    ArrayMesh? TextMeshOf(ChunkGeometry? g)
+    {
+        if (ReferenceEquals(g, _textGeometry)) return _textMesh;
+        _textGeometry = g;
+        _textMesh?.Dispose(); // the managed handle on the old one (the node holds its own until it gets the new)
+        _textMesh = g == null ? null : ToMesh(g);
+        return _textMesh;
+    }
+
     ArrayMesh? MeshOf(ChunkGeometry? g)
     {
         if (g == null) return null;
@@ -117,7 +130,7 @@ void fragment() {
             uv[v] = new Vector2(g.Uvs[2 * v], g.Uvs[2 * v + 1]);
             col[v] = g.Colors != null ? new Color(g.Colors[3 * v], g.Colors[3 * v + 1], g.Colors[3 * v + 2]) : Colors.White;
         }
-        var arrays = new Godot.Collections.Array();
+        using var arrays = new Godot.Collections.Array(); // let go now, not by a finalizer
         arrays.Resize((int)Mesh.ArrayType.Max);
         arrays[(int)Mesh.ArrayType.Vertex] = pos;
         arrays[(int)Mesh.ArrayType.TexUV] = uv;
@@ -167,7 +180,7 @@ void fragment() {
             }
         }
         Apply(_text, bar.TextMesh);
-        _text.Mesh = MeshOf(bar.TextMesh?.Geometry);
+        _text.Mesh = TextMeshOf(bar.TextMesh?.Geometry);
         Apply(_hoverRelief, bar.HoverRelief);
         _hoverRelief.Mesh = MeshOf(bar.HoverRelief?.Geometry);
         if (bar.Minimap != null && bar.MinimapPlane != null)
@@ -183,7 +196,9 @@ void fragment() {
             if (mm.Version != _mapVersion)
             {
                 _mapVersion = mm.Version;
-                _mapTex!.Update(Image.CreateFromData(mm.Spec.W, mm.Spec.H, false, Image.Format.Rgba8, mm.View));
+                if (_mapImage == null) _mapImage = Image.CreateFromData(mm.Spec.W, mm.Spec.H, false, Image.Format.Rgba8, mm.View);
+                else _mapImage.SetData(mm.Spec.W, mm.Spec.H, false, Image.Format.Rgba8, mm.View);
+                _mapTex!.Update(_mapImage);
             }
             Apply(_minimap, bar.MinimapPlane);
         }

@@ -54,35 +54,46 @@ void fragment() {
     }
 
     // A chunk's buffers as an ArrayMesh: one surface per material group, each with the vertices
-    // its indices use (three.js draws a group with its material from the shared buffers).
+    // its indices use (three.js draws a group with its material from the shared buffers), numbered
+    // in the order the indices first use them. Main thread only (the remap is scratch).
+    static int[] _remap = System.Array.Empty<int>();
+    static int[] _used = System.Array.Empty<int>();
+
     public static ArrayMesh? ToMesh(ChunkGeometry g, Material[] materials)
     {
-        if (g.VertexCount == 0 || g.Indices.Length == 0) return null;
+        int total = g.VertexCount;
+        if (total == 0 || g.Indices.Length == 0) return null;
+        if (_remap.Length < total) { _remap = new int[total]; _used = new int[total]; }
+        var remap = _remap; var used = _used;
         var mesh = new ArrayMesh();
-        var groups = g.Groups.Length > 0 ? g.Groups : new[] { new GeometryGroup(0, g.Indices.Length, 0) };
-        foreach (var grp in groups)
+        int groupCount = g.Groups.Length > 0 ? g.Groups.Length : 1;
+        for (int gi = 0; gi < groupCount; gi++)
         {
+            var grp = g.Groups.Length > 0 ? g.Groups[gi] : new GeometryGroup(0, g.Indices.Length, 0);
             int count = System.Math.Min(grp.Count, g.Indices.Length - grp.Start);
             if (count <= 0) continue;
-            var remap = new System.Collections.Generic.Dictionary<int, int>();
+            System.Array.Fill(remap, -1, 0, total);
             var idx = new int[count];
+            int vc = 0;
             for (int i = 0; i < count; i++)
             {
                 int v = g.Indices[grp.Start + i];
-                if (!remap.TryGetValue(v, out int n)) { n = remap.Count; remap[v] = n; }
+                int n = remap[v];
+                if (n < 0) { n = vc++; remap[v] = n; used[n] = v; }
                 idx[i] = n;
             }
-            int vc = remap.Count;
             var pos = new Vector3[vc];
             var uv = new Vector2[vc];
             var col = g.Colors != null ? new Color[vc] : null;
-            foreach (var (v, n) in remap)
+            bool hasUv = g.Uvs.Length >= 2 * total;
+            for (int n = 0; n < vc; n++)
             {
+                int v = used[n];
                 pos[n] = new Vector3(g.Positions[3 * v], g.Positions[3 * v + 1], g.Positions[3 * v + 2]);
-                if (g.Uvs.Length >= 2 * (v + 1)) uv[n] = new Vector2(g.Uvs[2 * v], g.Uvs[2 * v + 1]);
+                if (hasUv || g.Uvs.Length >= 2 * (v + 1)) uv[n] = new Vector2(g.Uvs[2 * v], g.Uvs[2 * v + 1]);
                 if (col != null) col[n] = new Color(g.Colors![3 * v], g.Colors[3 * v + 1], g.Colors[3 * v + 2]);
             }
-            var arrays = new Godot.Collections.Array();
+            using var arrays = new Godot.Collections.Array(); // let go now, not by a finalizer
             arrays.Resize((int)Mesh.ArrayType.Max);
             arrays[(int)Mesh.ArrayType.Vertex] = pos;
             arrays[(int)Mesh.ArrayType.TexUV] = uv;
