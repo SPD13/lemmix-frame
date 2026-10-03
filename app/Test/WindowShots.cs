@@ -21,6 +21,7 @@ public partial class Shots
             All["win-" + name] = root => One(root, name);
         All["windows"] = WindowShots.Batch;
         All["windows-scene"] = WindowShots.Scene;
+        All["windows-over-ui"] = r => WindowShots.Scene(r, overUi: true);
     }
 
     static Viewport One(Node root, string name)
@@ -95,7 +96,10 @@ public partial class WindowShots : Node
 
     // the windows in the room, from the head: the catalog open on the fixture's list, the bar's
     // row and sound column below it (the skills bar itself is another port's: its place is outlined)
-    public static Viewport Scene(Node root)
+    // overUi: the bar's row and the status strip moved across the catalog, as they can stand in a
+    // headset when the library opens over a level: the windows must cover them
+    public static Viewport Scene(Node root) => Scene(root, false);
+    public static Viewport Scene(Node root, bool overUi)
     {
         var vp = new SubViewport { Size = new Vector2I(1280, 800), OwnWorld3D = true, RenderTargetUpdateMode = SubViewport.UpdateMode.Always, Msaa3D = Viewport.Msaa.Msaa4X };
         var env = new WorldEnvironment { Environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color, BackgroundColor = new Color("10141c") } };
@@ -134,6 +138,17 @@ public partial class WindowShots : Node
         w.Layout(guiW, barH, 260, 160);
         now = 2000;
         w.Update();
+        if (overUi)
+        {
+            // the row through the catalog's middle, the strip with a level's title across its top
+            var pause = w.Toolbar.Pause.GlobalPosition;
+            var target = w.Catalog.Panel.GlobalPosition;
+            w.Toolbar.GuiRoot.Position += new Vector3(0, target.Y - pause.Y, 0);
+            if (w.Status.Panel.GetParent() == null) scene.AddChild(w.Status.Panel);
+            w.Status.Set(name: "LEMMINGS REDUX - JUST DIG!", meta: "Gentle 1", note: "", kind: "");
+            Planes.Set(w.Status.Panel, target + new Vector3(0, 0.12f, 0.2f), 0.5f, 0.06f);
+            w.Status.Panel.Visible = true;
+        }
         return vp;
     }
 }

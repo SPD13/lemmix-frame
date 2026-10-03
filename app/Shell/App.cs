@@ -238,6 +238,7 @@ public sealed partial class App : Node3D, IVrHooks, IVrWindowsHost, IVrPagesHost
             var rp = Hand("RightPalm", "right_hand", "palm_pose");
             Input = new OpenXrInput(la, ra, lg, rg, cam, lp, rp);
             Head = cam;
+            AddChild(new DeviceCapture(cam)); // a picture over ssh (tools/frame-capture.sh)
             // no runtime (a desktop run): the head is that camera, standing where a player would
             if (!(XRServer.PrimaryInterface?.IsInitialized() ?? false))
             {
