@@ -6,6 +6,10 @@ Valve Steam Frame. It is a port of the web version, [LemmingsJS_VR](https://gith
 sits in `web/` as a pinned submodule: it is the reference the port is tested against, and
 the source of shared data (depth profiles, solutions, hotkey presets, config file formats).
 
+[![Lemmix for Steam Frame: trailer](https://img.youtube.com/vi/txD72wqSjrw/maxresdefault.jpg)](https://youtu.be/txD72wqSjrw)
+
+*The trailer (1:26), on YouTube.*
+
 - **Engine:** Godot 4.7 .NET (C#), OpenXR, Vulkan Mobile renderer.
 - **Targets:** Linux ARM64, launched on the Frame in Steam Linux Runtime 4 ARM64 (tested in the
   3.0 "sniper" ARM64 image). An Android APK through Lepton is the fallback; it is not set up yet (needs the
