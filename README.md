@@ -112,7 +112,11 @@ The installer then goes on alone:
 1. In the headset, open your **Library**. The game is listed as **lemmix**, with the non-Steam
    and devkit titles. Start it.
 2. At the first launch, Steam may first download Steam Linux Runtime 4 ARM64.
-3. The game opens its **setup page**. It downloads NeoLemmix, its styles and the level packs from
+3. Steam's dashboard stays open over the game once it has started. Select **Resume Game** to go
+   into the game. This is a standard Steam Frame limitation, not a fault in Lemmix: Steam treats
+   every non-Steam and devkit title as a flat desktop game and keeps its dashboard up at launch.
+   For the moment there is no workaround.
+4. The game opens its **setup page**. It downloads NeoLemmix, its styles and the level packs from
    [neolemmix.com](https://www.neolemmix.com) (about 120 MB). No game data comes with Lemmix
    itself.
 
