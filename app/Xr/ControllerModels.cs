@@ -98,21 +98,43 @@ public sealed partial class ControllerModels : Node3D
         {
             var h = _hands[i];
             if (h.Method != "" || h.Model == null || !Shown(i)) continue;
-            var src = _input.Hands[i];
-            if (!src.Connected) { h.LastGripInModel = null; continue; }
-            var gripInModel = h.Model.GlobalTransform.AffineInverse() * src.Grip.Orthonormalized();
-            bool steady = h.LastGripInModel is { } last && last.Origin.DistanceTo(gripInModel.Origin) < 0.001f
-                && last.Basis.GetRotationQuaternion().AngleTo(gripInModel.Basis.GetRotationQuaternion()) < 0.01f;
-            h.LastGripInModel = gripInModel;
-            if (!steady) continue;
-            var placed = ControllerSticker.PlaceDecal(h.Model, gripInModel, left: i == 0, HandLayer[i]);
+            if (GripInModel(i, h) is not { } gripInModel) continue;
+            var placed = ControllerSticker.PlaceDecal(h.Model, gripInModel, HandLayer[i]);
             h.Method = "decal";
             h.Report!["gripInModel"] = Describe(gripInModel);
             h.Report["sticker"] = placed == null
-                ? new Dictionary<string, object?> { ["method"] = "none", ["why"] = "no outward face found" }
+                ? new Dictionary<string, object?> { ["method"] = "none", ["why"] = "no flat patch on the handle's back" }
                 : new Dictionary<string, object?> { ["method"] = "decal", ["at"] = Describe(placed.Value.Transform), ["size"] = placed.Value.Size, ["flatness"] = placed.Value.Flatness };
             WriteReport();
         }
+    }
+
+    // how far from the model's origin a measured grip may be (it is on the controller): a model
+    // the runtime has not posed yet sits at the origin, and the grip in it is the hand's place in
+    // the room (the device report of 3 Oct: 1.4 m, the sticker cast along the wrong axis)
+    public const float MaxGripOffset = 0.15f;
+
+    /**
+     * The grip pose in the model's frame, or null while it is not known. The Frame's is the one
+     * its render model file gives; another controller's is measured: the hand held still, the
+     * model posed about it.
+     */
+    Transform3D? GripInModel(int hand, HandModel h)
+    {
+        if (XRServer.GetTracker(hand == 0 ? "left_hand" : "right_hand") is XRControllerTracker { Profile: OpenXrInput.FrameProfile })
+        {
+            h.Report!["gripFrom"] = "frame";
+            return OpenXrInput.FrameOffsets.GripInModel(hand);
+        }
+        var src = _input.Hands[hand];
+        if (!src.Connected) { h.LastGripInModel = null; return null; }
+        var gripInModel = h.Model!.GlobalTransform.AffineInverse() * src.Grip.Orthonormalized();
+        bool steady = h.LastGripInModel is { } last && last.Origin.DistanceTo(gripInModel.Origin) < 0.001f
+            && last.Basis.GetRotationQuaternion().AngleTo(gripInModel.Basis.GetRotationQuaternion()) < 0.01f;
+        h.LastGripInModel = gripInModel;
+        if (!steady || gripInModel.Origin.Length() > MaxGripOffset) return null;
+        h.Report!["gripFrom"] = "measured";
+        return gripInModel;
     }
 
     static object Describe(Transform3D t) => new
@@ -147,10 +169,11 @@ public sealed partial class ControllerModels : Node3D
 
 // The app's sticker on a controller model: the Lemmix logo (its character cut out of the icon,
 // transparent around it). A mesh part the runtime's model names as a sticker (or badge, decal,
-// logo, label) wears it as its texture; otherwise it is a decal on the outer side of the
-// controller's head - the side facing away from the other hand, where it shows when the player
-// looks at their hands - found by casting rays at the model's own triangles in the grip pose's
-// frame (OpenXR grip: +X to the player's right for both hands, +Y up, -Z ahead).
+// logo, label) wears it as its texture; otherwise it is a decal on the handle, as Frame games
+// place theirs: on its back by the hand's grasp, facing the player, upright along the handle,
+// found by casting rays at the model's own triangles in the grip pose's frame (OpenXR grip: the
+// origin on the handle's axis, +X to the player's right for both hands, +Y up, -Z ahead along
+// the handle).
 public static class ControllerSticker
 {
     public const string LogoPath = "res://Xr/sticker.png";
@@ -178,6 +201,7 @@ public static class ControllerSticker
         foreach (var n in Walk(root))
         {
             string line = n.GetPath().ToString().Replace(root.GetPath().ToString(), "") + " " + n.GetClass();
+            if (n != root && n is Node3D { Transform: var t } && t != Transform3D.Identity) line += " at " + t;
             if (n is MeshInstance3D { Mesh: { } mesh })
             {
                 line += " aabb " + mesh.GetAabb();
@@ -232,32 +256,39 @@ public static class ControllerSticker
 
     public readonly record struct Placement(Transform3D Transform, Vector3 Size, float Flatness);
 
+    // how far from the grip, across the handle and along it, the sticker's centre may go
+    public const float ReachX = 0.008f, ReachZ = 0.045f;
+
     /**
-     * The decal on the outer side of the head. gripInModel: the grip pose in the model's frame.
-     * Searches the upper, forward part of the model for the largest square patch facing out and
-     * flat enough to take it (rays cast at the model's triangles along the outward axis, over a
-     * 3x3 grid on the square). Returns where it went (in the model's frame), or null.
+     * The decal on the back of the handle, the side that faces the player holding it, its top
+     * towards the controller's head. gripInModel: the grip pose in the model's frame (its origin
+     * is the centre of the hand's grasp, on the handle's axis, which runs along Z; +Y is the
+     * handle's back). Searches about the grip for the largest square patch facing out of the back
+     * (not along the handle, as the head's plate does) and flat enough to take it, all on the handle's own part (not on a part lying over it, as the Frame's
+     * status light does), the one nearest the grip of that size: rays cast at the model's
+     * triangles along -Y, over a 3x3 grid on the square. Returns where it went (in the model's
+     * frame), or null.
      */
-    public static Placement? PlaceDecal(Node3D model, Transform3D gripInModel, bool left, uint layer)
+    public static Placement? PlaceDecal(Node3D model, Transform3D gripInModel, uint layer)
     {
         if (Logo == null) return null;
-        var rays = OutwardRays.Of(model, gripInModel, left);
-        if (rays == null) return null;
-        var (lo, hi) = (rays.Lo, rays.Hi);
-        var size = hi - lo;
-        float outward = left ? -1 : 1;
+        var back = SurfaceRays.Of(model, gripInModel);
+        // the handle's part: the one a ray from the player's right meets at the grip
+        var fromRight = SurfaceRays.Of(model, gripInModel * new Transform3D(new Basis(Vector3.Back, -Mathf.Pi / 2), Vector3.Zero));
+        if (back == null || fromRight?.Cast(0, 0) is not { } handle) return null;
         for (float side = MaxSize; side >= MinSize - 1e-6f; side -= 0.004f)
         {
             Transform3D? best = null;
-            float bestDev = float.MaxValue;
-            for (float fy = 0.45f; fy <= 0.951f; fy += 0.05f)
-                for (float fz = 0.05f; fz <= 0.651f; fz += 0.05f)
+            float bestDev = 0, bestFar = float.MaxValue;
+            for (float x = -ReachX; x <= ReachX + 1e-6f; x += 0.002f)
+                for (float z = -ReachZ; z <= ReachZ + 1e-6f; z += 0.0025f)
                 {
-                    float y = lo.Y + fy * size.Y, z = lo.Z + fz * size.Z;
-                    if (rays.Cast(y, z) is not { } c || c.Normal.X * outward < 0.6f) continue;
-                    // the square on the tangent plane, upright with the grip's +Y
+                    float far = new Vector2(x, z).Length();
+                    if (far >= bestFar) continue;
+                    if (back.Cast(x, z) is not { } c || !OnBack(c, handle.Part)) continue;
+                    // the square on the tangent plane, its down along the handle away from the head
                     var n = c.Normal.Normalized();
-                    var down = (Vector3.Down - n * Vector3.Down.Dot(n)).Normalized();
+                    var down = (Vector3.Back - n * Vector3.Back.Dot(n)).Normalized();
                     var right = n.Cross(down).Normalized();
                     float dev = 0;
                     bool fits = true;
@@ -265,12 +296,13 @@ public static class ControllerSticker
                         for (int j = -1; j <= 1 && fits; j++)
                         {
                             var q = c.Point + right * (i * side / 2) + down * (j * side / 2);
-                            // where the plane is at q against where the surface is, along the outward axis
-                            if (rays.Cast(q.Y, q.Z) is not { } h || h.Normal.Normalized().Dot(n) < 0.7f) { fits = false; break; }
-                            dev = Mathf.Max(dev, Mathf.Abs(h.Point.X - q.X));
+                            // where the plane is at q against where the surface is, along the ray
+                            if (back.Cast(q.X, q.Z) is not { } h || !OnBack(h, handle.Part) || h.Normal.Normalized().Dot(n) < 0.7f) { fits = false; break; }
+                            dev = Mathf.Max(dev, Mathf.Abs(h.Point.Y - q.Y));
                         }
-                    if (!fits || dev > MaxDeviation || dev >= bestDev) continue;
+                    if (!fits || dev > MaxDeviation) continue;
                     bestDev = dev;
+                    bestFar = far;
                     best = new Transform3D(new Basis(right, n, down), c.Point);
                 }
             if (best is not { } grip) continue;
@@ -290,64 +322,85 @@ public static class ControllerSticker
         return null;
     }
 
+    // a point of the handle's back: on the handle's part, facing out of the back rather than
+    // along the handle (the head's plate rises from the back of the Frame's handle, ahead of the grip)
+    static bool OnBack(RayHit h, int handlePart)
+    {
+        var n = h.Normal.Normalized();
+        return h.Part == handlePart && n.Y >= 0.6f && Mathf.Abs(n.Z) <= MaxAlongHandle;
+    }
+
+    public const float MaxAlongHandle = 0.3f;
+
     // how far the surface may stray from the sticker's plane (a sticker bends, a decal box is thin)
     public const float MaxDeviation = 0.004f;
 
-    public readonly record struct RayHit(Vector3 Point, Vector3 Normal, float Distance);
+    // Part: which of the model's meshes the triangle hit belongs to
+    public readonly record struct RayHit(Vector3 Point, Vector3 Normal, float Distance, int Part);
 
-    // The model's triangles in the grip's frame, binned by their extent in (y, z): a ray along
-    // the outward axis (x) only meets those in its cell.
-    public sealed class OutwardRays
+    // The model's triangles in a frame whose -Y the rays travel along, binned by their extent in
+    // (x, z): a ray only meets those in its cell.
+    public sealed class SurfaceRays
     {
         const int Bins = 32;
         readonly List<Vector3> _tris;
+        readonly List<int> _parts;
         readonly List<int>[] _bins = new List<int>[Bins * Bins];
         public readonly Vector3 Lo, Hi;
-        readonly float _outward;
 
-        OutwardRays(List<Vector3> tris, float outward)
+        SurfaceRays(List<Vector3> tris, List<int> parts)
         {
             _tris = tris;
-            _outward = outward;
+            _parts = parts;
             Lo = Hi = tris[0];
             foreach (var v in tris) { Lo = Lo.Min(v); Hi = Hi.Max(v); }
             for (int k = 0; k < _bins.Length; k++) _bins[k] = new List<int>();
             for (int i = 0; i + 2 < tris.Count; i += 3)
             {
                 var a = tris[i]; var b = tris[i + 1]; var c = tris[i + 2];
-                int y0 = Bin(Mathf.Min(a.Y, Mathf.Min(b.Y, c.Y)), Lo.Y, Hi.Y), y1 = Bin(Mathf.Max(a.Y, Mathf.Max(b.Y, c.Y)), Lo.Y, Hi.Y);
+                int x0 = Bin(Mathf.Min(a.X, Mathf.Min(b.X, c.X)), Lo.X, Hi.X), x1 = Bin(Mathf.Max(a.X, Mathf.Max(b.X, c.X)), Lo.X, Hi.X);
                 int z0 = Bin(Mathf.Min(a.Z, Mathf.Min(b.Z, c.Z)), Lo.Z, Hi.Z), z1 = Bin(Mathf.Max(a.Z, Mathf.Max(b.Z, c.Z)), Lo.Z, Hi.Z);
-                for (int y = y0; y <= y1; y++)
-                    for (int z = z0; z <= z1; z++) _bins[y * Bins + z].Add(i);
+                for (int x = x0; x <= x1; x++)
+                    for (int z = z0; z <= z1; z++) _bins[x * Bins + z].Add(i);
             }
         }
 
         static int Bin(float v, float lo, float hi) => hi <= lo ? 0 : Mathf.Clamp((int)((v - lo) / (hi - lo) * Bins), 0, Bins - 1);
 
-        public static OutwardRays? Of(Node3D model, Transform3D gripInModel, bool left)
+        /** The model's visible meshes in the frame frameInModel (a frame in the model's). */
+        public static SurfaceRays? Of(Node3D model, Transform3D frameInModel)
         {
-            var toGrip = gripInModel.AffineInverse();
+            var toFrame = frameInModel.AffineInverse();
             var modelInv = model.GlobalTransform.AffineInverse();
             var tris = new List<Vector3>();
+            var parts = new List<int>();
+            int part = 0;
             foreach (var n in Walk(model))
             {
                 if (n is not MeshInstance3D { Mesh: { } mesh } mi || !mi.IsVisibleInTree() || n.Name == "lemmix-sticker") continue;
-                var meshToGrip = toGrip * (modelInv * mi.GlobalTransform);
-                foreach (var v in mesh.GetFaces()) tris.Add(meshToGrip * v);
+                var meshToFrame = toFrame * (modelInv * mi.GlobalTransform);
+                var faces = mesh.GetFaces();
+                foreach (var v in faces) tris.Add(meshToFrame * v);
+                for (int i = 0; i < faces.Length; i += 3) parts.Add(part);
+                part++;
             }
-            return tris.Count < 3 ? null : new OutwardRays(tris, left ? -1 : 1);
+            return tris.Count < 3 ? null : new SurfaceRays(tris, parts);
         }
 
-        /** From outside the model at (y, z), inwards along the outward axis: the nearest surface. */
-        public RayHit? Cast(float y, float z)
+        /** From above the model at (x, z), down along -Y: the nearest surface. */
+        public RayHit? Cast(float x, float z)
         {
-            if (y < Lo.Y || y > Hi.Y || z < Lo.Z || z > Hi.Z) return null;
-            var from = new Vector3(_outward > 0 ? Hi.X + 0.01f : Lo.X - 0.01f, y, z);
-            return Raycast(_tris, _bins[Bin(y, Lo.Y, Hi.Y) * Bins + Bin(z, Lo.Z, Hi.Z)], from, new Vector3(-_outward, 0, 0));
+            if (x < Lo.X || x > Hi.X || z < Lo.Z || z > Hi.Z) return null;
+            var from = new Vector3(x, Hi.Y + 0.01f, z);
+            var hit = Raycast(_tris, _bins[Bin(x, Lo.X, Hi.X) * Bins + Bin(z, Lo.Z, Hi.Z)], from, Vector3.Down);
+            return hit is { } h ? h with { Part = _parts[h.Part / 3] } : null;
         }
     }
 
-    /** The nearest triangle along the ray (Möller-Trumbore), its normal turned to face the ray. */
+    /**
+     * The nearest triangle along the ray (Möller-Trumbore), its normal turned to face the ray.
+     * The hit's Part is the triangle's first index in tris.
+     */
     public static RayHit? Raycast(List<Vector3> tris, IEnumerable<int> which, Vector3 from, Vector3 dir)
     {
         RayHit? best = null;
@@ -368,7 +421,7 @@ public static class ControllerSticker
             if (t <= 0 || (best != null && t >= best.Value.Distance)) continue;
             var n = e1.Cross(e2).Normalized();
             if (n.Dot(dir) > 0) n = -n;
-            best = new RayHit(from + dir * t, n, t);
+            best = new RayHit(from + dir * t, n, t, i);
         }
         return best;
     }

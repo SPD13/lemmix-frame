@@ -3,10 +3,12 @@ using Lemmix.App.Xr;
 
 namespace Lemmix.App.Test;
 
-// The "controllers" shot: two stand-in controllers (a handle and a rounded head, dark like the
-// Frame's) wearing the app's sticker as ControllerSticker places it on a runtime model, lit by
-// ControllerModels' lights, each turned to show its outer side. The real models only come from
-// the runtime on the device; this checks the sticker's side, size, uprightness and transparency.
+// The "controllers" shot: two stand-in controllers (a handle along the grip's Z, a rounded head
+// ahead of it and a status panel on the handle's back behind the grip, dark like the Frame's)
+// wearing the app's sticker as ControllerSticker places it on a runtime model, lit by
+// ControllerModels' lights, each held as the player sees it: the handle's back towards them, the
+// head up. The real models only come from the runtime on the device; this checks the sticker's
+// side, size, uprightness and transparency.
 public static class ControllerShot
 {
     // where the grip pose sits in the stand-in model's frame (a runtime's model need not be
@@ -20,14 +22,15 @@ public static class ControllerShot
         var mat = new StandardMaterial3D { AlbedoColor = new Color(0.16f, 0.16f, 0.17f), Roughness = 0.45f };
         void Part(string partName, Mesh mesh, Transform3D inGrip) =>
             model.AddChild(new MeshInstance3D { Name = partName, Mesh = mesh, MaterialOverride = mat, Transform = GripInModel * inGrip });
-        Part("handle", new CylinderMesh { TopRadius = 0.017f, BottomRadius = 0.015f, Height = 0.11f, RadialSegments = 24 },
-            new Transform3D(new Basis(Vector3.Right, 0.35f), new Vector3(0, -0.01f, 0.012f)));
+        Part("handle", new CylinderMesh { TopRadius = 0.015f, BottomRadius = 0.017f, Height = 0.095f, RadialSegments = 32 },
+            new Transform3D(new Basis(Vector3.Right, Mathf.Pi / 2), new Vector3(0, 0, 0.01f)));
         Part("head", new SphereMesh { Radius = 1, Height = 2, RadialSegments = 32, Rings = 16 },
-            new Transform3D(Basis.FromScale(new Vector3(0.03f, 0.025f, 0.045f)), new Vector3(0, 0.045f, -0.035f)));
+            new Transform3D(Basis.FromScale(new Vector3(0.03f, 0.022f, 0.032f)), new Vector3(0, 0.012f, -0.058f)));
+        Part("status", new BoxMesh { Size = new Vector3(0.022f, 0.003f, 0.035f) }, new Transform3D(Basis.Identity, new Vector3(0, 0.0165f, 0.0125f)));
         if (namedSticker)
         {
             var sticker = new QuadMesh { Size = new Vector2(0.025f, 0.025f) };
-            model.AddChild(new MeshInstance3D { Name = "Sticker_Area", Mesh = sticker, Transform = GripInModel * new Transform3D(new Basis(Vector3.Up, Mathf.Pi / 2), new Vector3(0.031f, 0.045f, -0.035f)) });
+            model.AddChild(new MeshInstance3D { Name = "Sticker_Area", Mesh = sticker, Transform = GripInModel * new Transform3D(new Basis(Vector3.Up, Mathf.Pi / 2), new Vector3(0.018f, 0, 0.01f)) });
         }
         return model;
     }
@@ -46,12 +49,12 @@ public static class ControllerShot
         {
             bool left = i == 0;
             var model = FakeController(left ? "left" : "right");
-            // the outer side towards the camera
-            var gripAt = new Transform3D(new Basis(Vector3.Up, left ? 1.25f : -1.25f), new Vector3(left ? -0.07f : 0.07f, 0, 0));
+            // the handle's back (the grip's +Y) towards the camera, the head (its -Z) up
+            var gripAt = new Transform3D(new Basis(Vector3.Up, left ? 0.3f : -0.3f) * new Basis(Vector3.Right, 1.25f), new Vector3(left ? -0.05f : 0.05f, 0.02f, 0));
             model.Transform = gripAt * GripInModel.AffineInverse();
             vp.AddChild(model);
             ControllerSticker.SetLayers(model, ControllerModels.HandLayer[i]);
-            var placed = ControllerSticker.PlaceDecal(model, GripInModel, left, ControllerModels.HandLayer[i]);
+            var placed = ControllerSticker.PlaceDecal(model, GripInModel, ControllerModels.HandLayer[i]);
             if (overScene) ControllerOnTop.Apply(model);
             GD.Print($"[lemmix] controllers: {(left ? "left" : "right")} sticker {(placed == null ? "none" : $"size {placed.Value.Size} flatness {placed.Value.Flatness:0.0000}")}");
         }

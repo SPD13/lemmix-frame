@@ -71,6 +71,9 @@ public sealed class OpenXrInput : IXrInput
 
         public static Transform3D AimFromPalm(int hand) => Hand(hand).AffineInverse() * Aim(hand);
         public static Transform3D GripFromPalm(int hand) => Hand(hand).AffineInverse() * Grip(hand);
+        // the grip in the runtime's render model (its glTF shares the render model file's frame:
+        // the meshes' extents in the device report put this grip mid-handle, behind the head)
+        public static Transform3D GripInModel(int hand) => Grip(hand);
     }
 
     readonly Transform3D[] _aimFromPalm = { FrameOffsets.AimFromPalm(0), FrameOffsets.AimFromPalm(1) };

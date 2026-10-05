@@ -5,7 +5,7 @@ using Lemmix.App.Xr;
 namespace Lemmix.App.Test;
 
 // The controllers drawn by the runtime's models: the sticker's logo, where it goes on a model
-// (a part named as a sticker, else a decal on the head's outer side), and the grip box hidden
+// (a part named as a sticker, else a decal on the handle's back), and the grip box hidden
 // for a hand whose model is drawn.
 public static class ControllerModelsTests
 {
@@ -30,24 +30,26 @@ public static class ControllerModelsTests
         model.GlobalTransform = new Transform3D(new Basis(new Vector3(1, 2, 3).Normalized(), 0.7f), new Vector3(0.3f, 1.2f, -0.4f));
         try
         {
-            var placed = ControllerSticker.PlaceDecal(model, ControllerShot.GripInModel, left, ControllerModels.HandLayer[left ? 0 : 1]);
+            var placed = ControllerSticker.PlaceDecal(model, ControllerShot.GripInModel, ControllerModels.HandLayer[left ? 0 : 1]);
             Check.True(placed != null, "a decal placed");
             var decal = model.GetNode<Decal>("lemmix-sticker");
             Check.True(decal.TextureAlbedo == ControllerSticker.Logo, "with the logo");
             Check.Equal(ControllerModels.HandLayer[left ? 0 : 1], decal.CullMask, "on its own hand's layer only");
-            // in the grip's frame: on the head's outer side, facing out, upright
+            // in the grip's frame: on the handle's back between the head and the status panel
+            // (z -0.0275 .. -0.005), facing the player, its top towards the head
             var g = ControllerShot.GripInModel.AffineInverse() * decal.Transform;
-            float outward = left ? -1 : 1;
-            Check.True(g.Origin.X * outward > 0.02f, $"on the outer side (x {g.Origin.X})");
-            Check.True(g.Origin.Y > 0.015f && g.Origin.Z < -0.005f, $"on the head, up and ahead of the grip ({g.Origin})");
-            Check.True(g.Basis.Y.Normalized().X * outward > 0.6f, $"facing out ({g.Basis.Y})");
-            Check.True(g.Basis.Z.Normalized().Y < -0.6f, $"upright: the image's down is the grip's down ({g.Basis.Z})");
+            float half = decal.Size.X / 2;
+            Check.True(g.Origin.Y > 0.012f && Mathf.Abs(g.Origin.X) < 0.004f, $"on the handle's back ({g.Origin})");
+            Check.True(g.Origin.Z - half > -0.0275f && g.Origin.Z + half < -0.005f, $"by the grip, off the head and the status panel (z {g.Origin.Z}, side {decal.Size.X})");
+            Check.True(g.Basis.Y.Normalized().Y > 0.6f, $"facing out of the back ({g.Basis.Y})");
+            Check.True(g.Basis.Z.Normalized().Z > 0.6f, $"upright along the handle: the image's down away from the head ({g.Basis.Z})");
+            Check.True(g.Basis.X.Normalized().X > 0.6f, $"the image's right the player's right ({g.Basis.X})");
         }
         finally { model.Free(); }
     }
 
-    [AppTest] public static void DecalOnTheRightHandsOuterSide() => CheckDecal(false);
-    [AppTest] public static void DecalOnTheLeftHandsOuterSide() => CheckDecal(true);
+    [AppTest] public static void DecalOnTheRightHandlesBack() => CheckDecal(false);
+    [AppTest] public static void DecalOnTheLeftHandlesBack() => CheckDecal(true);
 
     [AppTest]
     public static void APartNamedAsTheStickerWearsTheLogo()
@@ -89,7 +91,7 @@ public static class ControllerModelsTests
         int n = ControllerOnTop.Apply(model);
         try
         {
-            Check.Equal(3, n, "every part (two overridden, the sticker's surface)");
+            Check.Equal(4, n, "every part (three overridden, the sticker's surface)");
             foreach (var c in model.GetChildren())
                 if (c is MeshInstance3D mi)
                 {
