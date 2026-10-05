@@ -7,4 +7,5 @@ src="$(mktemp -d)/cards.swift"
 sed '/^\/\/ ---- the boot splash/,$d' "$ROOT/tools/art/make-art.swift" > "$src"
 cat "$ROOT/tools/trailer/cards.swift" >> "$src"
 mkdir -p "$2"
-swift "$src" "$1" "$(cd "$2" && pwd)"
+# (make-art's styles dir: only its hero reads it, and that is cut off, so the menu dir stands in)
+swift "$src" "$1" "$1" "$(cd "$2" && pwd)"

@@ -11,4 +11,4 @@ tmp="$(mktemp -d)"
 ffmpeg -v error -y -ss "$at" -i "$clip" -frames:v 1 -vf "eq=saturation=1.3:contrast=1.08:brightness=0.02" "$tmp/frame.png"
 sed '/^\/\/ ---- the boot splash/,$d' "$ROOT/tools/art/make-art.swift" > "$tmp/thumbnail.swift"
 cat "$ROOT/tools/trailer/thumbnail.swift" >> "$tmp/thumbnail.swift"
-THUMB_FRAME="$tmp/frame.png" swift "$tmp/thumbnail.swift" "$menu" "$B"
+THUMB_FRAME="$tmp/frame.png" swift "$tmp/thumbnail.swift" "$menu" "$menu" "$B"  # (the styles dir unused, as in cards.sh)
