@@ -25,7 +25,7 @@ public partial class Main : Node3D
         GD.Print($"[lemmix] started, xr={(XrActive ? "openxr" : "off")}, renderer={RenderingServer.GetCurrentRenderingMethod()}");
 
         var args = OS.GetCmdlineUserArgs();
-        bool tool = args.Contains("--probe") || args.Contains("--test") || args.Contains("--shot");
+        bool tool = args.Contains("--probe") || args.Contains("--test") || args.Contains("--shot") || args.Contains("--trailer");
         GetNode<Camera3D>("DesktopCamera").Current = tool && !XrActive;
         if (!tool)
         {
@@ -36,6 +36,7 @@ public partial class Main : Node3D
         if (args.Contains("--probe")) AddChild(new Test.Probe());
         if (args.Contains("--test")) AddChild(new Test.TestRunner());
         if (args.Contains("--shot")) AddChild(new Test.Shots());
+        if (args.Contains("--trailer")) AddChild(new Test.Trailer());
         if (args.Contains("--smoke"))
             GetTree().CreateTimer(0.5).Timeout += () => { GD.Print("[lemmix] smoke ok"); GetTree().Quit(0); };
     }

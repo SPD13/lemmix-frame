@@ -29,3 +29,7 @@ openxr/foveation_dynamic=false
 openxr/foveation_eye_tracked=true
 openxr/extensions/render_model=true
 shaders/enabled=true
+
+[editor]
+
+movie_writer/mjpeg_quality=0.95

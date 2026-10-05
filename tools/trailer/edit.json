@@ -1,0 +1,161 @@
+{
+ "clips": "../../build/trailer/clips",
+ "cards": "../../build/trailer/cards",
+ "music": "../../build/trailer/music/awesome.wav",
+ "xfade": 0.4,
+ "sfx": 0.6,
+ "music_vol": 0.8,
+ "segments": [
+  {
+   "image": "splash.png",
+   "dur": 4.5
+  },
+  {
+   "clip": "00-lobby",
+   "from": 0.3,
+   "dur": 6.0
+  },
+  {
+   "clip": "01-cindy-open",
+   "from": 0.2,
+   "dur": 7.6,
+   "caption": "save-them.png",
+   "cap": [
+    1.2,
+    6.9
+   ]
+  },
+  {
+   "clip": "02-northern-dig",
+   "dur": 4.8,
+   "caption": "dig.png",
+   "cap": [
+    0.4,
+    4.3
+   ]
+  },
+  {
+   "clip": "03-attic-build",
+   "dur": 5.8,
+   "caption": "build.png",
+   "cap": [
+    0.4,
+    5.3
+   ]
+  },
+  {
+   "clip": "04-patience-bash",
+   "dur": 4.8,
+   "caption": "bash.png",
+   "cap": [
+    0.4,
+    4.3
+   ]
+  },
+  {
+   "clip": "05-nuke-boom",
+   "dur": 5.8,
+   "caption": "boom.png",
+   "cap": [
+    0.6,
+    5.3
+   ]
+  },
+  {
+   "clip": "06-glide",
+   "dur": 3.3,
+   "caption": "float.png",
+   "cap": [
+    0.4,
+    99
+   ]
+  },
+  {
+   "clip": "07-swim",
+   "dur": 3.1,
+   "caption": "float.png",
+   "cap": [
+    0,
+    99
+   ],
+   "cut": true
+  },
+  {
+   "clip": "08-jump",
+   "dur": 3.1,
+   "caption": "float.png",
+   "cap": [
+    0,
+    99
+   ],
+   "cut": true
+  },
+  {
+   "clip": "09-laser",
+   "dur": 3.3,
+   "caption": "float.png",
+   "cap": [
+    0,
+    2.8
+   ],
+   "cut": true
+  },
+  {
+   "clip": "10-shift-diorama",
+   "dur": 7.8,
+   "vol": 0.45,
+   "caption": "diorama.png",
+   "cap": [
+    1.0,
+    7.1
+   ]
+  },
+  {
+   "clip": "11-catalog",
+   "from": 0.2,
+   "dur": 5.2,
+   "caption": "levels.png",
+   "cap": [
+    0.6,
+    4.8
+   ]
+  },
+  {
+   "clip": "12-izzie",
+   "dur": 2.5
+  },
+  {
+   "clip": "13-candy",
+   "dur": 2.5,
+   "cut": true
+  },
+  {
+   "clip": "14-darkness",
+   "dur": 2.5,
+   "cut": true
+  },
+  {
+   "clip": "15-tube",
+   "dur": 2.5,
+   "cut": true
+  },
+  {
+   "clip": "16-acid",
+   "dur": 2.6,
+   "cut": true
+  },
+  {
+   "clip": "17-cindy-hands",
+   "dur": 6.0,
+   "caption": "point.png",
+   "cap": [
+    0.8,
+    5.5
+   ]
+  },
+  {
+   "image": "end.png",
+   "dur": 7.5
+  }
+ ]
+}
