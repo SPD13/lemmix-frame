@@ -257,17 +257,18 @@ public static class ControllerSticker
     public readonly record struct Placement(Transform3D Transform, Vector3 Size, float Flatness);
 
     // how far from the grip, across the handle and along it, the sticker's centre may go
-    public const float ReachX = 0.008f, ReachZ = 0.045f;
+    public const float ReachX = 0.008f, ReachZ = 0.05f;
 
     /**
      * The decal on the back of the handle, the side that faces the player holding it, its top
      * towards the controller's head. gripInModel: the grip pose in the model's frame (its origin
-     * is the centre of the hand's grasp, on the handle's axis, which runs along Z; +Y is the
-     * handle's back). Searches about the grip for the largest square patch facing out of the back
-     * (not along the handle, as the head's plate does) and flat enough to take it, all on the handle's own part (not on a part lying over it, as the Frame's
-     * status light does), the one nearest the grip of that size: rays cast at the model's
-     * triangles along -Y, over a 3x3 grid on the square. Returns where it went (in the model's
-     * frame), or null.
+     * is the centre of the hand's grasp, on the handle's axis, which runs along Z towards the
+     * handle's end; +Y is the handle's back). Searches for the largest square patch facing out of
+     * the back (not towards the head, as the head's plate does) and flat enough to take it, all on
+     * the handle's own part (not on a part lying over it, as the Frame's status light does), the
+     * one farthest down the handle of that size: first behind the grip, towards the handle's end,
+     * else ahead of it. Rays cast at the model's triangles along -Y, over a 3x3 grid on the
+     * square. Returns where it went (in the model's frame), or null.
      */
     public static Placement? PlaceDecal(Node3D model, Transform3D gripInModel, uint layer)
     {
@@ -276,16 +277,38 @@ public static class ControllerSticker
         // the handle's part: the one a ray from the player's right meets at the grip
         var fromRight = SurfaceRays.Of(model, gripInModel * new Transform3D(new Basis(Vector3.Back, -Mathf.Pi / 2), Vector3.Zero));
         if (back == null || fromRight?.Cast(0, 0) is not { } handle) return null;
-        for (float side = MaxSize; side >= MinSize - 1e-6f; side -= 0.004f)
-        {
-            Transform3D? best = null;
-            float bestDev = 0, bestFar = float.MaxValue;
-            for (float x = -ReachX; x <= ReachX + 1e-6f; x += 0.002f)
-                for (float z = -ReachZ; z <= ReachZ + 1e-6f; z += 0.0025f)
+        foreach (var (zFrom, zTo) in new[] { (0f, ReachZ), (-ReachZ, 0f) })
+            for (float side = MaxSize; side >= MinSize - 1e-6f; side -= 0.004f)
+                if (FitDown(back, handle.Part, side, zFrom, zTo) is { } fit)
                 {
-                    float far = new Vector2(x, z).Length();
-                    if (far >= bestFar) continue;
-                    if (back.Cast(x, z) is not { } c || !OnBack(c, handle.Part)) continue;
+                    var t = gripInModel * fit.At;
+                    var decal = new Decal
+                    {
+                        Name = "lemmix-sticker",
+                        TextureAlbedo = Logo,
+                        Size = new Vector3(side, 2 * fit.Dev + 0.004f, side),
+                        UpperFade = 0, LowerFade = 0, NormalFade = 0.2f,
+                        CullMask = layer,
+                        Transform = t,
+                    };
+                    model.AddChild(decal);
+                    return new Placement(t, decal.Size, fit.Dev);
+                }
+        return null;
+    }
+
+    /**
+     * The patch of the given side farthest down the handle with its centre between zFrom and zTo
+     * (the grip's frame), nearest the handle's middle line at that z; its transform (x right,
+     * y out of the surface, z the image's down) and how far the surface strays from it.
+     */
+    static (Transform3D At, float Dev)? FitDown(SurfaceRays back, int handlePart, float side, float zFrom, float zTo)
+    {
+        for (float z = zTo; z >= zFrom - 1e-6f; z -= 0.0025f)
+            for (float ax = 0; ax <= ReachX + 1e-6f; ax += 0.002f)
+                foreach (float x in ax == 0 ? new[] { 0f } : new[] { -ax, ax })
+                {
+                    if (back.Cast(x, z) is not { } c || !OnBack(c, handlePart)) continue;
                     // the square on the tangent plane, its down along the handle away from the head
                     var n = c.Normal.Normalized();
                     var down = (Vector3.Back - n * Vector3.Back.Dot(n)).Normalized();
@@ -296,41 +319,26 @@ public static class ControllerSticker
                         for (int j = -1; j <= 1 && fits; j++)
                         {
                             var q = c.Point + right * (i * side / 2) + down * (j * side / 2);
-                            // where the plane is at q against where the surface is, along the ray
-                            if (back.Cast(q.X, q.Z) is not { } h || !OnBack(h, handle.Part) || h.Normal.Normalized().Dot(n) < 0.7f) { fits = false; break; }
-                            dev = Mathf.Max(dev, Mathf.Abs(h.Point.Y - q.Y));
+                            // the surface under q, and how far it is from the sticker's plane (along
+                            // the plane's normal, the decal box's depth)
+                            if (back.Cast(q.X, q.Z) is not { } h || !OnBack(h, handlePart) || h.Normal.Normalized().Dot(n) < 0.7f) { fits = false; break; }
+                            dev = Mathf.Max(dev, Mathf.Abs((h.Point - c.Point).Dot(n)));
                         }
-                    if (!fits || dev > MaxDeviation) continue;
-                    bestDev = dev;
-                    bestFar = far;
-                    best = new Transform3D(new Basis(right, n, down), c.Point);
+                    if (fits && dev <= MaxDeviation) return (new Transform3D(new Basis(right, n, down), c.Point), dev);
                 }
-            if (best is not { } grip) continue;
-            var t = gripInModel * grip;
-            var decal = new Decal
-            {
-                Name = "lemmix-sticker",
-                TextureAlbedo = Logo,
-                Size = new Vector3(side, 2 * bestDev + 0.004f, side),
-                UpperFade = 0, LowerFade = 0, NormalFade = 0.2f,
-                CullMask = layer,
-                Transform = t,
-            };
-            model.AddChild(decal);
-            return new Placement(t, decal.Size, bestDev);
-        }
         return null;
     }
 
     // a point of the handle's back: on the handle's part, facing out of the back rather than
-    // along the handle (the head's plate rises from the back of the Frame's handle, ahead of the grip)
+    // towards the head (the head's plate rises from the back of the Frame's handle, ahead of the
+    // grip); towards the handle's end it may lean further, where the back rounds off into the end
     static bool OnBack(RayHit h, int handlePart)
     {
         var n = h.Normal.Normalized();
-        return h.Part == handlePart && n.Y >= 0.6f && Mathf.Abs(n.Z) <= MaxAlongHandle;
+        return h.Part == handlePart && n.Y >= 0.6f && n.Z >= -MaxTowardsHead && n.Z <= MaxTowardsEnd;
     }
 
-    public const float MaxAlongHandle = 0.3f;
+    public const float MaxTowardsHead = 0.3f, MaxTowardsEnd = 0.6f;
 
     // how far the surface may stray from the sticker's plane (a sticker bends, a decal box is thin)
     public const float MaxDeviation = 0.004f;

@@ -35,12 +35,12 @@ public static class ControllerModelsTests
             var decal = model.GetNode<Decal>("lemmix-sticker");
             Check.True(decal.TextureAlbedo == ControllerSticker.Logo, "with the logo");
             Check.Equal(ControllerModels.HandLayer[left ? 0 : 1], decal.CullMask, "on its own hand's layer only");
-            // in the grip's frame: on the handle's back between the head and the status panel
-            // (z -0.0275 .. -0.005), facing the player, its top towards the head
+            // in the grip's frame: on the handle's back, down the shaft between the status panel
+            // and the handle's end (z 0.03 .. 0.0575), facing the player, its top towards the head
             var g = ControllerShot.GripInModel.AffineInverse() * decal.Transform;
             float half = decal.Size.X / 2;
             Check.True(g.Origin.Y > 0.012f && Mathf.Abs(g.Origin.X) < 0.004f, $"on the handle's back ({g.Origin})");
-            Check.True(g.Origin.Z - half > -0.0275f && g.Origin.Z + half < -0.005f, $"by the grip, off the head and the status panel (z {g.Origin.Z}, side {decal.Size.X})");
+            Check.True(g.Origin.Z - half > 0.03f && g.Origin.Z + half < 0.0575f, $"towards the handle's end, off the status panel (z {g.Origin.Z}, side {decal.Size.X})");
             Check.True(g.Basis.Y.Normalized().Y > 0.6f, $"facing out of the back ({g.Basis.Y})");
             Check.True(g.Basis.Z.Normalized().Z > 0.6f, $"upright along the handle: the image's down away from the head ({g.Basis.Z})");
             Check.True(g.Basis.X.Normalized().X > 0.6f, $"the image's right the player's right ({g.Basis.X})");

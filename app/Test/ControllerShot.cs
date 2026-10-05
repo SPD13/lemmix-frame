@@ -4,7 +4,7 @@ using Lemmix.App.Xr;
 namespace Lemmix.App.Test;
 
 // The "controllers" shot: two stand-in controllers (a handle along the grip's Z, a rounded head
-// ahead of it and a status panel on the handle's back behind the grip, dark like the Frame's)
+// ahead of it and a status panel on the handle's back about the grip, dark like the Frame's)
 // wearing the app's sticker as ControllerSticker places it on a runtime model, lit by
 // ControllerModels' lights, each held as the player sees it: the handle's back towards them, the
 // head up. The real models only come from the runtime on the device; this checks the sticker's
