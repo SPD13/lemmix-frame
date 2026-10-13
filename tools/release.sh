@@ -4,8 +4,9 @@
 #   1. checks that the tracked files are committed and that the tag v<config/version> is new
 #      (bump config/version in app/project.godot for each release);
 #   2. make export-linux (skipped with --no-export: the build in build/app/linux-arm64 is used);
-#   3. tools/package.sh -> build/dist/;
-#   4. gh release create v<version> with the package, its checksum and the three installers.
+#   3. tools/package.sh -> build/dist/, tools/make-installer.sh -> build/installer/;
+#   4. gh release create v<version> with the package, its checksum, the installer app for each
+#      system and the three installer scripts.
 # Players get it by running the installer again. The repo must be public for them to download it
 # (or set LEMMIX_RELEASE_URL in the installers to where the files are hosted).
 set -euo pipefail
@@ -28,10 +29,16 @@ tag="v$version"
 
 [ $export = 0 ] || make export-linux
 tools/package.sh
+tools/make-installer.sh
 cd build/dist
 notes="Lemmix for Steam Frame $version ($(git rev-parse --short HEAD)).
 
-Install or update, from a Mac or Linux computer on the Frame's network (Developer Mode on):
+Install or update with the installer app, from a computer on the Frame's network (Developer Mode on):
+Lemmix-Frame-Installer-Windows.exe (Windows 10/11), Lemmix-Frame-Installer-macOS.zip (macOS 12+),
+Lemmix-Frame-Installer-Linux-x86_64.tar.gz or -arm64.tar.gz (Linux). It finds the Frame, pairs with it,
+and installs or updates Lemmix with one button.
+
+Or with the scripts, from a Mac or Linux computer:
 
     curl -fsSL https://github.com/SPD13/lemmix-frame/releases/latest/download/install.sh | bash
 
@@ -43,4 +50,5 @@ Step by step: https://github.com/SPD13/lemmix-frame#install-on-your-steam-frame"
 git tag "$tag"
 git push origin "$tag"
 gh release create "$tag" --verify-tag ${draft[@]+"${draft[@]}"} --title "Lemmix for Steam Frame $version" --notes "$notes" \
-  lemmix-frame-linux-arm64.tar.gz lemmix-frame-linux-arm64.tar.gz.sha256 frame-install.sh install.sh install.ps1
+  lemmix-frame-linux-arm64.tar.gz lemmix-frame-linux-arm64.tar.gz.sha256 frame-install.sh install.sh install.ps1 \
+  ../installer/Lemmix-Frame-Installer-*
