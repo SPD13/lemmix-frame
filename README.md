@@ -25,15 +25,16 @@ The plan, phases and decisions: `docs/plan.md`.
 ## Install on your Steam Frame
 
 Lemmix is not in the Steam store. The Frame runs it the way it runs games under development: as a
-**devkit title**, which needs the headset's **Developer Mode**. An installer on your computer copies
-the game to the headset over the network and adds it to your Steam library. You only need the
+**devkit title**, which needs the headset's **Developer Mode**. The installer app on your computer finds the headset,
+pairs with it, copies the game to it over the network and adds it to your Steam library. The same
+app updates the game later. You only need the
 computer for the install (about 5 minutes). After that the game runs on the headset alone.
 
 **What you need**
 
 - A Steam Frame on Wi-Fi, with its system up to date.
-- A computer on the **same network**: Windows 10 or 11, macOS, or Linux. Nothing needs installing
-  on it: the installer only uses what the system already has (`ssh` and `curl`).
+- A computer on the **same network**: Windows 10 or 11, macOS 12 or later, or Linux. Nothing needs
+  installing on it: the installer app brings everything it uses.
 - About 1 GB free on the Frame:
   - about 160 MB for the game (a 65 MB download);
   - about 430 MB for Steam Linux Runtime 4, which Steam downloads at the first launch if it isn't
@@ -57,7 +58,82 @@ The Frame's network name is usually `frame`, so its address is `frame.local`. Th
 for it on its own. If it can't find it, it asks for the address. You can then type the Frame's
 **IP address**, which is in its Wi-Fi settings (the details of the connected network).
 
-### 2. Run the installer on your computer
+### 2. Download the installer app
+
+| Computer | Download |
+| --- | --- |
+| Windows 10, 11 | [Lemmix-Frame-Installer-Windows.exe](https://github.com/SPD13/lemmix-frame/releases/latest/download/Lemmix-Frame-Installer-Windows.exe) |
+| macOS 12 or later | [Lemmix-Frame-Installer-macOS.zip](https://github.com/SPD13/lemmix-frame/releases/latest/download/Lemmix-Frame-Installer-macOS.zip) |
+| Linux (PC, Steam Deck) | [Lemmix-Frame-Installer-Linux-x86_64.tar.gz](https://github.com/SPD13/lemmix-frame/releases/latest/download/Lemmix-Frame-Installer-Linux-x86_64.tar.gz) |
+| Linux (ARM64) | [Lemmix-Frame-Installer-Linux-arm64.tar.gz](https://github.com/SPD13/lemmix-frame/releases/latest/download/Lemmix-Frame-Installer-Linux-arm64.tar.gz) |
+
+The links always give the latest version. The app always installs the latest release of the game,
+so you don't need a new copy of the app for each release.
+
+The app is not signed with a paid certificate, so Windows and macOS warn the first time it is opened:
+
+- **Windows:** double-click `Lemmix-Frame-Installer-Windows.exe`. If Windows says "Windows protected
+  your PC", choose **More info**, then **Run anyway**. If the browser warns that the file is not
+  commonly downloaded, choose to keep it.
+- **macOS:** open the `.zip` (Safari may already have done it). You can move **Lemmix Installer** to
+  your Applications folder. Double-click it. If macOS says it cannot verify the app ("Not Opened"):
+  1. Choose **Done**.
+  2. Open **System Settings > Privacy & Security**.
+  3. Scroll down to **Security**, choose **Open Anyway** next to the app's name, and confirm.
+
+  When the app asks to **find devices on local networks**, choose **Allow**: that is how it reaches
+  the Frame.
+- **Linux:** unpack the download and run the app, for example in a terminal:
+  `tar -xzf Lemmix-Frame-Installer-Linux-x86_64.tar.gz && ./Lemmix-Frame-Installer`. It opens in
+  your web browser and quits when the page is closed.
+
+### 3. Connect, pair and install
+
+**Step 1 of the app, connect to the Frame.** The app looks for the Frame on the network and connects
+to it. Four checks turn green:
+
+1. **Frame found on the network.**
+2. **Developer Mode is on.**
+3. **Paired with this computer.** This needs you the first time only:
+   1. Put the headset on, with Steam's menus showing (not a game).
+   2. Choose **Pair with the Frame** in the app.
+   3. The Frame shows a pairing request from a **development host**. It shows your computer's IP
+      address and the key's name, `lemmix-installer@<your computer>`. **Accept it within 30
+      seconds.**
+
+   If you miss the request or decline it, choose **Pair with the Frame** again.
+4. **Frame ready for Lemmix:** Steam is running, and there is enough free space.
+
+If a check turns red, it says what is wrong and what to do. For example: wake the headset, turn
+Developer Mode on, or type the Frame's IP address in **Frame address**. Fix it, then choose **Check
+again**.
+
+**Step 2 of the app, install.** The app shows what is on the Frame and the latest version on GitHub.
+Choose **Install**:
+1. The game is downloaded and sent to the Frame; a progress bar shows.
+2. The app checks the download's checksum.
+3. It installs the game in `~/devkit-game/lemmix` and registers it with Steam.
+
+It ends with **Installed! Put the headset on and play.**
+
+**What pairing does.** Accepting does two things on the Frame:
+- it adds the installer's key to the authorized keys of its user, `steamos`;
+- it switches its SSH server on.
+
+The key stays on your computer:
+- macOS and Linux: `~/.config/lemmix-frame/frame_rsa`;
+- Windows: `%LOCALAPPDATA%\lemmix-frame\frame_rsa`.
+
+The app and the scripts below share that key: a computer paired by one is paired for the other. Have
+you already paired this computer with the SteamOS Devkit Client, or set up SSH on the Frame yourself?
+Then the installer uses that access and skips pairing. Did you set a password in **Settings >
+Developer > Set User Password**? Then you can also sign in with it (**Sign in with it instead**)
+rather than pair in the headset. The app then pairs this computer for the next times.
+
+#### Installing with the scripts instead
+
+The scripts do the same as the app from a terminal, for older systems or scripted installs. They pair
+the same way. They only need what the system has (`ssh` and `curl`).
 
 **macOS or Linux:** open Terminal (on macOS: Applications > Utilities > Terminal), paste this line
 and press Enter:
@@ -75,37 +151,18 @@ powershell -ExecutionPolicy Bypass -c "irm https://github.com/SPD13/lemmix-frame
 Would you rather read the scripts before running them? Download `install.sh` or `install.ps1` and
 `frame-install.sh` from the [latest release](https://github.com/SPD13/lemmix-frame/releases/latest)
 into one folder. Then run `bash install.sh`, or
-`powershell -ExecutionPolicy Bypass -File install.ps1` on Windows. They take the same options as
-below.
+`powershell -ExecutionPolicy Bypass -File install.ps1` on Windows. They take the options in the
+table below.
 
-### 3. Accept the pairing in the headset (first install only)
+The first time, the script pairs your computer with the Frame:
+1. It shows: *"Press Enter, then put the headset on and accept"*.
+2. Press Enter and put the headset on.
+3. Accept the request within 30 seconds, as above.
 
-The first time, the installer pairs your computer with the Frame:
-1. It makes an ssh key for itself and sends it to the headset.
-2. It shows: *"Press Enter, then put the headset on and accept"*. Press Enter and put the headset
-   on. Stay in Steam's menus, not in a game.
-3. The Frame shows a pairing request from a **development host**, with your computer's IP address
-   and the key's name `lemmix-installer@<your computer>`. **Accept it within 30 seconds.**
-
-If you miss it or decline it, run the installer again.
-
-Accepting does two things on the Frame:
-- it adds the installer's key to the authorized keys of its user, `steamos`;
-- it switches its SSH server on.
-
-The key stays on your computer:
-- macOS and Linux: `~/.config/lemmix-frame/frame_rsa`;
-- Windows: `%LOCALAPPDATA%\lemmix-frame\frame_rsa`.
-
-The next runs use that key and don't ask again. Have you already paired this computer with the
-SteamOS Devkit Client, or set up SSH on the Frame yourself? Then the installer uses that access and
-skips this step.
-
-The installer then goes on alone:
+The script then goes on alone:
 1. The Frame downloads the latest release from GitHub and checks its checksum.
-2. It installs the game in `~/devkit-game/lemmix`.
-3. It registers the game with Steam.
-4. The installer ends with *"Done"*.
+2. It installs the game and registers it with Steam.
+3. The script ends with *"Done"*.
 
 ### 4. Play
 
@@ -126,8 +183,14 @@ or zips).
 
 ### Update, reinstall, uninstall
 
-Run the same line again to **update** to the latest release. Your levels, settings, progress and
-replays are kept: they live apart from the game, in `~/.local/share/godot/app_userdata/Lemmix`.
+To **update**, open the installer app again: it connects by itself. When a newer version is out,
+step 2 shows **Update available** and a button **Update to &lt;version&gt;**. **Up to date** means
+there is nothing to do. To **uninstall**, choose **Uninstall Lemmix from the Frame...** at the
+bottom of step 2. Tick the box to also delete the game data it downloaded.
+
+Your levels, settings, progress and replays are kept across updates: they live apart from the
+game, in `~/.local/share/godot/app_userdata/Lemmix`. With the scripts, run the same line again to
+update:
 
 | | macOS / Linux | Windows (PowerShell) |
 |---|---|---|
@@ -149,6 +212,19 @@ curl -fsSL https://github.com/SPD13/lemmix-frame/releases/latest/download/frame-
 It also takes `--uninstall` and `--purge` (`… | bash -s -- --uninstall`).
 
 ### If something goes wrong
+
+The installer app says what went wrong next to the check or step that failed, and what to do. It
+keeps a log of what it did: `installer.log` in `%LOCALAPPDATA%\lemmix-frame-installer` (Windows),
+`~/Library/Caches/lemmix-frame-installer` (macOS) or `~/.cache/lemmix-frame-installer` (Linux).
+Attach it when you [report a problem](https://github.com/SPD13/lemmix-frame/issues).
+
+- **macOS: the app "cannot be opened" or is "Not Opened":** **System Settings > Privacy & Security >
+  Open Anyway** (see step 2). If it can't find the Frame, allow it in **System Settings > Privacy &
+  Security > Local Network**.
+- **"The Frame's identity has changed"** (installer app, after the Frame was reset): choose **Trust
+  the Frame's new key**.
+
+The scripts' messages:
 
 - **"does not answer on port 32000":** the computer can't reach the Frame's devkit service.
   - Check that Developer Mode is on.
@@ -191,6 +267,8 @@ app/                    the Godot project
 native/libopenmpt/      tracker music library, built for linux-arm64 (sniper SDK image) and macOS
 oracle/                 Node dumpers running the web engine, the reference for the C# port
 parity/matrix.json      every web feature to replicate, with its oracle and status (node parity/gen-matrix.js)
+installer/              the installer app for players (Go: Windows, macOS, Linux), built by tools/make-installer.sh
+dist/                   the installer scripts (install.sh, install.ps1) and frame-install.sh, which runs on the Frame
 tools/                  build, test, export, deploy and report scripts
 docs/                   plan, probe results, porting notes
 ```
@@ -228,7 +306,19 @@ tools/frame-capture.sh                         a picture of the headset's view
 
 ### Distribution
 
-- **`dist/`** holds the installers that players run:
+- **`installer/`** is the installer app, in Go. It is built by `tools/make-installer.sh` into
+  `build/installer/` for Windows, macOS and Linux:
+  - It shows a web page (`installer/ui/`) in a native window: WebView2 on Windows, WebKit on macOS.
+    On Linux it opens in the browser.
+  - It finds the Frame (mDNS) and pairs like the scripts, with the same key. Its ssh client is its
+    own, so the computer needs nothing installed.
+  - It streams the release package to the Frame and checks its checksum. Then it runs that
+    release's `frame-install.sh --file` over ssh. It falls back to the copy embedded at build time
+    (`installer/embedded/`) for uninstalls and `--archive`.
+  - To try a release before publishing: `--archive build/dist/lemmix-frame-linux-arm64.tar.gz`, or
+    `LEMMIX_RELEASE_API=<a JSON in GitHub's releases/latest format>`.
+  - It is a port of the VPX Steam Frame installer app; keep the two in step.
+- **`dist/`** holds the installer scripts:
   - `install.sh` (macOS/Linux) and `install.ps1` (Windows) run on the computer. They find the
     Frame (the `_steamos-devkit._tcp` mDNS service), pair with it if needed, then run
     `frame-install.sh` over ssh.
@@ -241,13 +331,14 @@ tools/frame-capture.sh                         a picture of the headset's view
     `devkit-utils`.
 - **The package** is `lemmix-frame-linux-arm64.tar.gz`: a `lemmix/` folder holding the export
   and a `VERSION` file (`config/version` and the commit).
-- **The download location** is `releases/latest/download/` of this repo. Change it in the three
-  installers, or with `LEMMIX_RELEASE_URL` for a test. The repo must be public for players to
+- **The download location** is `releases/latest/download/` of this repo (the app reads
+  `releases/latest` through GitHub's API). Change it in the three scripts and `installer/app.go`, or with `LEMMIX_RELEASE_URL` for a test. The repo must be public for players to
   download from it.
 - **To release:**
   1. Bump `config/version` in `app/project.godot` and commit.
   2. Run `tools/release.sh` (`--draft` to check it first; `--no-export` to reuse the current
-     export). It refuses a dirty tree or an existing tag.
+     export). It refuses a dirty tree or an existing tag. It builds the installer app too (needs
+     Go: `brew install go`) and attaches it to the release.
 - **To try a package before publishing,** serve `build/dist` and point the installer at it:
   `(cd build/dist && python3 -m http.server 8124)`, then
   `LEMMIX_RELEASE_URL=http://<this Mac's IP>:8124 bash build/dist/install.sh`.
